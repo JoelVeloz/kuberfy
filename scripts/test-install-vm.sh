@@ -5,7 +5,9 @@
 #
 # Usage: bash scripts/test-install-vm.sh
 # Env overrides: VM_NAME, VM_CPUS, VM_MEM, VM_DISK, ADMIN_EMAIL
-# KEEP=1 bash scripts/test-install-vm.sh   # skip teardown, to poke around after
+# KEEP=1 bash scripts/test-install-vm.sh            # skip teardown, to poke around after
+# FROM_REGISTRY=1 bash scripts/test-install-vm.sh   # pull the published image instead of
+#                                                    # building local changes (real end-user path)
 
 set -euo pipefail
 
@@ -42,12 +44,18 @@ trap cleanup EXIT
 echo "==> Mounting repo into the VM"
 multipass mount "$REPO_ROOT" "$VM_NAME:$MOUNT_POINT"
 
-echo "==> Running install.sh as root inside the VM"
+repo_env=""
+if [ "${FROM_REGISTRY:-0}" != "1" ]; then
+  repo_env="KUBERFY_REPO='$MOUNT_POINT'"
+  echo "==> Running install.sh as root inside the VM (building from local source)"
+else
+  echo "==> Running install.sh as root inside the VM (pulling the published image)"
+fi
 # `bash -c` must be the top-level command here, with `sudo` nested inside it:
 # `multipass exec <vm> -- sudo ...` unreliably reports the wrong exit code (and
 # sometimes swallows stdout) back to the host when sudo itself is top-level.
 multipass exec "$VM_NAME" -- bash -c \
-  "sudo sh -c \"ADMIN_EMAIL='$ADMIN_EMAIL' KUBERFY_REPO='$MOUNT_POINT' sh '$MOUNT_POINT/install.sh'\""
+  "sudo sh -c \"ADMIN_EMAIL='$ADMIN_EMAIL' $repo_env sh '$MOUNT_POINT/install.sh'\""
 
 vm_ip=$(multipass info "$VM_NAME" | awk '/IPv4/{print $2; exit}')
 

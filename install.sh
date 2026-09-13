@@ -4,12 +4,15 @@
 # Docker install, single-node Swarm init, then the app + Traefik.
 #
 # Usage:
-#   curl -sSL https://<host>/install.sh | ADMIN_EMAIL=admin@example.com KUBERFY_REPO=<git-url> sh
+#   curl -sSL https://<host>/install.sh | ADMIN_EMAIL=admin@example.com sh
 #
 # Required env vars (no interactive prompts, so they must be set up front):
 #   ADMIN_EMAIL   email for the first admin user (bootstrapped at the end)
-#   KUBERFY_REPO  git URL to clone and build the image from (no registry image published yet)
 # Optional:
+#   KUBERFY_IMAGE   image to pull (default: ghcr.io/joelveloz/kuberfy:latest)
+#   KUBERFY_REPO    git URL to build the image from instead of pulling — for testing
+#                   unreleased changes; when set, KUBERFY_IMAGE is only the tag applied
+#                   to the local build, nothing is pulled
 #   KUBERFY_DOMAIN  domain routed to kuberfy via Traefik (defaults to the server's IP, no TLS)
 #   ACME_EMAIL      email for Let's Encrypt (defaults to admin@example.com)
 #   ADVERTISE_ADDR  override automatic IP detection for `docker swarm init`
@@ -38,7 +41,6 @@ if [ -f /.dockerenv ]; then
 fi
 
 [ -n "$ADMIN_EMAIL" ] || fail "set ADMIN_EMAIL to bootstrap the first admin user (e.g. ADMIN_EMAIL=admin@example.com)"
-[ -n "$KUBERFY_REPO" ] || fail "set KUBERFY_REPO to the git URL to build kuberfy from (no published registry image yet)"
 
 for port in 80 443 3000; do
   if ss -tulnp | grep ":${port} " >/dev/null 2>&1; then
@@ -51,8 +53,6 @@ if command_exists docker; then
 else
   curl -sSL https://get.docker.com | sh
 fi
-
-command_exists git || (apt-get update && apt-get install -y git)
 
 get_private_ip() {
   # first private (RFC1918) IP on a real interface — excludes docker-created
@@ -80,12 +80,17 @@ docker swarm init --advertise-addr "$advertise_addr"
 docker network rm -f kuberfy-network 2>/dev/null || true
 docker network create --driver overlay --attachable kuberfy-network
 
-if [ ! -d /opt/kuberfy/src ]; then
-  git clone "$KUBERFY_REPO" /opt/kuberfy/src
-fi
+KUBERFY_IMAGE="${KUBERFY_IMAGE:-ghcr.io/joelveloz/kuberfy:latest}"
 
-KUBERFY_IMAGE="${KUBERFY_IMAGE:-kuberfy:local}"
-docker build -t "$KUBERFY_IMAGE" /opt/kuberfy/src
+if [ -n "$KUBERFY_REPO" ]; then
+  command_exists git || (apt-get update && apt-get install -y git)
+  if [ ! -d /opt/kuberfy/src ]; then
+    git clone "$KUBERFY_REPO" /opt/kuberfy/src
+  fi
+  docker build -t "$KUBERFY_IMAGE" /opt/kuberfy/src
+else
+  docker pull "$KUBERFY_IMAGE"
+fi
 
 # BETTER_AUTH_SECRET goes in as a plain service env var, not a Docker secret:
 # apps/api/src/lib/env.ts reads it directly (no *_FILE support), unlike Dokploy's
