@@ -136,24 +136,28 @@ fi
 # Step 4: Docker Swarm & Network
 step "4/5" "Initializing Docker Swarm & network..."
 
-get_private_ip() {
-  ip -o -4 addr show scope global \
-    | awk '$2 !~ /^(docker|br-|veth)/ {print $4}' \
-    | cut -d/ -f1 \
-    | grep -E "^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)" \
-    | head -n1
+get_local_ip() {
+  ip route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}' \
+    || ip -o -4 addr show scope global | awk '$2 !~ /^(docker|br-|veth)/ {print $4}' | cut -d/ -f1 | head -n1
 }
 
 get_public_ip() {
-  curl -4s --connect-timeout 5 https://ifconfig.io 2>/dev/null \
-    || curl -4s --connect-timeout 5 https://icanhazip.com 2>/dev/null
+  curl -4s --connect-timeout 4 https://ifconfig.me 2>/dev/null \
+    || curl -4s --connect-timeout 4 https://api.ipify.org 2>/dev/null \
+    || curl -4s --connect-timeout 4 https://icanhazip.com 2>/dev/null \
+    || curl -4s --connect-timeout 4 https://ifconfig.io 2>/dev/null
 }
 
-advertise_addr="${ADVERTISE_ADDR:-$(get_private_ip)}"
-[ -n "$advertise_addr" ] || advertise_addr=$(get_public_ip)
+public_ip=$(get_public_ip)
+local_ip=$(get_local_ip)
+
+advertise_addr="${ADVERTISE_ADDR:-$local_ip}"
+[ -n "$advertise_addr" ] || advertise_addr="$public_ip"
 [ -n "$advertise_addr" ] || fail "Could not detect server IP address automatically. Set ADVERTISE_ADDR manually."
 
-info "Server IP detected: $advertise_addr"
+server_host="${KUBERFY_DOMAIN:-${public_ip:-$advertise_addr}}"
+
+info "Public IP: ${public_ip:-None} | Local IP: ${local_ip:-None}"
 
 docker swarm leave --force 2>/dev/null || true
 docker swarm init --advertise-addr "$advertise_addr" >/dev/null
@@ -193,9 +197,9 @@ docker service create \
   --update-order stop-first \
   --constraint 'node.role == manager' \
   -e BETTER_AUTH_SECRET="$AUTH_SECRET" \
-  -e BETTER_AUTH_URL="http://${KUBERFY_DOMAIN:-$advertise_addr}:3000" \
+  -e BETTER_AUTH_URL="http://${server_host}:3000" \
   --label "traefik.enable=true" \
-  --label "traefik.http.routers.kuberfy.rule=Host(\`${KUBERFY_DOMAIN:-$advertise_addr}\`)" \
+  --label "traefik.http.routers.kuberfy.rule=Host(\`${server_host}\`)" \
   --label "traefik.http.routers.kuberfy.entrypoints=web" \
   --label "traefik.http.services.kuberfy.loadbalancer.server.port=3000" \
   "$KUBERFY_IMAGE" >/dev/null
@@ -252,11 +256,17 @@ fi
 EOF
 chmod +x /usr/local/bin/kuberfy
 
-target_url="http://${KUBERFY_DOMAIN:-$advertise_addr}:3000"
+target_url="http://${server_host}:3000"
+
+if [ -t 1 ] || [ -e /dev/tty ]; then
+  clickable_url=$(printf "\033]8;;%s\033\\%s\033]8;;\033\\" "$target_url" "$target_url")
+else
+  clickable_url="$target_url"
+fi
 
 printf "\n${GREEN}${BOLD}==========================================================${NC}\n"
 printf "${GREEN}${BOLD}  ✔ Kuberfy is successfully installed!${NC}\n"
 printf "${GREEN}${BOLD}==========================================================${NC}\n\n"
-printf "${BOLD}  ➜ Dashboard URL :${NC} ${CYAN}%s${NC}\n" "$target_url"
+printf "${BOLD}  ➜ Dashboard URL :${NC} ${CYAN}%s${NC}\n" "$clickable_url"
 printf "${BOLD}  ➜ Admin Email   :${NC} %s\n" "$ADMIN_EMAIL"
 printf "${BOLD}  ➜ Host CLI      :${NC} Run ${CYAN}'kuberfy'${NC} or ${CYAN}'kuberfy update'${NC} anywhere\n\n"
