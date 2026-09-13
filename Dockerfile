@@ -11,7 +11,6 @@ COPY apps/api/package.json ./
 RUN bun install --production
 COPY apps/api .
 RUN bun build --compile --minify src/cli.ts --outfile kuberfy
-RUN apk add --no-cache upx && upx --all-methods --no-lzma kuberfy
 
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates libstdc++ libgcc git
