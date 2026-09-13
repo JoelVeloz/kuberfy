@@ -56,7 +56,7 @@ printf "└───────────────────────
 printf "${NC}\n"
 
 # Step 1: Guard Rails & Host Firewall
-step "1/5" "Verifying system requirements & host firewall..."
+step "1/6" "Verifying system requirements & host firewall..."
 
 if [ "$(id -u)" != "0" ]; then
   fail "This script must be run as root (use: curl -sSL https://kuberfy.pages.dev/install.sh | sudo sh)"
@@ -95,7 +95,7 @@ done
 success "System requirements & host firewall configured."
 
 # Step 2: Configuration & Interactive Prompts
-step "2/5" "Configuring installation settings..."
+step "2/6" "Configuring installation settings..."
 
 if [ -z "$ADMIN_EMAIL" ]; then
   if [ -t 0 ]; then
@@ -124,7 +124,7 @@ if [ -z "$KUBERFY_DOMAIN" ]; then
 fi
 
 # Step 3: Docker Installation
-step "3/5" "Checking Docker container runtime..."
+step "3/6" "Checking Docker container runtime..."
 
 if command_exists docker; then
   success "Docker is already installed."
@@ -150,7 +150,7 @@ else
 fi
 
 # Step 4: Docker Swarm & Network
-step "4/5" "Initializing Docker Swarm & network..."
+step "4/6" "Initializing Docker Swarm & network..."
 
 get_local_ip() {
   ip route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}' \
@@ -184,7 +184,7 @@ docker network create --driver overlay --attachable kuberfy-network >/dev/null
 success "Docker Swarm cluster and overlay network initialized."
 
 # Step 5: Pull & Start Services
-step "5/5" "Deploying Kuberfy control plane & Traefik proxy..."
+step "5/6" "Deploying Kuberfy control plane & Traefik proxy..."
 
 KUBERFY_IMAGE="${KUBERFY_IMAGE:-ghcr.io/joelveloz/kuberfy:latest}"
 
@@ -238,7 +238,7 @@ docker run -d \
   --certificatesresolvers.le.acme.email="${ACME_EMAIL:-$ADMIN_EMAIL}" \
   --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json >/dev/null
 
-info "Waiting for Kuberfy container to start..."
+info "Waiting for Kuberfy service to be ready..."
 container_id=""
 for _ in $(seq 1 30); do
   container_id=$(docker ps -q -f label=com.docker.swarm.service.name=kuberfy -f status=running | head -n1)
@@ -247,13 +247,17 @@ for _ in $(seq 1 30); do
 done
 [ -n "$container_id" ] || fail "Kuberfy container did not start in time. Check 'docker service logs kuberfy'."
 
-info "Bootstrapping initial admin account ($ADMIN_EMAIL)..."
+success "Kuberfy control plane & Traefik proxy deployed."
+
+# Step 6: Admin Account & Host CLI
+step "6/6" "Configuring admin account & host CLI..."
+
+admin_password=""
 user_out=$(docker exec "$container_id" ./kuberfy create-user --email "$ADMIN_EMAIL" --role admin 2>&1) || true
-if echo "$user_out" | grep -i "already exists" >/dev/null; then
-  info "Admin account ($ADMIN_EMAIL) already exists."
-elif echo "$user_out" | grep -i "temporary password:" >/dev/null; then
-  pwd_text=$(echo "$user_out" | grep -i "temporary password:")
-  info "$pwd_text"
+if echo "$user_out" | grep -iq "already exists"; then
+  info "Admin account ($ADMIN_EMAIL) is already configured."
+else
+  admin_password=$(echo "$user_out" | grep -i "temporary password:" | sed -n 's/.*temporary password: *\([^ ]*\).*/\1/p')
 fi
 
 cat <<'EOF' > /usr/local/bin/kuberfy
@@ -314,6 +318,7 @@ else
 fi
 EOF
 chmod +x /usr/local/bin/kuberfy
+success "Host CLI installed to /usr/local/bin/kuberfy."
 
 target_url="http://${server_host}:3000"
 
@@ -323,9 +328,13 @@ else
   clickable_url="$target_url"
 fi
 
-printf "\n${GREEN}${BOLD}==========================================================${NC}\n"
-printf "${GREEN}${BOLD}  ✔ Kuberfy is successfully installed!${NC}\n"
-printf "${GREEN}${BOLD}==========================================================${NC}\n\n"
-printf "${BOLD}  ➜ Dashboard URL :${NC} ${CYAN}%s${NC}\n" "$clickable_url"
-printf "${BOLD}  ➜ Admin Email   :${NC} %s\n" "$ADMIN_EMAIL"
-printf "${BOLD}  ➜ Host CLI      :${NC} Run ${CYAN}'kuberfy'${NC} or ${CYAN}'kuberfy update'${NC} anywhere\n\n"
+printf "\n${GREEN}${BOLD}┌──────────────────────────────────────────────────────────┐${NC}\n"
+printf "${GREEN}${BOLD}│            ✔ KUBERFY INSTALLED SUCCESSFULLY              │${NC}\n"
+printf "${GREEN}${BOLD}└──────────────────────────────────────────────────────────┘${NC}\n\n"
+printf "${BOLD}  ➜ Dashboard URL  :${NC} ${CYAN}%s${NC}\n" "$clickable_url"
+printf "${BOLD}  ➜ Admin Email    :${NC} %s\n" "$ADMIN_EMAIL"
+if [ -n "$admin_password" ]; then
+  printf "${BOLD}  ➜ Admin Password :${NC} ${YELLOW}${BOLD}%s${NC}\n" "$admin_password"
+fi
+printf "\n${BOLD}  ➜ CLI Management :${NC} Run ${CYAN}'kuberfy'${NC} or ${CYAN}'kuberfy logs'${NC} anytime\n"
+printf "${GREEN}${BOLD}────────────────────────────────────────────────────────────${NC}\n\n"
