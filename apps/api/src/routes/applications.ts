@@ -1,4 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
+import { StatusCodes } from "http-status-codes";
 import { desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
@@ -13,7 +14,7 @@ applications.use("*", requireAuth);
 applications.post("/", zValidator("json", apiCreateApplication), async (c) => {
   const input = c.req.valid("json");
   const [created] = await db.insert(application).values(input).returning();
-  return c.json(created, 201);
+  return c.json(created, StatusCodes.CREATED);
 });
 
 applications.get("/:id", async (c) => {
@@ -24,7 +25,7 @@ applications.get("/:id", async (c) => {
       domains: true,
     },
   });
-  if (!found) throw new HTTPException(404, { message: "Application not found" });
+  if (!found) throw new HTTPException(StatusCodes.NOT_FOUND, { message: "Application not found" });
   return c.json(found);
 });
 
@@ -35,6 +36,6 @@ applications.patch("/:id", zValidator("json", apiUpdateApplication), async (c) =
     .set({ ...input, updatedAt: new Date() })
     .where(eq(application.id, c.req.param("id")))
     .returning();
-  if (!updated) throw new HTTPException(404, { message: "Application not found" });
+  if (!updated) throw new HTTPException(StatusCodes.NOT_FOUND, { message: "Application not found" });
   return c.json(updated);
 });

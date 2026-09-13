@@ -1,6 +1,7 @@
 node_modules
 dist
 .astro
+apps/api/public
 *.db
 *.db-*
 .env

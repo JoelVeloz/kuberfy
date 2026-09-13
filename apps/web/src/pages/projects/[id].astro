@@ -39,9 +39,9 @@ const apps = getApplicationsByProject(project.id);
             {apps.map((app) => {
               const latest = getLatestDeployment(app.id);
               return (
-                <TableRow>
+                <TableRow className="relative cursor-pointer">
                   <TableCell>
-                    <a href={`/applications/${app.id}`} className="font-medium hover:underline">
+                    <a href={`/applications/${app.id}`} className="font-medium after:absolute after:inset-0">
                       {app.name}
                     </a>
                   </TableCell>

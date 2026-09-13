@@ -29,9 +29,9 @@ import { projects, getApplicationsByProject } from "@/lib/mock-data";
           {projects.map((project) => {
             const appCount = getApplicationsByProject(project.id).length;
             return (
-              <TableRow>
+              <TableRow className="relative cursor-pointer">
                 <TableCell>
-                  <a href={`/projects/${project.id}`} class="font-medium hover:underline">
+                  <a href={`/projects/${project.id}`} class="font-medium after:absolute after:inset-0">
                     {project.name}
                   </a>
                 </TableCell>

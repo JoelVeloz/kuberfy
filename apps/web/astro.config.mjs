@@ -11,5 +11,11 @@ export default defineConfig({
 
   vite: {
     plugins: [tailwindcss()],
+    // dev-only: proxies to apps/api (:3000) so relative /api/* fetches work; same origin already in the Docker image
+    server: {
+      proxy: {
+        "/api": "http://localhost:3000",
+      },
+    },
   },
 });
