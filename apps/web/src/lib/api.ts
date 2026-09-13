@@ -57,6 +57,15 @@ export interface ApiPage<T> {
   total: number;
 }
 
+export interface ApiServiceTask {
+  taskId: string;
+  containerId: string | null;
+  state: string;
+  message: string | null;
+  err: string | null;
+  createdAt: string;
+}
+
 export interface ApiTrafficEvent {
   time: string;
   method: string;
@@ -86,6 +95,33 @@ export interface ApiUser {
   name: string;
   role: string | null;
   createdAt: string;
+  passkeyCount: number;
+}
+
+export interface ApiUserPasskey {
+  id: string;
+  name: string | null;
+  createdAt: string | null;
+  aaguid: string | null;
+}
+
+export interface ApiUserSession {
+  id: string;
+  token: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export interface ApiUserDetail {
+  id: string;
+  email: string;
+  name: string;
+  role: string | null;
+  createdAt: string;
+  passkeys: ApiUserPasskey[];
+  sessions: ApiUserSession[];
 }
 
 export interface ApiSettings {
@@ -178,6 +214,7 @@ export const api = {
   listDeployments: (applicationId: string, page = 1, pageSize = 20) =>
     request<ApiPage<ApiDeployment>>(`/api/applications/${applicationId}/deployments?page=${page}&pageSize=${pageSize}`),
   getDeployment: (applicationId: string, deploymentId: string) => request<ApiDeployment>(`/api/applications/${applicationId}/deployments/${deploymentId}`),
+  listApplicationTasks: (applicationId: string) => request<{ items: ApiServiceTask[] }>(`/api/applications/${applicationId}/tasks`),
   createApplication: (input: { projectId: string; name: string; repoUrl: string; branch: string; buildType: BuildType; envVars?: string }) =>
     request<ApiApplication>("/api/applications", {
       method: "POST",
@@ -252,9 +289,13 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password, role }),
     }),
+  getUser: (id: string) => request<ApiUserDetail>(`/api/users/${id}`),
+  revokeUserSession: (userId: string, token: string) => request<{ success: boolean }>(`/api/users/${userId}/sessions/${token}`, { method: "DELETE" }),
+  revokeAllUserSessions: (userId: string) => request<{ success: boolean }>(`/api/users/${userId}/sessions`, { method: "DELETE" }),
+  deleteUserPasskey: (userId: string, passkeyId: string) => request<{ success: boolean }>(`/api/users/${userId}/passkeys/${passkeyId}`, { method: "DELETE" }),
   getTrafficSummary: (range: string, host?: string) =>
     request<ApiTrafficSummary>(`/api/observability/traffic/summary?range=${range}${host && host !== "all" ? `&host=${encodeURIComponent(host)}` : ""}`),
-  getTrafficHosts: (range: string) => request<{ hosts: string[] }>(`/api/observability/traffic/hosts?range=${range}`),
+  getTrafficHosts: (range: string) => request<{ hosts: Array<{ host: string; service: string | null }> }>(`/api/observability/traffic/hosts?range=${range}`),
   listTrafficEvents: (range: string, host: string | undefined, page: number, pageSize: number) =>
     request<ApiPage<ApiTrafficEvent>>(
       `/api/observability/traffic/events?range=${range}&page=${page}&pageSize=${pageSize}${host && host !== "all" ? `&host=${encodeURIComponent(host)}` : ""}`,

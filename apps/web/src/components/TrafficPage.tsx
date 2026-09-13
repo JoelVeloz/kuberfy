@@ -148,8 +148,8 @@ function TrafficPageInner() {
             >
               <option value="all">All domains</option>
               {hosts.map((h) => (
-                <option key={h} value={h}>
-                  {h}
+                <option key={h.host} value={h.host}>
+                  {h.service ? `${h.host} (${h.service})` : h.host}
                 </option>
               ))}
             </select>

@@ -2,9 +2,9 @@ import { PassThrough } from "node:stream";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { upgradeWebSocket } from "hono/bun";
-import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { db } from "../db";
-import { requestLog } from "../db/schema/app";
+import { application, requestLog } from "../db/schema/app";
 import { docker } from "../services/deploy";
 import { requireAuth } from "../lib/auth-middleware";
 import { paginationOffset, paginationQuery } from "../lib/pagination";
@@ -154,17 +154,42 @@ observability.get("/traffic/summary", async (c) => {
   return c.json({ range, buckets: config.buckets, bucketMs: config.bucketMs, counts });
 });
 
-// Every distinct host seen in the range — feeds the "All domains" filter without shipping the raw rows themselves.
+// deploy.ts names each domain's Traefik router/service "<applicationId>-<domainId>" (see the loop in deploy()) —
+// Traefik's own access log reports it back as "<applicationId>-<domainId>@docker", never the app's real name. This
+// pulls the UUID prefix back out so the traffic filter can show something a human recognizes instead of that.
+const APP_ID_PREFIX = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})-/i;
+
+// Every distinct host seen in the range, paired with the application that owns it — feeds the "All domains"
+// filter (labelled "host (app name)") without shipping the raw rows themselves.
 observability.get("/traffic/hosts", async (c) => {
   const range = (c.req.query("range") ?? "24h") as TrafficRange;
   const config = TRAFFIC_RANGES[range];
   if (!config) return c.json({ error: "Invalid range" }, 400);
 
+  // SQLite-specific: when a query has an aggregate (max(time) here), a bare column pulls its value from the same
+  // row that produced the max — the cheapest way to get "this host's most recent service name" without a subquery.
   const rows = await db
-    .selectDistinct({ host: requestLog.host })
+    .select({ host: requestLog.host, service: requestLog.service, latest: sql<number>`max(${requestLog.time})` })
     .from(requestLog)
-    .where(gte(requestLog.time, new Date(Date.now() - config.ms)));
-  return c.json({ hosts: rows.map((r) => r.host).sort() });
+    .where(gte(requestLog.time, new Date(Date.now() - config.ms)))
+    .groupBy(requestLog.host);
+
+  const appIds = [...new Set(rows.map((r) => r.service && APP_ID_PREFIX.exec(r.service)?.[1]).filter((id): id is string => Boolean(id)))];
+  const apps = appIds.length > 0 ? await db.query.application.findMany({ where: inArray(application.id, appIds), columns: { id: true, name: true } }) : [];
+  const nameById = new Map(apps.map((a) => [a.id, a.name]));
+
+  const hosts = rows
+    .map((r) => {
+      const appId = r.service ? APP_ID_PREFIX.exec(r.service)?.[1] : undefined;
+      // A UUID-shaped prefix but no matching row means the application was since deleted — show nothing rather
+      // than the raw internal id, which is meaningless on its own. kuberfy's own domain never has that prefix at
+      // all (its router/service is just named "kuberfy", see proxy.ts), so it falls through to the raw
+      // (already human-readable) Traefik service name instead.
+      const service = appId ? (nameById.get(appId) ?? null) : (r.service?.replace(/@docker$/, "") ?? null);
+      return { host: r.host, service };
+    })
+    .sort((a, b) => a.host.localeCompare(b.host));
+  return c.json({ hosts });
 });
 
 // Table data: one page of raw rows at a time, instead of every request in the range.

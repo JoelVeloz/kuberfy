@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ArrowClockwise, Copy } from "@phosphor-icons/react";
+import { ArrowClockwise, Copy, Fingerprint } from "@phosphor-icons/react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -180,15 +180,33 @@ function UsersPageInner() {
               <TableRow>
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
+                <TableHead>Passkeys</TableHead>
                 <TableHead>Created</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {data.items.map((u) => (
-                <TableRow key={u.id}>
-                  <TableCell className="font-mono">{u.email}</TableCell>
+                <TableRow key={u.id} className={isAdmin ? "relative cursor-pointer" : undefined}>
+                  <TableCell className="font-mono">
+                    {isAdmin ? (
+                      <a href={`/users/view?id=${u.id}`} className="after:absolute after:inset-0">
+                        {u.email}
+                      </a>
+                    ) : (
+                      u.email
+                    )}
+                  </TableCell>
                   <TableCell>
                     <Badge variant="outline">{u.role ?? "user"}</Badge>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {u.passkeyCount > 0 ? (
+                      <span className="inline-flex items-center gap-1">
+                        <Fingerprint /> {u.passkeyCount}
+                      </span>
+                    ) : (
+                      "—"
+                    )}
                   </TableCell>
                   <TableCell className="text-muted-foreground">{new Date(u.createdAt).toLocaleDateString()}</TableCell>
                 </TableRow>

@@ -98,7 +98,12 @@ function PasskeyCardInner() {
               <li key={passkey.id} className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm">
                 <span className="flex items-center gap-2">
                   <Fingerprint className="text-muted-foreground" />
-                  {passkey.name || "Passkey"}
+                  <span>
+                    <div>{passkey.name || "Passkey"}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Added {new Date(passkey.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+                    </div>
+                  </span>
                 </span>
                 <Button type="button" variant="ghost" size="icon" disabled={removePasskey.isPending} onClick={() => removePasskey.mutate(passkey.id)}>
                   <Trash />
