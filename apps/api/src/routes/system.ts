@@ -5,8 +5,9 @@ import { Hono } from "hono";
 import { upgradeWebSocket } from "hono/bun";
 import { db } from "../db";
 import { deployment } from "../db/schema/app";
+import { env } from "../lib/env";
 import { requireAuth } from "../lib/auth-middleware";
-import { docker, parseDockerStats, resolveContainerId, type DockerStatsSample } from "../services/deploy";
+import { docker, parseDockerStats, pullImage, resolveContainerId, type DockerStatsSample } from "../services/deploy";
 
 export const system = new Hono();
 
@@ -134,6 +135,40 @@ system.post("/prune", async (c) => {
   const [images, builder] = await Promise.all([docker.pruneImages({ filters: { dangling: ["false"] } }), docker.pruneBuilder({})]);
   const spaceReclaimed = (images.SpaceReclaimed ?? 0) + (builder.SpaceReclaimed ?? 0);
   return c.json({ spaceReclaimed, imagesDeleted: images.ImagesDeleted?.length ?? 0 });
+});
+
+// Docker sets HOSTNAME to the short container id by default, same trick findInfraContainers() above uses to
+// identify whichever container is actually running this API process.
+async function selfContainer() {
+  const containers = await docker.listContainers();
+  return containers.find((c) => c.Id.startsWith(os.hostname())) ?? null;
+}
+
+// Pulls the tag fresh and compares its resolved image id against the one this container was actually started
+// from — the same check `docker service update --image` ends up doing itself, surfaced ahead of time so the
+// Settings page can show "up to date" without touching the live service.
+system.post("/check-update", async (c) => {
+  await pullImage(env.KUBERFY_IMAGE, () => {});
+  const latestId = (await docker.getImage(env.KUBERFY_IMAGE).inspect()).Id;
+  const self = await selfContainer();
+  return c.json({ updateAvailable: self ? self.ImageID !== latestId : null, image: env.KUBERFY_IMAGE });
+});
+
+// Forces the Swarm service onto the image /check-update already pulled — same mechanism as `kuberfy update`/
+// update.sh (see scripts/update.ts), triggered from the dashboard instead of the host CLI.
+system.post("/update", async (c) => {
+  const service = docker.getService("kuberfy");
+  let info: any;
+  try {
+    info = await service.inspect();
+  } catch {
+    return c.json({ error: "Docker Swarm service 'kuberfy' not found — run `kuberfy update` on the host instead." }, 400);
+  }
+  const spec = info.Spec;
+  spec.TaskTemplate.ContainerSpec.Image = env.KUBERFY_IMAGE;
+  spec.TaskTemplate.ForceUpdate = (spec.TaskTemplate.ForceUpdate ?? 0) + 1;
+  await service.update({ version: info.Version.Index, ...spec });
+  return c.json({ ok: true });
 });
 
 system.get(

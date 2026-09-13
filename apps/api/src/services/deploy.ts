@@ -230,7 +230,7 @@ export function deriveRegistryServer(image: string): string {
   return looksLikeHost ? firstSegment : "https://index.docker.io/v1/";
 }
 
-async function pullImage(image: string, log: (line: string) => void, auth?: { username: string; password: string }) {
+export async function pullImage(image: string, log: (line: string) => void, auth?: { username: string; password: string }) {
   log(`Pulling ${image}`);
   const authconfig = auth ? { ...auth, serveraddress: deriveRegistryServer(image) } : undefined;
   const stream = await docker.pull(image, authconfig ? { authconfig } : {});

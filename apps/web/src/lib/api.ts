@@ -289,6 +289,8 @@ export const api = {
       body: JSON.stringify({ kuberfyDomain }),
     }),
   pruneDockerResources: () => request<{ spaceReclaimed: number; imagesDeleted: number }>("/api/system/prune", { method: "POST" }),
+  checkKuberfyUpdate: () => request<{ updateAvailable: boolean | null; image: string }>("/api/system/check-update", { method: "POST" }),
+  updateKuberfy: () => request<{ ok: true }>("/api/system/update", { method: "POST" }),
   listExposedPorts: () => request<{ ports: ApiExposedPort[] }>("/api/settings/ports"),
   updatePanelPortExposure: (exposePanelPort: boolean) =>
     request<ApiSettings>("/api/settings", {
