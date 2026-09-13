@@ -46,8 +46,38 @@ export interface ApiDomain {
 }
 
 export interface ApiApplicationDetail extends ApiApplication {
+  // only the latest — the full history is fetched separately, paginated, via api.listDeployments
   deployments: ApiDeployment[];
   domains: ApiDomain[];
+}
+
+// Shared shape for every paginated list endpoint.
+export interface ApiPage<T> {
+  items: T[];
+  total: number;
+}
+
+export interface ApiTrafficEvent {
+  time: string;
+  method: string;
+  host: string;
+  path: string;
+  status: number;
+  durationMs: number;
+  service: string | null;
+  clientIp: string | null;
+  userAgent: string | null;
+  protocol: string | null;
+  originStatus: number | null;
+  requestContentSize: number | null;
+  downstreamContentSize: number | null;
+}
+
+export interface ApiTrafficSummary {
+  range: string;
+  buckets: number;
+  bucketMs: number;
+  counts: Array<{ bucketStart: number; good: number; warning: number; critical: number }>;
 }
 
 export interface ApiUser {
@@ -62,6 +92,7 @@ export interface ApiSettings {
   id: string | null;
   kuberfyDomain: string | null;
   exposePanelPort: boolean;
+  passkeyEnabled: boolean;
   // only set on a PATCH response — non-null means the DB saved but the live Traefik/port update didn't apply
   // (e.g. not running under Docker Swarm)
   liveUpdateError?: string | null;
@@ -128,7 +159,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  listProjects: () => request<ApiProject[]>("/api/projects"),
+  listProjects: (page = 1, pageSize = 20) => request<ApiPage<ApiProject>>(`/api/projects?page=${page}&pageSize=${pageSize}`),
   createProject: (name: string) =>
     request<ApiProject>("/api/projects", {
       method: "POST",
@@ -142,8 +173,11 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name }),
     }),
-  listProjectApplications: (id: string) => request<ApiApplication[]>(`/api/projects/${id}/applications`),
+  listProjectApplications: (id: string, page = 1, pageSize = 20) => request<ApiPage<ApiApplication>>(`/api/projects/${id}/applications?page=${page}&pageSize=${pageSize}`),
   getApplication: (id: string) => request<ApiApplicationDetail>(`/api/applications/${id}`),
+  listDeployments: (applicationId: string, page = 1, pageSize = 20) =>
+    request<ApiPage<ApiDeployment>>(`/api/applications/${applicationId}/deployments?page=${page}&pageSize=${pageSize}`),
+  getDeployment: (applicationId: string, deploymentId: string) => request<ApiDeployment>(`/api/applications/${applicationId}/deployments/${deploymentId}`),
   createApplication: (input: { projectId: string; name: string; repoUrl: string; branch: string; buildType: BuildType; envVars?: string }) =>
     request<ApiApplication>("/api/applications", {
       method: "POST",
@@ -203,11 +237,26 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ exposePanelPort }),
     }),
-  listUsers: () => request<ApiUser[]>("/api/users"),
+  // pre-auth — the login page checks this to decide whether to show the passkey button at all
+  getPasskeyEnabled: () => request<{ enabled: boolean }>("/api/settings/passkey-enabled"),
+  updatePasskeyEnabled: (passkeyEnabled: boolean) =>
+    request<ApiSettings>("/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ passkeyEnabled }),
+    }),
+  listUsers: (page = 1, pageSize = 20) => request<ApiPage<ApiUser>>(`/api/users?page=${page}&pageSize=${pageSize}`),
   createUser: (email: string, password: string, role: "admin" | "user") =>
     request<ApiUser>("/api/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password, role }),
     }),
+  getTrafficSummary: (range: string, host?: string) =>
+    request<ApiTrafficSummary>(`/api/observability/traffic/summary?range=${range}${host && host !== "all" ? `&host=${encodeURIComponent(host)}` : ""}`),
+  getTrafficHosts: (range: string) => request<{ hosts: string[] }>(`/api/observability/traffic/hosts?range=${range}`),
+  listTrafficEvents: (range: string, host: string | undefined, page: number, pageSize: number) =>
+    request<ApiPage<ApiTrafficEvent>>(
+      `/api/observability/traffic/events?range=${range}&page=${page}&pageSize=${pageSize}${host && host !== "all" ? `&host=${encodeURIComponent(host)}` : ""}`,
+    ),
 };

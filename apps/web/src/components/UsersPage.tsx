@@ -1,6 +1,6 @@
 import * as React from "react";
 import { ArrowClockwise, Copy } from "@phosphor-icons/react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { TablePagination } from "@/components/ui/table-pagination";
 import { QueryProvider } from "@/components/QueryProvider";
 import { api } from "@/lib/api";
 import { toastError } from "@/lib/toast";
@@ -145,11 +146,18 @@ function NewUserDialog() {
   );
 }
 
+const PAGE_SIZE = 20;
+
 function UsersPageInner() {
   const { data: session } = authClient.useSession();
   const isAdmin = (session?.user as { role?: string } | undefined)?.role === "admin";
+  const [page, setPage] = React.useState(1);
 
-  const { data: users, isPending, error } = useQuery({ queryKey: ["users"], queryFn: api.listUsers });
+  const { data, isPending, error } = useQuery({
+    queryKey: ["users", page],
+    queryFn: () => api.listUsers(page, PAGE_SIZE),
+    placeholderData: keepPreviousData,
+  });
 
   return (
     <div>
@@ -166,26 +174,29 @@ function UsersPageInner() {
       ) : error ? (
         <p className="text-xs text-destructive">Failed to load users.</p>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Created</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {users.map((u) => (
-              <TableRow key={u.id}>
-                <TableCell className="font-mono">{u.email}</TableCell>
-                <TableCell>
-                  <Badge variant="outline">{u.role ?? "user"}</Badge>
-                </TableCell>
-                <TableCell className="text-muted-foreground">{new Date(u.createdAt).toLocaleDateString()}</TableCell>
+        <div className="rounded-md border border-border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Email</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Created</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {data.items.map((u) => (
+                <TableRow key={u.id}>
+                  <TableCell className="font-mono">{u.email}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{u.role ?? "user"}</Badge>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{new Date(u.createdAt).toLocaleDateString()}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <TablePagination page={page} pageSize={PAGE_SIZE} total={data.total} onPageChange={setPage} />
+        </div>
       )}
     </div>
   );

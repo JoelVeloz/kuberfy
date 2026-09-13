@@ -225,6 +225,11 @@ export const requestLog = sqliteTable("request_log", {
   durationMs: integer("duration_ms").notNull(),
   service: text("service"),
   clientIp: text("client_ip"),
+  userAgent: text("user_agent"),
+  protocol: text("protocol"),
+  originStatus: integer("origin_status"),
+  requestContentSize: integer("request_content_size"),
+  downstreamContentSize: integer("downstream_content_size"),
 });
 
 // ---------------------------------------------------------------------------
@@ -239,10 +244,13 @@ export const setting = sqliteTable("settings", {
   // whether the panel is also reachable directly on :3000, bypassing Traefik/HTTPS entirely — off by default
   // (install.sh no longer publishes it); toggling this live-updates the kuberfy Swarm service's published ports
   exposePanelPort: integer("expose_panel_port", { mode: "boolean" }).notNull().default(false),
+  // whether the login page offers "Sign in with passkey" — off by default until the admin registers one from Settings
+  passkeyEnabled: integer("passkey_enabled", { mode: "boolean" }).notNull().default(false),
   ...timestamps,
 });
 
 export const apiUpdateSetting = z.object({
   kuberfyDomain: z.string().min(1).optional(),
   exposePanelPort: z.boolean().optional(),
+  passkeyEnabled: z.boolean().optional(),
 });

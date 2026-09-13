@@ -107,8 +107,8 @@ describe("Projects", () => {
     const res = await app.request("/api/projects", authed());
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(Array.isArray(body)).toBe(true);
-    expect(body.some((p: { id: string }) => p.id === projectId)).toBe(true);
+    expect(Array.isArray(body.items)).toBe(true);
+    expect(body.items.some((p: { id: string }) => p.id === projectId)).toBe(true);
   });
 
   it("GET /api/projects/:id finds it", async () => {
@@ -145,7 +145,7 @@ describe("Projects", () => {
   it("GET /api/projects/:id/applications lists an empty array before any application exists", async () => {
     const res = await app.request(`/api/projects/${projectId}/applications`, authed());
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual([]);
+    expect(await res.json()).toEqual({ items: [], total: 0 });
   });
 
   it("GET /api/projects/:id/applications 404s for an unknown project id", async () => {
@@ -181,7 +181,7 @@ describe("Projects", () => {
       const res = await app.request(`/api/projects/${projectId}/applications`, authed());
       expect(res.status).toBe(200);
       const body = await res.json();
-      expect(body.some((a: { id: string }) => a.id === applicationId)).toBe(true);
+      expect(body.items.some((a: { id: string }) => a.id === applicationId)).toBe(true);
     });
 
     it("GET /api/applications/:id returns it with empty deployments/domains relations", async () => {

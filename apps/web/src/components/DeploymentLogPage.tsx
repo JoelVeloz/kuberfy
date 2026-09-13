@@ -33,10 +33,11 @@ function DeploymentLogPageInner() {
   const applicationId = getQueryParam("id");
   const deploymentId = getQueryParam("deploymentId");
   const query = useQuery({ queryKey: ["application", applicationId], queryFn: () => fetchApp(applicationId) });
+  const deploymentQuery = useQuery({ queryKey: ["deployment", applicationId, deploymentId], queryFn: () => api.getDeployment(applicationId, deploymentId) });
   const projectId = query.data?.projectId;
   const project = useQuery({ queryKey: ["project", projectId], queryFn: () => api.getProject(projectId!), enabled: !!projectId });
 
-  if (query.isPending) {
+  if (query.isPending || deploymentQuery.isPending) {
     return (
       <div className="flex flex-col gap-2">
         <Skeleton className="h-6 w-48" />
@@ -61,7 +62,7 @@ function DeploymentLogPageInner() {
   if (query.error) return <p className="text-xs text-muted-foreground">Failed to load application.</p>;
 
   const app = query.data;
-  const deployment = app.deployments.find((d) => d.id === deploymentId);
+  const deployment = deploymentQuery.data;
 
   if (!deployment) {
     return (

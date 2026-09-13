@@ -8,17 +8,24 @@ import { auth } from "../auth";
 import { db } from "../db";
 import { users as usersTable } from "../db/schema/auth";
 import { requireAdmin, requireAuth } from "../lib/auth-middleware";
+import { paginationOffset, paginationQuery } from "../lib/pagination";
 
 export const users = new Hono();
 
 users.use("*", requireAuth);
 
-users.get("/", async (c) => {
-  const list = await db
-    .select({ id: usersTable.id, email: usersTable.email, name: usersTable.name, role: usersTable.role, createdAt: usersTable.createdAt })
-    .from(usersTable)
-    .orderBy(desc(usersTable.createdAt));
-  return c.json(list);
+users.get("/", zValidator("query", paginationQuery), async (c) => {
+  const pagination = c.req.valid("query");
+  const [items, total] = await Promise.all([
+    db
+      .select({ id: usersTable.id, email: usersTable.email, name: usersTable.name, role: usersTable.role, createdAt: usersTable.createdAt })
+      .from(usersTable)
+      .orderBy(desc(usersTable.createdAt))
+      .limit(pagination.pageSize)
+      .offset(paginationOffset(pagination)),
+    db.$count(usersTable),
+  ]);
+  return c.json({ items, total });
 });
 
 const createUserBody = z.object({

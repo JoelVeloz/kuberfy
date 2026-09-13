@@ -83,8 +83,11 @@ system.get(
           const diskTotal = diskInfo.blocks * diskInfo.bsize;
           const diskUsed = diskTotal - diskInfo.bavail * diskInfo.bsize;
 
+          // limit: 1 — only the latest deployment's status/containerId matters here, and this query already
+          // reruns every 2s for every application; fetching the full history each time would only get worse
+          // as deployments pile up.
           const apps = await db.query.application.findMany({
-            with: { deployments: { orderBy: desc(deployment.createdAt) } },
+            with: { deployments: { orderBy: desc(deployment.createdAt), limit: 1 } },
           });
 
           const appStats = await Promise.all(

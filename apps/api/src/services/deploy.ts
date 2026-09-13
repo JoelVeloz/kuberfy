@@ -168,6 +168,23 @@ export async function resolveContainerId(serviceId: string): Promise<string | nu
   return containers[0]?.Id ?? null;
 }
 
+// Every task Swarm has ever scheduled for this service, newest first — including ones stopped by a restart
+// (force-update creates a new task but keeps the old one, and its container, around for a while). This is what
+// makes it possible to still read a previous container's logs after a restart, not just the current one.
+export async function listServiceTasks(serviceId: string) {
+  const tasks = await docker.listTasks({ filters: { service: [serviceId] } });
+  return tasks
+    .map((t) => ({
+      taskId: t.ID as string,
+      containerId: (t.Status?.ContainerStatus?.ContainerID as string | undefined) ?? null,
+      state: t.Status?.State as string,
+      message: (t.Status?.Message as string | undefined) ?? null,
+      err: (t.Status?.Err as string | undefined) ?? null,
+      createdAt: t.CreatedAt as string,
+    }))
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
 export async function restartDeployment(applicationId: string) {
   const dep = await latestDeployment(applicationId);
   if (!dep?.containerId) return null;
@@ -240,7 +257,9 @@ async function buildFromGit(app: typeof application.$inferSelect, imageTag: stri
   }
 }
 
-async function removeExisting(name: string) {
+// Exported for applications.ts/projects.ts — removing by this deterministic name also catches a service
+// created by a deploy that's still running (pulling/building) when the app gets deleted mid-deploy.
+export async function removeExisting(name: string) {
   try {
     await docker.getService(name).remove();
   } catch {

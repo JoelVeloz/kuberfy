@@ -296,6 +296,7 @@ docker run -d \
   --providers.swarm.exposedbydefault=false \
   --accesslog=true \
   --accesslog.format=json \
+  --accesslog.fields.headers.names.User-Agent=keep \
   --entrypoints.web.address=:80 \
   --entrypoints.websecure.address=:443 \
   --certificatesresolvers.le.acme.httpchallenge=true \

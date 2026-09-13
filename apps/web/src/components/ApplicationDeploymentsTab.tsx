@@ -12,7 +12,7 @@ export function ApplicationDeploymentsTab() {
           <p className="mt-1 text-xs text-muted-foreground">Build and release history for this application.</p>
           <Card className="mt-3">
             <CardContent className="px-4">
-              <DeploymentsPanel applicationId={app.id} deployments={app.deployments} />
+              <DeploymentsPanel applicationId={app.id} />
             </CardContent>
           </Card>
         </>

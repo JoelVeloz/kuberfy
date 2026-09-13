@@ -1,22 +1,26 @@
 import { zValidator } from "@hono/zod-validator";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { StatusCodes } from "http-status-codes";
 import { requireAuth } from "../lib/auth-middleware";
 import { db, schema } from "../db";
 import { apiCreateProject, apiUpdateProject } from "../db/schema/app";
-import { docker } from "../services/deploy";
+import { paginationOffset, paginationQuery } from "../lib/pagination";
+import { removeExisting } from "../services/deploy";
 
 const app = new Hono<{ Variables: { user: { id: string } } }>();
 
 app.use("*", requireAuth);
 
-app.get("/", async (c) => {
-  const projects = await db.query.project.findMany({
-    where: eq(schema.project.ownerId, c.get("user").id),
-  });
-  return c.json(projects);
+app.get("/", zValidator("query", paginationQuery), async (c) => {
+  const pagination = c.req.valid("query");
+  const where = eq(schema.project.ownerId, c.get("user").id);
+  const [items, total] = await Promise.all([
+    db.query.project.findMany({ where, orderBy: (fields, { desc }) => [desc(fields.createdAt)], limit: pagination.pageSize, offset: paginationOffset(pagination) }),
+    db.$count(schema.project, where),
+  ]);
+  return c.json({ items, total });
 });
 
 app.post("/", zValidator("json", apiCreateProject), async (c) => {
@@ -50,22 +54,8 @@ app.patch("/:id", zValidator("json", apiUpdateProject), async (c) => {
 app.delete("/:id", async (c) => {
   const id = c.req.param("id");
   const apps = await db.query.application.findMany({ where: eq(schema.application.projectId, id) });
-  if (apps.length > 0) {
-    const deployments = await db.query.deployment.findMany({
-      where: inArray(
-        schema.deployment.applicationId,
-        apps.map((a) => a.id),
-      ),
-    });
-    for (const dep of deployments) {
-      if (!dep.containerId) continue;
-      try {
-        await docker.getService(dep.containerId).remove();
-      } catch {
-        // service already gone — nothing to clean up
-      }
-    }
-  }
+  // By deterministic name, not deployment.containerId — see the same note in applications.ts's delete route.
+  await Promise.all(apps.map((a) => removeExisting(`kuberfy-${a.id}`)));
 
   const [deleted] = await db
     .delete(schema.project)
@@ -75,17 +65,20 @@ app.delete("/:id", async (c) => {
   return c.json(deleted);
 });
 
-app.get("/:id/applications", async (c) => {
+app.get("/:id/applications", zValidator("query", paginationQuery), async (c) => {
   const id = c.req.param("id");
+  const pagination = c.req.valid("query");
   const project = await db.query.project.findFirst({
     where: and(eq(schema.project.id, id), eq(schema.project.ownerId, c.get("user").id)),
   });
   if (!project) throw new HTTPException(StatusCodes.NOT_FOUND, { message: "Project not found" });
 
-  const applications = await db.query.application.findMany({
-    where: eq(schema.application.projectId, id),
-  });
-  return c.json(applications);
+  const where = eq(schema.application.projectId, id);
+  const [items, total] = await Promise.all([
+    db.query.application.findMany({ where, orderBy: (fields, { desc }) => [desc(fields.createdAt)], limit: pagination.pageSize, offset: paginationOffset(pagination) }),
+    db.$count(schema.application, where),
+  ]);
+  return c.json({ items, total });
 });
 
 export default app;
