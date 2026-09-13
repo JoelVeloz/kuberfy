@@ -1,5 +1,6 @@
 // Thin fetch wrappers for the real backend — dynamic pages fetch client-side since real ids only exist at request time
 import type { BuildType, DeploymentStatus } from "@/lib/types";
+import { apiUrl } from "@/lib/api-url";
 
 export interface ApiProject {
   id: string;
@@ -110,7 +111,7 @@ function extractErrorMessage(body: unknown, path: string, status: number): strin
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, { credentials: "include", ...init });
+  const res = await fetch(apiUrl(path), { credentials: "include", ...init });
   if (res.status === 401) {
     window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
     throw new UnauthorizedError();

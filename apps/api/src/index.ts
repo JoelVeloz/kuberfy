@@ -1,9 +1,11 @@
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { serveStatic, websocket } from "hono/bun";
 import { HTTPException } from "hono/http-exception";
 import { StatusCodes } from "http-status-codes";
 import { auth } from "./auth";
+import { env } from "./lib/env";
 import projects from "./routes/projects";
 import { applications } from "./routes/applications";
 import { domains } from "./routes/domains";
@@ -22,6 +24,9 @@ await ensureSettingsSeeded();
 const app = new Hono();
 
 app.use("*", logger());
+// Same-origin in production (this header is simply unused there); in dev, web and api are genuinely different
+// origins/ports, so plain fetches need this to read the response — WebSockets aren't subject to CORS at all.
+app.use("*", cors({ origin: (origin) => (env.CORS_ORIGINS?.includes(origin) ? origin : ""), credentials: true }));
 
 app.get("/api/health", (c) => c.json({ ok: true }));
 app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));

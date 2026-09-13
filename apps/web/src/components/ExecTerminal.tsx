@@ -2,6 +2,7 @@ import * as React from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
+import { apiWsUrl } from "@/lib/api-url";
 
 type Shell = "auto" | "bash" | "sh";
 const SHELLS: Array<{ value: Shell; label: string }> = [
@@ -25,8 +26,7 @@ export function ExecTerminal({ applicationId }: { applicationId: string }) {
     term.open(containerRef.current);
     fit.fit();
 
-    const url = new URL(`/api/applications/${applicationId}/exec`, window.location.href);
-    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+    const url = new URL(apiWsUrl(`/api/applications/${applicationId}/exec`));
     if (shell !== "auto") url.searchParams.set("shell", shell);
     const ws = new WebSocket(url);
     ws.onopen = () => setConnected(true);

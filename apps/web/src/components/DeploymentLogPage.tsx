@@ -11,6 +11,7 @@ import { api, UnauthorizedError, NotFoundError, type ApiApplicationDetail } from
 import { isDeploymentInProgress } from "@/lib/deployment-status";
 import { getQueryParam } from "@/lib/query-params";
 import type { DeploymentStatus } from "@/lib/types";
+import { apiWsUrl } from "@/lib/api-url";
 
 async function fetchApp(id: string): Promise<ApiApplicationDetail> {
   const app = await api.getApplication(id);
@@ -131,9 +132,7 @@ function BuildLog({ applicationId, deploymentId, status, snapshot }: { applicati
 
   React.useEffect(() => {
     if (!live) return;
-    const url = new URL(`/api/applications/${applicationId}/deployments/${deploymentId}/build-logs`, window.location.href);
-    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-    const ws = new WebSocket(url);
+    const ws = new WebSocket(apiWsUrl(`/api/applications/${applicationId}/deployments/${deploymentId}/build-logs`));
     ws.onopen = () => setConnected(true);
     ws.onmessage = (evt) => setLines((prev) => [...prev, String(evt.data)]);
     ws.onclose = () => setConnected(false);

@@ -1,5 +1,6 @@
 import * as React from "react";
 import { AnsiLog } from "@/components/AnsiLog";
+import { apiWsUrl } from "@/lib/api-url";
 
 // Client island: opens a WebSocket to the API's dockerode-backed log stream — real container output, not a poll.
 export function RuntimeLogs({ applicationId }: { applicationId: string }) {
@@ -8,9 +9,7 @@ export function RuntimeLogs({ applicationId }: { applicationId: string }) {
   const preRef = React.useRef<HTMLPreElement>(null);
 
   React.useEffect(() => {
-    const url = new URL(`/api/applications/${applicationId}/runtime-logs`, window.location.href);
-    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-    const ws = new WebSocket(url);
+    const ws = new WebSocket(apiWsUrl(`/api/applications/${applicationId}/runtime-logs`));
     ws.onopen = () => setConnected(true);
     ws.onmessage = (evt) => setLines((prev) => [...prev, String(evt.data)]);
     ws.onclose = () => setConnected(false);

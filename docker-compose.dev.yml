@@ -1,7 +1,10 @@
 # Dev stack: bind-mounts source + runs `bun run dev` with hot reload, so code changes
 # don't require rebuilding the production Dockerfile (bun compile + astro build) each time.
-# Traefik fronts both dev servers on one origin (http://localhost) so /api/* and the page share an origin,
-# just like the production image — see traefik/dev.yml for why it uses the file provider, not Docker labels.
+# web and api are two independent hot-reloading origins here (unlike production, where one process serves both) —
+# the panel calls the API cross-origin over CORS (see apps/api/src/index.ts + apps/web/src/lib/api-url.ts) instead
+# of going through a proxy, since Vite's dev proxy (http-proxy) crashes under Bun on WebSocket teardown.
+# traefik stays up on :80, matching production's "80 is exclusively traefik" rule, but nothing in this dev
+# stack routes through it right now — it's here for parity/future use (see traefik/dev.yml).
 # Usage: docker compose -f docker-compose.dev.yml up
 services:
   traefik:
@@ -26,6 +29,8 @@ services:
       - api-node-modules:/app/node_modules
       - /var/run/docker.sock:/var/run/docker.sock
     env_file: apps/api/.env
+    ports:
+      - "3001:3000"
     command: sh -c "bun install && bun run dev"
 
   web:
@@ -35,9 +40,9 @@ services:
       - ./apps/web:/app
       - web-node-modules:/app/node_modules
     environment:
-      - API_URL=http://api:3000
+      - PUBLIC_API_URL=http://localhost:3001
     ports:
-      - "4321:4321"
+      - "3000:4321"
     command: sh -c "bun install && bun run dev -- --host 0.0.0.0"
     depends_on:
       - api

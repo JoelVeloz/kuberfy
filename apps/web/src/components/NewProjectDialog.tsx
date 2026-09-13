@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -22,6 +23,7 @@ function NewProjectDialogInner() {
   const { mutate, isPending } = useMutation({
     mutationFn: () => api.createProject(name.trim()),
     onSuccess: () => {
+      toast.success("Project created.");
       queryClient.invalidateQueries({ queryKey: ["projects"] });
       setOpen(false);
       setName("");

@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DeploymentStatusBadge } from "@/components/DeploymentStatusBadge";
 import type { DeploymentStatus } from "@/lib/types";
+import { apiWsUrl } from "@/lib/api-url";
 
 interface AppStat {
   id: string;
@@ -73,9 +74,7 @@ export function SystemPage() {
   const [connected, setConnected] = React.useState(false);
 
   React.useEffect(() => {
-    const url = new URL("/api/system/stats", window.location.href);
-    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-    const ws = new WebSocket(url);
+    const ws = new WebSocket(apiWsUrl("/api/system/stats"));
     ws.onopen = () => setConnected(true);
     ws.onmessage = (evt) => {
       const sample = JSON.parse(String(evt.data)) as StatsSample;

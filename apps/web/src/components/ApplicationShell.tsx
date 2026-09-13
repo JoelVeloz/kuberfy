@@ -1,6 +1,7 @@
 import * as React from "react";
 import { ArrowClockwise, ArrowSquareOut, RocketLaunch, Stop as StopIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -80,17 +81,26 @@ function ApplicationShellInner({ activeTab, children }: { activeTab: Application
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["application", id] });
   const deploy = useMutation({
     mutationFn: () => api.deploy(id),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      toast.success("Deployment started.");
+      invalidate();
+    },
     onError: (err) => toastError(err, "Failed to start deployment."),
   });
   const restart = useMutation({
     mutationFn: () => api.restartApplication(id),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      toast.success("Application restarted.");
+      invalidate();
+    },
     onError: (err) => toastError(err, "Failed to restart application."),
   });
   const stop = useMutation({
     mutationFn: () => api.stopApplication(id),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      toast.success("Application stopped.");
+      invalidate();
+    },
     onError: (err) => toastError(err, "Failed to stop application."),
   });
 

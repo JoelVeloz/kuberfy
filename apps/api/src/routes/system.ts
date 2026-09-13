@@ -38,6 +38,31 @@ function hostMemory() {
   return { memTotal: totalKb * 1024, memUsed: (totalKb - availableKb) * 1024 };
 }
 
+// Kuberfy's own infrastructure — Traefik plus this very process's container — reported the same way as any
+// deployed app, so you can see whether the platform itself (not just what's deployed on it) is at its limit.
+async function findInfraContainers(): Promise<Array<{ id: string; name: string }>> {
+  const containers = await docker.listContainers();
+  // Docker sets HOSTNAME to the short container id by default, so this identifies whichever container is
+  // actually running this API process, in dev or production, without hardcoding a container/service name.
+  const selfId = os.hostname();
+  const infra: Array<{ id: string; name: string }> = [];
+  for (const c of containers) {
+    if (c.Image.split(":")[0] === "traefik") infra.push({ id: c.Id, name: "Traefik" });
+    else if (c.Id.startsWith(selfId)) infra.push({ id: c.Id, name: "Kuberfy" });
+  }
+  return infra;
+}
+
+async function containerStats(containerId: string) {
+  try {
+    const raw = (await docker.getContainer(containerId).stats({ stream: false })) as unknown as DockerStatsSample;
+    return parseDockerStats(raw);
+  } catch {
+    // container gone/unreachable between listing it and this tick — report it as idle rather than failing the whole batch
+    return { cpu: 0, memUsed: 0, memLimit: 0 };
+  }
+}
+
 system.get(
   "/stats",
   upgradeWebSocket(() => {

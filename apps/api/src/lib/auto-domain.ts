@@ -14,12 +14,22 @@ export function suggestDomainHost(appId: string, appName: string) {
   return env.SERVER_PUBLIC_IP ? `${label}.${env.SERVER_PUBLIC_IP.replaceAll(".", "-")}.sslip.io` : `${label}.localhost`;
 }
 
-// kuberfy itself is a singleton (no app id to key off), so the label is a random token instead — not the product
-// name and not derived from the IP: Let's Encrypt certs are published forever in public Certificate Transparency
-// logs (crt.sh, Censys), so either of those would let anyone search for every exposed kuberfy instance on the
-// internet (a product name directly; a hash of the IP is crackable too — only ~4 billion IPv4 addresses to try).
+function randomHex(bytes: number) {
+  return Array.from(crypto.getRandomValues(new Uint8Array(bytes)), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// kuberfy itself is a singleton (no app id to key off), so the label is a random token instead of a slug.
+//
+// Public case (real IP, real Let's Encrypt cert): the token must NOT be the product name and must NOT be derived
+// from the IP. Certs are published forever in public Certificate Transparency logs (crt.sh, Censys) — a product
+// name there would let anyone search those logs and build a list of every exposed kuberfy instance on the
+// internet, and hashing the IP wouldn't help either, since all ~4 billion IPv4 addresses can be hashed and
+// matched back in seconds. A long random token from getRandomValues has neither problem.
+//
+// Local case (`.localhost`, never leaves the machine, Let's Encrypt never issues for it, so it never reaches a CT
+// log): none of that applies, so it gets a short readable label instead — same `<name>-<hash>` shape apps get
+// from suggestDomainHost above, just for consistency rather than security.
 export function suggestKuberfyDomainHost() {
-  if (!env.SERVER_PUBLIC_IP) return "localhost";
-  const token = Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => b.toString(16).padStart(2, "0")).join("");
-  return `${token}.${env.SERVER_PUBLIC_IP.replaceAll(".", "-")}.sslip.io`;
+  if (!env.SERVER_PUBLIC_IP) return `kuberfy-${randomHex(4)}.localhost`;
+  return `${randomHex(6)}.${env.SERVER_PUBLIC_IP.replaceAll(".", "-")}.sslip.io`;
 }

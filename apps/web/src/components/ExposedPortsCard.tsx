@@ -1,7 +1,10 @@
+import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -28,6 +31,7 @@ export function ExposedPortsCard() {
 }
 
 function ExposedPortsCardInner() {
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
   const queryClient = useQueryClient();
   // Shares the "settings" cache key with SettingsForm (same QueryProvider singleton, see lib/query-client.ts) —
   // saving the domain there refreshes exposePanelPort here too, and vice versa.
@@ -59,6 +63,24 @@ function ExposedPortsCardInner() {
   // The live scan already reports :3000 whenever the toggle is on (same underlying Docker state) — collapse
   // that into the one controlled row below instead of listing it twice.
   const otherPorts = (ports.data?.ports ?? []).filter((p) => p.port !== 3000);
+
+  const domain = settings.data?.kuberfyDomain;
+  const isLocalDomain = !domain || domain === "localhost" || domain.endsWith(".localhost");
+  const domainUrl = domain ? `${isLocalDomain ? "http" : "https"}://${domain}` : null;
+
+  function handleToggle(next: boolean) {
+    if (next) {
+      togglePanelPort.mutate(true);
+      return;
+    }
+    // Disabling this is the only way left to reach the panel if the domain turns out not to work — refuse to
+    // even offer it without a domain configured at all, and make sure it's been verified for anything else.
+    if (!domain) {
+      toast.error("Set a domain in Settings first — disabling direct access with no working domain would lock you out of the panel.");
+      return;
+    }
+    setConfirmOpen(true);
+  }
 
   return (
     <Card>
@@ -92,7 +114,7 @@ function ExposedPortsCardInner() {
               <TableCell className="font-mono">3000/tcp</TableCell>
               <TableCell>kuberfy panel (direct, bypasses HTTPS)</TableCell>
               <TableCell className="text-right">
-                <Switch checked={panelExposed} disabled={togglePanelPort.isPending} onCheckedChange={(v) => togglePanelPort.mutate(v)} />
+                <Switch checked={panelExposed} disabled={togglePanelPort.isPending} onCheckedChange={handleToggle} />
               </TableCell>
             </TableRow>
             {HOST_LEVEL_PORTS.map((p) => (
@@ -112,6 +134,29 @@ function ExposedPortsCardInner() {
           </TableBody>
         </Table>
       </CardContent>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Disable direct access?</DialogTitle>
+            <DialogDescription>
+              Please verify you can already reach the panel at{" "}
+              <a href={domainUrl ?? undefined} target="_blank" rel="noreferrer" className="font-mono text-foreground underline">
+                {domainUrl}
+              </a>{" "}
+              before continuing — if that domain isn't working yet, you will lose access to this dashboard entirely until you SSH into the server and re-enable :3000 manually.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button variant="destructive" disabled={togglePanelPort.isPending} onClick={() => togglePanelPort.mutate(false, { onSuccess: () => setConfirmOpen(false) })}>
+              {togglePanelPort.isPending ? "Disabling…" : "Yes, I've verified it — disable"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

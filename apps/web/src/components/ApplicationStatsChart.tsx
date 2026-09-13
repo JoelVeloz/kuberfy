@@ -2,6 +2,7 @@ import * as React from "react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { apiWsUrl } from "@/lib/api-url";
 
 interface StatsSample {
   t: number;
@@ -52,9 +53,7 @@ export function ApplicationStatsChart({ applicationId }: { applicationId: string
   const [connected, setConnected] = React.useState(false);
 
   React.useEffect(() => {
-    const url = new URL(`/api/applications/${applicationId}/stats`, window.location.href);
-    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-    const ws = new WebSocket(url);
+    const ws = new WebSocket(apiWsUrl(`/api/applications/${applicationId}/stats`));
     ws.onopen = () => setConnected(true);
     ws.onmessage = (evt) => {
       const sample = JSON.parse(String(evt.data)) as StatsSample;

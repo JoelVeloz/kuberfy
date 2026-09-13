@@ -1,6 +1,7 @@
 import * as React from "react";
 import { PencilSimple } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -14,6 +15,7 @@ export function EditProjectDialog({ projectId, currentName }: { projectId: strin
   const { mutate, isPending } = useMutation({
     mutationFn: () => api.updateProject(projectId, name.trim()),
     onSuccess: () => {
+      toast.success("Project renamed.");
       queryClient.invalidateQueries({ queryKey: ["project", projectId] });
       queryClient.invalidateQueries({ queryKey: ["projects"] });
       setOpen(false);

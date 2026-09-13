@@ -3,6 +3,7 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { type ChartConfig, ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { apiUrl, apiWsUrl } from "@/lib/api-url";
 
 interface TrafficEvent {
   time: string;
@@ -76,7 +77,9 @@ function useBuckets(events: TrafficEvent[], range: Range) {
 function TrafficChart({ buckets, range }: { buckets: Array<{ bucketStart: number; good: number; warning: number; critical: number }>; range: Range }) {
   const dayGranularity = RANGES[range].bucketMs >= 24 * 60 * 60_000;
   const formatLabel = (t: number) =>
-    dayGranularity ? new Date(t).toLocaleDateString([], { month: "short", day: "numeric" }) : new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+    dayGranularity
+      ? new Date(t).toLocaleDateString([], { month: "short", day: "numeric" })
+      : new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
 
   return (
     <ChartContainer config={chartConfig} className="aspect-auto h-72 w-full">
@@ -111,7 +114,7 @@ export function TrafficPage() {
   // so the chart/table always cover the full selected period, not just what streamed in during this tab session.
   React.useEffect(() => {
     setHistoryLoading(true);
-    fetch(`/api/observability/traffic/history?range=${range}`, { credentials: "include" })
+    fetch(apiUrl(`/api/observability/traffic/history?range=${range}`), { credentials: "include" })
       .then((res) => res.json())
       .then((data: { events: TrafficEvent[] }) => setEvents([...data.events].reverse()))
       .catch(() => {})
@@ -119,9 +122,7 @@ export function TrafficPage() {
   }, [range]);
 
   React.useEffect(() => {
-    const url = new URL("/api/observability/traffic", window.location.href);
-    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-    const ws = new WebSocket(url);
+    const ws = new WebSocket(apiWsUrl("/api/observability/traffic"));
     ws.onopen = () => setConnected(true);
     ws.onmessage = (evt) => {
       const data = JSON.parse(String(evt.data)) as TrafficEvent | { error: string };

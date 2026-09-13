@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +20,7 @@ export function NewApplicationDialog({ projectId }: { projectId: string }) {
   const { mutate, isPending } = useMutation({
     mutationFn: () => api.createApplication({ projectId, name: name.trim(), repoUrl: repoUrl.trim(), branch: branch.trim() || "main", buildType }),
     onSuccess: () => {
+      toast.success("Application created.");
       queryClient.invalidateQueries({ queryKey: ["project", projectId, "apps"] });
       setOpen(false);
       setName("");
