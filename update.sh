@@ -72,6 +72,11 @@ KUBERFY_IMAGE="${KUBERFY_IMAGE:-ghcr.io/joelveloz/kuberfy:latest}"
 info "Downloading latest remote image: $KUBERFY_IMAGE..."
 docker pull "$KUBERFY_IMAGE"
 
+# An install predating the Dockerfile's non-root user still has kuberfy-data owned by root; the image only
+# chowns /data on a volume's first creation, never retroactively, so the new non-root process can't write to
+# it and every migration on update fails with "attempt to write a readonly database".
+docker run --rm -v kuberfy-data:/data alpine:3.20 chown -R 1000:1000 /data >/dev/null
+
 info "Updating Swarm service..."
 docker service update --image "$KUBERFY_IMAGE" --force kuberfy >/dev/null
 

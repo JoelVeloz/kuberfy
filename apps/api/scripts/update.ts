@@ -29,7 +29,11 @@ async function main() {
 
   console.log(`Updating service 'kuberfy' to ${image}...`);
   const spec = info.Spec;
-  const version = info.Version.Index;
+  const version = Number(info.Version?.Index);
+  if (!Number.isFinite(version)) {
+    console.error(`Error: could not read the service's version from inspect() (got ${JSON.stringify(info.Version)}).`);
+    process.exit(1);
+  }
 
   const currentForce = spec.TaskTemplate?.ForceUpdate ?? 0;
   spec.TaskTemplate = {
