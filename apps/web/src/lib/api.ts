@@ -129,6 +129,7 @@ export interface ApiSettings {
   kuberfyDomain: string | null;
   exposePanelPort: boolean;
   passkeyEnabled: boolean;
+  serverIp: string | null;
   // only set on a PATCH response — non-null means the DB saved but the live Traefik/port update didn't apply
   // (e.g. not running under Docker Swarm)
   liveUpdateError?: string | null;

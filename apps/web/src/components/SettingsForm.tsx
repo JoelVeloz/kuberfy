@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Sparkle } from "@phosphor-icons/react";
+import { Copy, Sparkle } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -69,6 +69,27 @@ function SettingsFormInner() {
             The domain this kuberfy dashboard itself is reached at. "Generate" gives you a free one with HTTPS, no DNS setup needed.
           </p>
         </div>
+
+        {query.data.serverIp && (
+          <div className="flex flex-col gap-1.5">
+            <Label>Server IP</Label>
+            <div className="flex max-w-sm items-center gap-2">
+              <code className="rounded-md border border-border bg-muted px-2 py-1.5 font-mono text-sm">{query.data.serverIp}</code>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  navigator.clipboard.writeText(query.data!.serverIp!);
+                  toast.success("IP copied.");
+                }}
+              >
+                <Copy />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">This server's public IP, detected at install time — useful if you installed without a domain.</p>
+          </div>
+        )}
 
         <div>
           <Button disabled={domain.trim().length === 0 || save.isPending} onClick={() => save.mutate()}>

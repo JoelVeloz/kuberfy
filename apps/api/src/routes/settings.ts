@@ -31,7 +31,10 @@ settings.use("*", requireAuth);
 // single-row settings: no id in the URL, there's only ever one
 settings.get("/", async (c) => {
   const existing = await db.query.setting.findFirst();
-  return c.json(existing ?? { id: null, kuberfyDomain: null, exposePanelPort: false });
+  // install.sh detects this once at setup and passes it through as an env var — it never changes afterward,
+  // so it's not part of the settings row itself, just surfaced alongside it for reference (e.g. an IP-only install).
+  const serverIp = env.SERVER_PUBLIC_IP ?? null;
+  return c.json({ ...(existing ?? { id: null, kuberfyDomain: null, exposePanelPort: false }), serverIp });
 });
 
 settings.get("/suggest-domain", (c) => c.json({ host: suggestKuberfyDomainHost() }));
