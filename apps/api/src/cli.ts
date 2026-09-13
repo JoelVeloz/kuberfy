@@ -1,3 +1,8 @@
+// Must load before anything else: @better-auth/passkey pulls in @simplewebauthn/server, which uses tsyringe's
+// decorators — those throw "requires a reflect polyfill" at runtime unless this runs first. Only surfaces in the
+// compiled binary (bun build --compile), not `bun run`/`bun test`, since dev mode's module order happens to load it in time.
+import "reflect-metadata";
+
 // Single compiled entrypoint dispatching to server/migrate/create-user/set-password — see private/IMAGE_OPTIMIZATION.md.
 // Each subcommand used to be its own `bun build --compile` binary, tripling the embedded Bun runtime in the image.
 const [command, ...rest] = Bun.argv.slice(2);
