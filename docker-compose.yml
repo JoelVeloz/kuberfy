@@ -21,6 +21,7 @@ services:
     networks:
       - kuberfy-network
       - kuberfy-apps-network
+    mem_limit: 256m
     restart: unless-stopped
 
   kuberfy:
@@ -34,6 +35,7 @@ services:
     volumes:
       - kuberfy-data:/data
       - /var/run/docker.sock:/var/run/docker.sock
+    mem_limit: 256m
     labels:
       - traefik.enable=true
       - traefik.http.routers.kuberfy.rule=Host(`${KUBERFY_DOMAIN:-localhost}`)

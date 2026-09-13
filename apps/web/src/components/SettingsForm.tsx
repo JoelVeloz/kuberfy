@@ -35,8 +35,9 @@ function SettingsFormInner() {
 
   const save = useMutation({
     mutationFn: () => api.updateSettings(domain.trim()),
-    onSuccess: () => {
-      toast.success("The domain is live — kuberfy is now reachable at this address.");
+    onSuccess: (data) => {
+      if (data.liveUpdateError) toast.warning(data.liveUpdateError);
+      else toast.success("The domain is live — kuberfy is now reachable at this address.");
       queryClient.invalidateQueries({ queryKey: ["settings"] });
     },
     onError: (err) => toastError(err, "Failed to save settings."),

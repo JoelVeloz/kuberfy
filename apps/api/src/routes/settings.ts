@@ -68,12 +68,15 @@ settings.patch("/", zValidator("json", apiUpdateSetting), async (c) => {
       )[0]
     : (await db.insert(setting).values(input).returning())[0];
 
-  // Not running under Docker Swarm (e.g. local dev via docker-compose) — the DB is still updated, only the
-  // live Swarm service isn't; nothing else depends on either of these succeeding.
+  // Not running under Docker Swarm (e.g. local dev via docker-compose, which runs kuberfy as a plain container
+  // rather than a Swarm service) — the DB is still updated, only the live route isn't. Reported back rather than
+  // swallowed, so the UI doesn't claim something is live when it silently isn't.
+  let liveUpdateError: string | null = null;
   if (input.kuberfyDomain !== undefined) {
     try {
       await applyKuberfyDomain(input.kuberfyDomain);
     } catch (err) {
+      liveUpdateError = "Not running under Docker Swarm — the domain was saved, but the live Traefik route wasn't updated automatically.";
       console.error("Could not update kuberfy's Traefik route:", err instanceof Error ? err.message : err);
     }
   }
@@ -81,9 +84,10 @@ settings.patch("/", zValidator("json", apiUpdateSetting), async (c) => {
     try {
       await applyKuberfyPanelPortExposure(input.exposePanelPort);
     } catch (err) {
+      liveUpdateError = "Not running under Docker Swarm — the setting was saved, but the live port wasn't updated automatically.";
       console.error("Could not update kuberfy's published ports:", err instanceof Error ? err.message : err);
     }
   }
 
-  return c.json(updated);
+  return c.json({ ...updated, liveUpdateError });
 });

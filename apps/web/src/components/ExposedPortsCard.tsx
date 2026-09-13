@@ -40,8 +40,9 @@ function ExposedPortsCardInner() {
 
   const togglePanelPort = useMutation({
     mutationFn: (expose: boolean) => api.updatePanelPortExposure(expose),
-    onSuccess: (_data, expose) => {
-      toast.success(expose ? "Panel is now reachable directly on :3000." : "Direct :3000 access disabled.");
+    onSuccess: (data, expose) => {
+      if (data.liveUpdateError) toast.warning(data.liveUpdateError);
+      else toast.success(expose ? "Panel is now reachable directly on :3000." : "Direct :3000 access disabled.");
       queryClient.invalidateQueries({ queryKey: ["settings"] });
       queryClient.invalidateQueries({ queryKey: ["exposed-ports"] });
     },
