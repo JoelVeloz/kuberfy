@@ -93,18 +93,14 @@ system.get(
               if (!dep || dep.status !== "running" || !dep.containerId) {
                 return { id: app.id, name: app.name, status: dep?.status ?? null, cpu: 0, memUsed: 0, memLimit: 0 };
               }
-              try {
-                const raw = (await docker.getContainer(dep.containerId).stats({ stream: false })) as unknown as DockerStatsSample;
-                const parsed = parseDockerStats(raw);
-                return { id: app.id, name: app.name, status: dep.status, cpu: parsed.cpu, memUsed: parsed.memUsed, memLimit: parsed.memLimit };
-              } catch {
-                // container gone/unreachable between the deployment row and this tick — report it as idle rather than failing the whole batch
-                return { id: app.id, name: app.name, status: dep.status, cpu: 0, memUsed: 0, memLimit: 0 };
-              }
+              return { id: app.id, name: app.name, status: dep.status, ...(await containerStats(dep.containerId)) };
             }),
           );
 
-          ws.send(JSON.stringify({ t: Date.now(), host: { cpu: hostCpu, memUsed, memTotal, diskUsed, diskTotal }, apps: appStats }));
+          const infraContainers = await findInfraContainers();
+          const infraStats = await Promise.all(infraContainers.map(async (c) => ({ id: c.id, name: c.name, ...(await containerStats(c.id)) })));
+
+          ws.send(JSON.stringify({ t: Date.now(), host: { cpu: hostCpu, memUsed, memTotal, diskUsed, diskTotal }, apps: appStats, infra: infraStats }));
         };
         // Fire once immediately so the page isn't sitting blank for a full tick before its first sample —
         // the CPU% on this first message reads 0 (no elapsed window yet) and corrects itself 2s later.
