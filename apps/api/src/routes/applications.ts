@@ -6,6 +6,7 @@ import { HTTPException } from "hono/http-exception";
 import { db } from "../db";
 import { apiCreateApplication, apiUpdateApplication, application, deployment } from "../db/schema/app";
 import { requireAuth } from "../lib/auth-middleware";
+import { runDeployment } from "../services/deploy";
 
 export const applications = new Hono();
 
@@ -38,4 +39,10 @@ applications.patch("/:id", zValidator("json", apiUpdateApplication), async (c) =
     .returning();
   if (!updated) throw new HTTPException(StatusCodes.NOT_FOUND, { message: "Application not found" });
   return c.json(updated);
+});
+
+applications.post("/:id/deploy", async (c) => {
+  const dep = await runDeployment(c.req.param("id"));
+  if (!dep) throw new HTTPException(StatusCodes.NOT_FOUND, { message: "Application not found" });
+  return c.json(dep, StatusCodes.CREATED);
 });

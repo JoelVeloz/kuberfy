@@ -46,6 +46,15 @@ app.patch("/:id", zValidator("json", apiUpdateProject), async (c) => {
   return c.json(updated);
 });
 
+app.delete("/:id", async (c) => {
+  const [deleted] = await db
+    .delete(schema.project)
+    .where(and(eq(schema.project.id, c.req.param("id")), eq(schema.project.ownerId, c.get("user").id)))
+    .returning();
+  if (!deleted) throw new HTTPException(StatusCodes.NOT_FOUND, { message: "Project not found" });
+  return c.json(deleted);
+});
+
 app.get("/:id/applications", async (c) => {
   const id = c.req.param("id");
   const project = await db.query.project.findFirst({

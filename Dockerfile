@@ -15,7 +15,7 @@ RUN bun build --compile --minify src/db/migrate.ts --outfile migrate
 RUN bun build --compile --minify scripts/create-user.ts --outfile create-user
 
 FROM alpine:3.20
-RUN apk add --no-cache ca-certificates libstdc++ libgcc
+RUN apk add --no-cache ca-certificates libstdc++ libgcc git
 WORKDIR /app
 COPY --from=api-build /app/server ./server
 COPY --from=api-build /app/migrate ./migrate

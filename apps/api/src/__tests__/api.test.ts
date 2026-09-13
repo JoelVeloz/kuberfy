@@ -163,7 +163,7 @@ describe("Projects", () => {
             projectId,
             name: "api",
             repoUrl: "https://github.com/kuberfy/api.git",
-            buildType: "nixpacks",
+            buildType: "dockerfile",
           }),
         ),
       );

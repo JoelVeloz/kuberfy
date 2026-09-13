@@ -1,0 +1,1 @@
+ALTER TABLE `deployments` ADD `container_id` text;

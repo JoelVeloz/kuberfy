@@ -48,7 +48,7 @@ export const apiUpdateProject = apiCreateProject.partial();
 // application
 // ---------------------------------------------------------------------------
 
-export const buildTypes = ["dockerfile", "nixpacks"] as const;
+export const buildTypes = ["image", "dockerfile"] as const;
 export type BuildType = (typeof buildTypes)[number];
 
 export const application = sqliteTable("applications", {
@@ -104,6 +104,7 @@ export const deployment = sqliteTable("deployments", {
   status: text("status", { enum: deploymentStatuses }).notNull().default("pending"),
   commitSha: text("commit_sha"),
   imageTag: text("image_tag"),
+  containerId: text("container_id"),
   logs: text("logs"),
   ...timestamps,
 });

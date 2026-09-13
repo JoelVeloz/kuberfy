@@ -8,6 +8,13 @@
       "when": 1789264201884,
       "tag": "0000_demonic_giant_man",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1789269551427,
+      "tag": "0001_good_calypso",
+      "breakpoints": true
     }
   ]
 }

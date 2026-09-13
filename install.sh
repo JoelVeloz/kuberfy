@@ -118,9 +118,8 @@ docker run -d \
   -p 80:80 \
   -p 443:443 \
   traefik:v3.7 \
-  --providers.docker=true \
-  --providers.docker.swarmMode=true \
-  --providers.docker.exposedbydefault=false \
+  --providers.swarm=true \
+  --providers.swarm.exposedbydefault=false \
   --entrypoints.web.address=:80 \
   --entrypoints.websecure.address=:443 \
   --certificatesresolvers.le.acme.httpchallenge=true \
@@ -131,10 +130,13 @@ docker run -d \
 echo "Waiting for kuberfy to start..."
 container_id=""
 for _ in $(seq 1 30); do
-  # -f status=running (not just -f name=kuberfy): a freshly created swarm task
-  # briefly exists as "created" before it actually starts, and `docker exec`
-  # against that pre-start container fails with "cannot exec in a stopped state".
-  container_id=$(docker ps -q -f name=kuberfy -f status=running | head -n1)
+  # label=com.docker.swarm.service.name=kuberfy (not -f name=kuberfy): name is a
+  # substring match, and "kuberfy-traefik" also contains "kuberfy" — the label
+  # Swarm attaches to task containers is the only unambiguous way to find ours.
+  # status=running: a freshly created task briefly exists as "created" before it
+  # actually starts, and `docker exec` against that pre-start container fails
+  # with "cannot exec in a stopped state".
+  container_id=$(docker ps -q -f label=com.docker.swarm.service.name=kuberfy -f status=running | head -n1)
   [ -n "$container_id" ] && break
   sleep 2
 done
