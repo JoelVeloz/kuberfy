@@ -4,10 +4,14 @@ const [command, ...rest] = Bun.argv.slice(2);
 process.argv = [process.argv[0]!, process.argv[1]!, ...rest];
 
 switch (command) {
-  case "server":
-  case undefined: {
+  case "server": {
+    const port = Number(process.env.PORT) || 3000;
     const { default: server } = await import("./index");
-    Bun.serve(server);
+    const instance = Bun.serve({
+      ...server,
+      port,
+    });
+    console.log(`➜ Kuberfy control plane listening on http://${instance.hostname || "0.0.0.0"}:${instance.port}`);
     break;
   }
   case "migrate":
@@ -22,6 +26,25 @@ switch (command) {
   case "update":
     await import("../scripts/update");
     break;
+  case "help":
+  case "--help":
+  case "-h":
+  case undefined: {
+    console.log(`
+Kuberfy CLI
+
+Usage:
+  kuberfy <command> [options]
+
+Commands:
+  server        Start the API server
+  update        Update Kuberfy to the latest version
+  create-user   Create a new user account
+  set-password  Reset user password
+  migrate       Run database migrations
+`);
+    break;
+  }
   default:
     console.error(`Unknown command: ${command}`);
     console.error("Usage: kuberfy [server|migrate|create-user|set-password|update] [args...]");

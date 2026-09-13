@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { logger } from "hono/logger";
 import { serveStatic, websocket } from "hono/bun";
 import { HTTPException } from "hono/http-exception";
 import { StatusCodes } from "http-status-codes";
@@ -9,6 +10,8 @@ import { domains } from "./routes/domains";
 import { settings } from "./routes/settings";
 
 const app = new Hono();
+
+app.use("*", logger());
 
 app.get("/api/health", (c) => c.json({ ok: true }));
 app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
