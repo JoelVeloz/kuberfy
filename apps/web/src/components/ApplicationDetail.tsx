@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DeploymentsPanel } from "@/components/DeploymentsPanel";
+import { DomainsCard } from "@/components/DomainsCard";
 import { api, UnauthorizedError, NotFoundError, type ApiApplicationDetail } from "@/lib/api";
 
 type State =
@@ -102,18 +103,7 @@ export function ApplicationDetail() {
             <h2 className="font-heading text-sm font-medium">Domains</h2>
             <Card className="mt-3">
               <CardContent>
-                {app.domains.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No custom domains configured.</p>
-                ) : (
-                  <ul className="flex flex-col gap-2">
-                    {app.domains.map((domain) => (
-                      <li key={domain.id} className="flex items-center justify-between gap-2 text-xs">
-                        <span className="font-mono">{domain.host}</span>
-                        <Badge variant="outline">SSL</Badge>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                <DomainsCard applicationId={app.id} initialDomains={app.domains} />
               </CardContent>
             </Card>
           </div>

@@ -55,7 +55,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new UnauthorizedError();
   }
   if (res.status === 404) throw new NotFoundError();
-  if (!res.ok) throw new Error(`${path} failed with ${res.status}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error ?? body?.message ?? `${path} failed with ${res.status}`);
+  }
   return res.json();
 }
 
@@ -68,6 +71,25 @@ export const api = {
       body: JSON.stringify({ name }),
     }),
   getProject: (id: string) => request<ApiProject>(`/api/projects/${id}`),
+  updateProject: (id: string, name: string) =>
+    request<ApiProject>(`/api/projects/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    }),
   listProjectApplications: (id: string) => request<ApiApplication[]>(`/api/projects/${id}/applications`),
   getApplication: (id: string) => request<ApiApplicationDetail>(`/api/applications/${id}`),
+  createApplication: (input: { projectId: string; name: string; repoUrl: string; branch: string; buildType: BuildType }) =>
+    request<ApiApplication>("/api/applications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }),
+  createDomain: (applicationId: string, host: string) =>
+    request<ApiDomain>("/api/domains", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ applicationId, host }),
+    }),
+  deleteDomain: (id: string) => request<ApiDomain>(`/api/domains/${id}`, { method: "DELETE" }),
 };

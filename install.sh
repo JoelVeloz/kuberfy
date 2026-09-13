@@ -130,8 +130,11 @@ docker run -d \
 
 echo "Waiting for kuberfy to start..."
 container_id=""
-for _ in $(seq 1 15); do
-  container_id=$(docker ps -q -f name=kuberfy | head -n1)
+for _ in $(seq 1 30); do
+  # -f status=running (not just -f name=kuberfy): a freshly created swarm task
+  # briefly exists as "created" before it actually starts, and `docker exec`
+  # against that pre-start container fails with "cannot exec in a stopped state".
+  container_id=$(docker ps -q -f name=kuberfy -f status=running | head -n1)
   [ -n "$container_id" ] && break
   sleep 2
 done
