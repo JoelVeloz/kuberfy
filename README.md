@@ -36,15 +36,17 @@ Fewer moving parts means fewer things to monitor, fewer things to update, and le
 
 ## Requirements
 
-Kuberfy's installer targets a single Linux server. Minimum specs:
+Kuberfy's installer targets a single Linux server. Minimum specs, verified by running the installer end-to-end on real VMs (not estimated):
 
 - **OS**: Linux (x86_64 or arm64) — the installer refuses to run on macOS or inside a container
 - **CPU**: 1 vCPU
-- **RAM**: 512 MB (1 GB recommended if you'll run several applications alongside Kuberfy)
-- **Disk**: 1 GB free, plus space for your application images
+- **RAM**: 1 GB — confirmed working through a full install (Docker, Swarm, Traefik, Kuberfy) with no failures; not tested below 1 GB
+- **Disk**: 10 GB free, plus space for your application images
 - **Access**: root shell
-- **Software**: `curl`, `git`; Docker is installed automatically if missing
+- **Software**: `curl`; Docker is installed automatically if missing
 - **Network**: ports 80, 443, and 3000 free; a domain name if you want a public hostname (Let's Encrypt requires it — an IP works for local/internal use)
+
+Kuberfy itself is far lighter than the install footprint above: once running, the control plane uses **~23 MB of RAM** and Traefik **~14 MB** (measured with `docker stats`). Most of a fresh VM's memory during install goes to Docker/containerd, not to Kuberfy.
 
 ## Installation
 
