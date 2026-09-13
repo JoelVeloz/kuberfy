@@ -87,7 +87,7 @@ if [ -z "$ADMIN_EMAIL" ]; then
       printf "${BOLD}${YELLOW}? Admin Email:${NC} "
       read -r ADMIN_EMAIL
     done
-  elif [ -e /dev/tty ]; then
+  elif (exec 3</dev/tty) 2>/dev/null; then
     while [ -z "$ADMIN_EMAIL" ]; do
       printf "${BOLD}${YELLOW}? Admin Email:${NC} " > /dev/tty
       read -r ADMIN_EMAIL < /dev/tty
@@ -101,7 +101,7 @@ if [ -z "$KUBERFY_DOMAIN" ]; then
   if [ -t 0 ]; then
     printf "${BOLD}${YELLOW}? Domain name (optional, press Enter for server IP):${NC} "
     read -r KUBERFY_DOMAIN
-  elif [ -e /dev/tty ]; then
+  elif (exec 3</dev/tty) 2>/dev/null; then
     printf "${BOLD}${YELLOW}? Domain name (optional, press Enter for server IP):${NC} " > /dev/tty
     read -r KUBERFY_DOMAIN < /dev/tty
   fi

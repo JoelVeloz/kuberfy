@@ -52,7 +52,7 @@ if [ "${FORCE:-0}" != "1" ]; then
   if [ -t 0 ]; then
     printf "${BOLD}${YELLOW}? Are you sure you want to uninstall Kuberfy and remove all containers and data? [y/N]:${NC} "
     read -r confirmed
-  elif [ -e /dev/tty ]; then
+  elif (exec 3</dev/tty) 2>/dev/null; then
     printf "${BOLD}${YELLOW}? Are you sure you want to uninstall Kuberfy and remove all containers and data? [y/N]:${NC} " > /dev/tty
     read -r confirmed < /dev/tty
   else
