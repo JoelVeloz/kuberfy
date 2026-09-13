@@ -20,6 +20,8 @@ export interface ApiApplication {
   dockerfilePath: string | null;
   envVars: string | null;
   memoryLimitMb: number;
+  // registryPassword is write-only — never sent back by the API
+  registryUsername: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -87,6 +89,15 @@ export interface ApiTrafficSummary {
   buckets: number;
   bucketMs: number;
   counts: Array<{ bucketStart: number; good: number; warning: number; critical: number }>;
+}
+
+export interface ApiTrafficIp {
+  clientIp: string;
+  count: number;
+  good: number;
+  warning: number;
+  critical: number;
+  lastSeen: string;
 }
 
 export interface ApiUser {
@@ -300,5 +311,9 @@ export const api = {
   listTrafficEvents: (range: string, host: string | undefined, page: number, pageSize: number) =>
     request<ApiPage<ApiTrafficEvent>>(
       `/api/observability/traffic/events?range=${range}&page=${page}&pageSize=${pageSize}${host && host !== "all" ? `&host=${encodeURIComponent(host)}` : ""}`,
+    ),
+  listTrafficIps: (range: string, host: string | undefined, page: number, pageSize: number) =>
+    request<ApiPage<ApiTrafficIp>>(
+      `/api/observability/traffic/ips?range=${range}&page=${page}&pageSize=${pageSize}${host && host !== "all" ? `&host=${encodeURIComponent(host)}` : ""}`,
     ),
 };

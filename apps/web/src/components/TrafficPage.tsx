@@ -4,6 +4,7 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { TablePagination } from "@/components/ui/table-pagination";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type ChartConfig, ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { QueryProvider } from "@/components/QueryProvider";
 import { api, type ApiTrafficEvent } from "@/lib/api";
@@ -65,7 +66,9 @@ function TrafficChart({ counts, range }: { counts: Array<{ bucketStart: number; 
 function TrafficPageInner() {
   const [hostFilter, setHostFilter] = React.useState("all");
   const [range, setRange] = React.useState<Range>("1h");
+  const [tab, setTab] = React.useState<"events" | "ips">("events");
   const [page, setPage] = React.useState(1);
+  const [ipsPage, setIpsPage] = React.useState(1);
   const [selected, setSelected] = React.useState<ApiTrafficEvent | null>(null);
   const [connected, setConnected] = React.useState(false);
   const [wsError, setWsError] = React.useState<string | null>(null);
@@ -73,6 +76,7 @@ function TrafficPageInner() {
   // Reset to page 1 (the live view) whenever the filters change — an old page number from a different
   // range/host wouldn't mean anything under the new one.
   React.useEffect(() => setPage(1), [range, hostFilter]);
+  React.useEffect(() => setIpsPage(1), [range, hostFilter]);
 
   const summary = useQuery({
     queryKey: ["traffic-summary", range, hostFilter],
@@ -86,6 +90,13 @@ function TrafficPageInner() {
     queryKey: ["traffic-events", range, hostFilter, page],
     queryFn: () => api.listTrafficEvents(range, hostFilter, page, PAGE_SIZE),
     placeholderData: keepPreviousData,
+  });
+
+  const ipsQuery = useQuery({
+    queryKey: ["traffic-ips", range, hostFilter, ipsPage],
+    queryFn: () => api.listTrafficIps(range, hostFilter, ipsPage, PAGE_SIZE),
+    placeholderData: keepPreviousData,
+    refetchInterval: 30_000,
   });
 
   // Live tail: page 1 is "now", so a fresh request there should show up without waiting for the next poll —
@@ -172,35 +183,72 @@ function TrafficPageInner() {
           <div className="mb-6 rounded-md border border-border p-3">
             <TrafficChart counts={summary.data?.counts ?? []} range={range} />
           </div>
-          <div className="rounded-md border border-border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Time</TableHead>
-                  <TableHead>Method</TableHead>
-                  <TableHead>Host</TableHead>
-                  <TableHead>Path</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Duration</TableHead>
-                  <TableHead>Client IP</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(eventsQuery.data?.items ?? []).map((e, i) => (
-                  <TableRow key={i} className="cursor-pointer" onClick={() => setSelected(e)}>
-                    <TableCell className="whitespace-nowrap text-muted-foreground">{new Date(e.time).toLocaleTimeString()}</TableCell>
-                    <TableCell className="font-mono">{e.method}</TableCell>
-                    <TableCell className="max-w-48 truncate font-mono">{e.host}</TableCell>
-                    <TableCell className="max-w-64 truncate font-mono">{e.path}</TableCell>
-                    <TableCell className={`font-mono ${statusColor(e.status)}`}>{e.status}</TableCell>
-                    <TableCell className="text-muted-foreground">{e.durationMs}ms</TableCell>
-                    <TableCell className="font-mono text-muted-foreground">{e.clientIp ?? "—"}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            <TablePagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
-          </div>
+          <Tabs value={tab} onValueChange={(v) => setTab(v as "events" | "ips")}>
+            <TabsList className="mb-3">
+              <TabsTrigger value="events">Requests</TabsTrigger>
+              <TabsTrigger value="ips">Client IPs</TabsTrigger>
+            </TabsList>
+            <TabsContent value="events">
+              <div className="rounded-md border border-border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Time</TableHead>
+                      <TableHead>Method</TableHead>
+                      <TableHead>Host</TableHead>
+                      <TableHead>Path</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Duration</TableHead>
+                      <TableHead>Client IP</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(eventsQuery.data?.items ?? []).map((e, i) => (
+                      <TableRow key={i} className="cursor-pointer" onClick={() => setSelected(e)}>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">{new Date(e.time).toLocaleTimeString()}</TableCell>
+                        <TableCell className="font-mono">{e.method}</TableCell>
+                        <TableCell className="max-w-48 truncate font-mono">{e.host}</TableCell>
+                        <TableCell className="max-w-64 truncate font-mono">{e.path}</TableCell>
+                        <TableCell className={`font-mono ${statusColor(e.status)}`}>{e.status}</TableCell>
+                        <TableCell className="text-muted-foreground">{e.durationMs}ms</TableCell>
+                        <TableCell className="font-mono text-muted-foreground">{e.clientIp ?? "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                <TablePagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
+              </div>
+            </TabsContent>
+            <TabsContent value="ips">
+              <div className="rounded-md border border-border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Client IP</TableHead>
+                      <TableHead>Requests</TableHead>
+                      <TableHead>2xx/3xx</TableHead>
+                      <TableHead>4xx</TableHead>
+                      <TableHead>5xx</TableHead>
+                      <TableHead>Last seen</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(ipsQuery.data?.items ?? []).map((ip) => (
+                      <TableRow key={ip.clientIp}>
+                        <TableCell className="font-mono">{ip.clientIp}</TableCell>
+                        <TableCell>{ip.count}</TableCell>
+                        <TableCell className="text-success">{ip.good}</TableCell>
+                        <TableCell className={ip.warning > 0 ? "text-amber-600 dark:text-amber-500" : "text-muted-foreground"}>{ip.warning}</TableCell>
+                        <TableCell className={ip.critical > 0 ? "text-destructive" : "text-muted-foreground"}>{ip.critical}</TableCell>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">{new Date(ip.lastSeen).toLocaleTimeString()}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                <TablePagination page={ipsPage} pageSize={PAGE_SIZE} total={ipsQuery.data?.total ?? 0} onPageChange={setIpsPage} />
+              </div>
+            </TabsContent>
+          </Tabs>
         </>
       )}
 

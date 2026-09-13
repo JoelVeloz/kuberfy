@@ -192,6 +192,51 @@ observability.get("/traffic/hosts", async (c) => {
   return c.json({ hosts });
 });
 
+// Table data: distinct client IPs in the range, ranked by request count — same {page, pageSize, total}
+// pagination contract as /traffic/events, so it reuses the same TablePagination on the frontend.
+observability.get("/traffic/ips", zValidator("query", paginationQuery), async (c) => {
+  const range = (c.req.query("range") ?? "24h") as TrafficRange;
+  const host = c.req.query("host");
+  const config = TRAFFIC_RANGES[range];
+  if (!config) return c.json({ error: "Invalid range" }, 400);
+  const pagination = c.req.valid("query");
+
+  const where = and(gte(requestLog.time, new Date(Date.now() - config.ms)), host ? eq(requestLog.host, host) : undefined);
+  const countExpr = sql<number>`count(*)`;
+
+  const [rows, [totalRow]] = await Promise.all([
+    db
+      .select({
+        clientIp: requestLog.clientIp,
+        count: countExpr,
+        good: sql<number>`sum(case when ${requestLog.status} < 400 then 1 else 0 end)`,
+        warning: sql<number>`sum(case when ${requestLog.status} >= 400 and ${requestLog.status} < 500 then 1 else 0 end)`,
+        critical: sql<number>`sum(case when ${requestLog.status} >= 500 then 1 else 0 end)`,
+        lastSeen: sql<number>`max(${requestLog.time})`,
+      })
+      .from(requestLog)
+      .where(where)
+      .groupBy(requestLog.clientIp)
+      .orderBy(desc(countExpr))
+      .limit(pagination.pageSize)
+      .offset(paginationOffset(pagination)),
+    db
+      .select({ total: sql<number>`count(distinct ${requestLog.clientIp})` })
+      .from(requestLog)
+      .where(where),
+  ]);
+
+  const items = rows.map((r) => ({
+    clientIp: r.clientIp ?? "Unknown",
+    count: r.count,
+    good: r.good,
+    warning: r.warning,
+    critical: r.critical,
+    lastSeen: new Date(r.lastSeen * 1000).toISOString(),
+  }));
+  return c.json({ items, total: totalRow.total });
+});
+
 // Table data: one page of raw rows at a time, instead of every request in the range.
 observability.get("/traffic/events", zValidator("query", paginationQuery), async (c) => {
   const range = (c.req.query("range") ?? "24h") as TrafficRange;

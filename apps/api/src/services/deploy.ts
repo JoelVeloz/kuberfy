@@ -76,7 +76,8 @@ async function deploy(app: typeof application.$inferSelect, deploymentId: string
   const imageTag = app.buildType === "image" ? app.repoUrl : `kuberfy/${app.id}:${Date.now()}`;
 
   if (app.buildType === "image") {
-    await pullImage(imageTag, log);
+    const auth = app.registryUsername && app.registryPassword ? { username: app.registryUsername, password: app.registryPassword } : undefined;
+    await pullImage(imageTag, log, auth);
   } else {
     await buildFromGit(app, imageTag, log);
   }
@@ -220,9 +221,19 @@ export function latestDeployment(applicationId: string) {
   });
 }
 
-async function pullImage(image: string, log: (line: string) => void) {
+// The registry host is whatever `docker login`/`docker pull` would infer from the image reference itself —
+// no separate "registry" field to fill in. A prefix counts as a host only if it looks like one (has a "." or
+// ":", or is "localhost"); a bare "org/image" or "image" is Docker Hub, same rule the Docker CLI uses.
+export function deriveRegistryServer(image: string): string {
+  const firstSegment = image.split("/")[0]!;
+  const looksLikeHost = firstSegment.includes(".") || firstSegment.includes(":") || firstSegment === "localhost";
+  return looksLikeHost ? firstSegment : "https://index.docker.io/v1/";
+}
+
+async function pullImage(image: string, log: (line: string) => void, auth?: { username: string; password: string }) {
   log(`Pulling ${image}`);
-  const stream = await docker.pull(image);
+  const authconfig = auth ? { ...auth, serveraddress: deriveRegistryServer(image) } : undefined;
+  const stream = await docker.pull(image, authconfig ? { authconfig } : {});
   await new Promise<void>((resolve, reject) => {
     docker.modem.followProgress(
       stream,

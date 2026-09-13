@@ -64,6 +64,10 @@ export const application = sqliteTable("applications", {
   dockerfilePath: text("dockerfile_path"),
   // TODO: encrypt before the deploy pipeline writes to this (plain JSON for now)
   envVars: text("env_vars"),
+  // only used when buildType === "image" and the image is in a private registry — registry host itself is
+  // derived from the image reference at pull time (deriveRegistryServer in deploy.ts), not stored separately
+  registryUsername: text("registry_username"),
+  registryPassword: text("registry_password"),
   // hard cap passed to Docker as HostConfig.Memory — keeps one runaway service from starving the host
   memoryLimitMb: integer("memory_limit_mb").notNull().default(256),
   ...timestamps,
@@ -87,6 +91,8 @@ export const apiCreateApplication = z.object({
   dockerfilePath: z.string().min(1).optional(),
   envVars: z.string().optional(),
   memoryLimitMb: z.number().int().positive().default(256),
+  registryUsername: z.string().min(1).optional(),
+  registryPassword: z.string().min(1).optional(),
 });
 
 export const apiUpdateApplication = apiCreateApplication.omit({ projectId: true }).partial();

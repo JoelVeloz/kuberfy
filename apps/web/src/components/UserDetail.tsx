@@ -4,7 +4,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { QueryProvider } from "@/components/QueryProvider";
 import { api, UnauthorizedError, NotFoundError } from "@/lib/api";
 import { getQueryParam } from "@/lib/query-params";
@@ -95,22 +97,28 @@ function UserDetailInner() {
           {passkeys.length === 0 ? (
             <p className="text-xs text-muted-foreground">No passkeys registered.</p>
           ) : (
-            <ul className="flex flex-col gap-2">
-              {passkeys.map((passkey) => (
-                <li key={passkey.id} className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm">
-                  <span className="flex items-center gap-2">
-                    <Fingerprint className="text-muted-foreground" />
-                    <span>
-                      <div>{passkey.name || "Passkey"}</div>
-                      <div className="text-xs text-muted-foreground">Added {passkey.createdAt ? formatDate(passkey.createdAt) : "—"}</div>
-                    </span>
-                  </span>
-                  <Button type="button" variant="ghost" size="icon" disabled={deletePasskey.isPending} onClick={() => deletePasskey.mutate(passkey.id)}>
-                    <Trash />
-                  </Button>
-                </li>
-              ))}
-            </ul>
+            <div className="rounded-md border border-border">
+              <ScrollArea className="max-h-72">
+                <Table>
+                  <TableBody>
+                    {passkeys.map((passkey) => (
+                      <TableRow key={passkey.id}>
+                        <TableCell className="w-8">
+                          <Fingerprint className="text-muted-foreground" />
+                        </TableCell>
+                        <TableCell>{passkey.name || "Passkey"}</TableCell>
+                        <TableCell className="text-muted-foreground">Added {passkey.createdAt ? formatDate(passkey.createdAt) : "—"}</TableCell>
+                        <TableCell className="w-8">
+                          <Button type="button" variant="ghost" size="icon" disabled={deletePasskey.isPending} onClick={() => deletePasskey.mutate(passkey.id)}>
+                            <Trash />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -128,24 +136,33 @@ function UserDetailInner() {
           {sessions.length === 0 ? (
             <p className="text-xs text-muted-foreground">No active sessions.</p>
           ) : (
-            <ul className="flex flex-col gap-2">
-              {sessions.map((session) => (
-                <li key={session.id} className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm">
-                  <span className="flex items-center gap-2">
-                    <Desktop className="text-muted-foreground" />
-                    <span>
-                      <div className="truncate">{session.userAgent || "Unknown device"}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {session.ipAddress || "Unknown IP"} · signed in {formatDate(session.createdAt)}
-                      </div>
-                    </span>
-                  </span>
-                  <Button type="button" variant="ghost" size="sm" disabled={revokeSession.isPending} onClick={() => revokeSession.mutate(session.token)}>
-                    Revoke
-                  </Button>
-                </li>
-              ))}
-            </ul>
+            <div className="rounded-md border border-border">
+              <ScrollArea className="max-h-72">
+                <Table>
+                  <TableBody>
+                    {sessions.map((session) => (
+                      <TableRow key={session.id}>
+                        <TableCell className="w-8">
+                          <Desktop className="text-muted-foreground" />
+                        </TableCell>
+                        <TableCell>
+                          <div className="max-w-64 truncate" title={session.userAgent || "Unknown device"}>
+                            {session.userAgent || "Unknown device"}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{session.ipAddress || "Unknown IP"}</TableCell>
+                        <TableCell className="text-muted-foreground">{formatDate(session.createdAt)}</TableCell>
+                        <TableCell className="w-8">
+                          <Button type="button" variant="ghost" size="sm" disabled={revokeSession.isPending} onClick={() => revokeSession.mutate(session.token)}>
+                            Revoke
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </div>
           )}
         </CardContent>
       </Card>
