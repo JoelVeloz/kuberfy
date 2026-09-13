@@ -63,6 +63,97 @@ async function containerStats(containerId: string) {
   }
 }
 
+const CLK_TCK = 100; // USER_HZ — universal on every Linux arch we target, so not worth shelling out to `getconf` for
+const HOST_PROC = "/host/proc"; // the real host's /proc, bind-mounted read-only — Swarm services can't share the host PID namespace
+// (no --pid=host equivalent for `docker service create`), so per-process /proc/[pid] entries aren't visible any other way.
+
+interface ProcessSample {
+  pid: number;
+  command: string;
+  cpu: number;
+  memUsed: number;
+}
+
+// Mirrors hostCpuPercent's approach (a delta over the real elapsed time between ticks) but per-pid, since
+// /proc/[pid]/stat only exposes cumulative CPU ticks since process start, not a live percentage.
+function readHostProcesses(prevTicks: Map<number, number>, elapsedSeconds: number): { processes: ProcessSample[]; ticks: Map<number, number> } {
+  const ticks = new Map<number, number>();
+  const processes: ProcessSample[] = [];
+
+  let entries: string[];
+  try {
+    entries = fs.readdirSync(HOST_PROC);
+  } catch {
+    return { processes, ticks }; // not mounted (e.g. local dev without the bind mount) — report no processes rather than crash
+  }
+
+  for (const entry of entries) {
+    const pid = Number(entry);
+    if (!Number.isInteger(pid)) continue;
+
+    let stat: string;
+    try {
+      stat = fs.readFileSync(`${HOST_PROC}/${pid}/stat`, "utf-8");
+    } catch {
+      continue; // exited between the readdir and this read
+    }
+
+    // comm is parenthesized and may itself contain "(" / ")", so locate it by the outermost pair rather than splitting on spaces
+    const commEnd = stat.lastIndexOf(")");
+    const comm = stat.slice(stat.indexOf("(") + 1, commEnd);
+    // everything after ") " starts at field 3 (state) — utime/stime are fields 14/15, i.e. indexes 11/12 here
+    const fields = stat
+      .slice(commEnd + 2)
+      .trim()
+      .split(/\s+/);
+    const totalTicks = Number(fields[11]) + Number(fields[12]);
+    ticks.set(pid, totalTicks);
+
+    const prev = prevTicks.get(pid);
+    const cpu = prev !== undefined && elapsedSeconds > 0 ? Math.max(0, Math.round(((totalTicks - prev) / CLK_TCK / elapsedSeconds) * 1000) / 10) : 0;
+
+    // Full argv reads better for debugging than the 15-char-truncated comm — but kernel threads have no argv, so fall back to comm for those
+    let command = comm;
+    try {
+      const cmdline = fs.readFileSync(`${HOST_PROC}/${pid}/cmdline`, "utf-8").replace(/\0/g, " ").trim();
+      if (cmdline) command = cmdline;
+    } catch {
+      // ignore — comm already set
+    }
+
+    processes.push({ pid, command, cpu, memUsed: Number(fields[21]) * 4096 });
+  }
+
+  return { processes, ticks };
+}
+
+system.get(
+  "/processes",
+  upgradeWebSocket(() => {
+    let prevTicks = new Map<number, number>();
+    let prevTime = Date.now();
+    let interval: ReturnType<typeof setInterval> | null = null;
+    return {
+      onOpen: (_evt, ws) => {
+        const tick = () => {
+          const now = Date.now();
+          const elapsedSeconds = (now - prevTime) / 1000;
+          const { processes, ticks } = readHostProcesses(prevTicks, elapsedSeconds);
+          prevTicks = ticks;
+          prevTime = now;
+          ws.send(JSON.stringify({ t: now, processes }));
+        };
+        // Same "fire once immediately" reasoning as /stats — first tick's cpu reads 0 (no prior sample yet) and corrects 2s later.
+        void tick();
+        interval = setInterval(tick, 2000);
+      },
+      onClose: () => {
+        if (interval) clearInterval(interval);
+      },
+    };
+  }),
+);
+
 system.get(
   "/stats",
   upgradeWebSocket(() => {

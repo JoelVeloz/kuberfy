@@ -1,6 +1,7 @@
 ---
 import Layout from "@/layouts/Layout.astro";
 import { SystemPage } from "@/components/SystemPage";
+import { ProcessesTable } from "@/components/ProcessesTable";
 ---
 
 <Layout title="System">
@@ -8,5 +9,13 @@ import { SystemPage } from "@/components/SystemPage";
   <p class="mt-1 text-xs text-muted-foreground">Host resource usage and a summary of every application's current footprint.</p>
   <div class="mt-6">
     <SystemPage client:load />
+  </div>
+
+  <div class="mt-6">
+    <h2 class="font-heading text-sm font-medium">Processes</h2>
+    <p class="mt-1 text-xs text-muted-foreground">Every process on the host — click a column to sort by it.</p>
+    <div class="mt-3">
+      <ProcessesTable client:load />
+    </div>
   </div>
 </Layout>

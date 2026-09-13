@@ -42,6 +42,9 @@ services:
     volumes:
       - kuberfy-data:/data
       - /var/run/docker.sock:/var/run/docker.sock
+      # Read-only view of the host's real /proc — lets the Processes table see every host process even though
+      # Swarm services can't share the host PID namespace (production has no --pid=host equivalent).
+      - /proc:/host/proc:ro
     mem_limit: 256m
     labels:
       - traefik.enable=true

@@ -265,6 +265,7 @@ docker service create \
   --group "$DOCKER_SOCK_GID" \
   --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
   --mount type=volume,source=kuberfy-data,target=/data \
+  --mount type=bind,source=/proc,target=/host/proc,readonly \
   --update-parallelism 1 \
   --update-order stop-first \
   --constraint 'node.role == manager' \
