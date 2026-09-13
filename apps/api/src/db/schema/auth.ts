@@ -80,9 +80,37 @@ export const verifications = sqliteTable(
   (table) => [index("verifications_identifier_idx").on(table.identifier)],
 );
 
+export const passkeys = sqliteTable(
+  "passkeys",
+  {
+    id: text("id").primaryKey(),
+    name: text("name"),
+    publicKey: text("public_key").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    credentialID: text("credential_id").notNull(),
+    counter: integer("counter").notNull(),
+    deviceType: text("device_type").notNull(),
+    backedUp: integer("backed_up", { mode: "boolean" }).notNull(),
+    transports: text("transports"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }),
+    aaguid: text("aaguid"),
+  },
+  (table) => [index("passkeys_userId_idx").on(table.userId), index("passkeys_credentialID_idx").on(table.credentialID)],
+);
+
 export const usersRelations = relations(users, ({ many }) => ({
   sessionss: many(sessions),
   accountss: many(accounts),
+  passkeys: many(passkeys),
+}));
+
+export const passkeysRelations = relations(passkeys, ({ one }) => ({
+  users: one(users, {
+    fields: [passkeys.userId],
+    references: [users.id],
+  }),
 }));
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({

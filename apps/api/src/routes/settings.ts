@@ -20,6 +20,12 @@ export async function ensureSettingsSeeded() {
   await db.insert(setting).values({ kuberfyDomain: env.KUBERFY_DOMAIN ?? "localhost" });
 }
 
+// Pre-auth: the login page needs this to decide whether to show the "Sign in with passkey" button at all.
+settings.get("/passkey-enabled", async (c) => {
+  const existing = await db.query.setting.findFirst();
+  return c.json({ enabled: existing?.passkeyEnabled ?? false });
+});
+
 settings.use("*", requireAuth);
 
 // single-row settings: no id in the URL, there's only ever one

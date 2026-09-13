@@ -2,6 +2,7 @@
 import Layout from "@/layouts/Layout.astro";
 import { SettingsForm } from "@/components/SettingsForm";
 import { ExposedPortsCard } from "@/components/ExposedPortsCard";
+import { PasskeyCard } from "@/components/PasskeyCard";
 ---
 
 <Layout title="Settings">
@@ -10,6 +11,7 @@ import { ExposedPortsCard } from "@/components/ExposedPortsCard";
 
   <div class="mt-6 flex max-w-2xl flex-col gap-6">
     <SettingsForm client:load />
+    <PasskeyCard client:load />
     <ExposedPortsCard client:load />
   </div>
 </Layout>

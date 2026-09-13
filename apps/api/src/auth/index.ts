@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin } from "better-auth/plugins";
+import { passkey } from "@better-auth/passkey";
 import { db } from "../db";
 import { env } from "../lib/env";
 
@@ -17,7 +18,9 @@ export const auth = betterAuth({
     const domainOrigins = row?.kuberfyDomain ? [`http://${row.kuberfyDomain}`, `https://${row.kuberfyDomain}`] : [];
     return [...domainOrigins, ...(env.CORS_ORIGINS ?? [])];
   },
-  plugins: [admin()],
+  // No rpID/origin set: the plugin falls back to the current request's derived baseURL/Origin header, so it
+  // stays correct across a live kuberfyDomain change (routes/settings.ts) with no restart, same as trustedOrigins above.
+  plugins: [admin(), passkey({ rpName: "Kuberfy" })],
   advanced: {
     database: {
       generateId: "uuid",

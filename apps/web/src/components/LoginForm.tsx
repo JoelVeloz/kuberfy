@@ -1,8 +1,10 @@
 import * as React from "react";
+import { Fingerprint } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
+import { api } from "@/lib/api";
 import { getQueryParam } from "@/lib/query-params";
 
 export function LoginForm() {
@@ -10,6 +12,15 @@ export function LoginForm() {
   const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState(false);
+  const [passkeyEnabled, setPasskeyEnabled] = React.useState(false);
+  const [passkeyPending, setPasskeyPending] = React.useState(false);
+
+  React.useEffect(() => {
+    api
+      .getPasskeyEnabled()
+      .then((res) => setPasskeyEnabled(res.enabled))
+      .catch(() => {});
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -19,6 +30,18 @@ export function LoginForm() {
     setPending(false);
     if (signInError) {
       setError(signInError.message ?? "Invalid email or password.");
+      return;
+    }
+    window.location.href = getQueryParam("redirect") || "/";
+  }
+
+  async function handlePasskeySignIn() {
+    setError(null);
+    setPasskeyPending(true);
+    const result = await authClient.signIn.passkey();
+    setPasskeyPending(false);
+    if (result?.error) {
+      setError(result.error.message ?? "Passkey sign-in failed.");
       return;
     }
     window.location.href = getQueryParam("redirect") || "/";
@@ -46,6 +69,20 @@ export function LoginForm() {
       <Button type="submit" disabled={pending} className="w-full">
         {pending ? "Signing in…" : "Sign in"}
       </Button>
+
+      {passkeyEnabled && (
+        <>
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="h-px flex-1 bg-border" />
+            or
+            <div className="h-px flex-1 bg-border" />
+          </div>
+
+          <Button type="button" variant="outline" disabled={passkeyPending} onClick={handlePasskeySignIn} className="w-full">
+            <Fingerprint /> {passkeyPending ? "Waiting for passkey…" : "Sign in with a passkey"}
+          </Button>
+        </>
+      )}
     </form>
   );
 }

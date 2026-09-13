@@ -8,6 +8,7 @@
     "user:set-password": "bun run scripts/set-password.ts"
   },
   "dependencies": {
+    "@better-auth/passkey": "^1.7.4",
     "@hono/zod-validator": "^0.9.1",
     "better-auth": "^1.7.4",
     "dockerode": "^5.0.1",
