@@ -1,13 +1,14 @@
 import * as React from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { createColumnHelper } from "@tanstack/react-table";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DataTable } from "@/components/ui/data-table";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { TablePagination } from "@/components/ui/table-pagination";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type ChartConfig, ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { QueryProvider } from "@/components/QueryProvider";
-import { api, type ApiTrafficEvent } from "@/lib/api";
+import { api, type ApiTrafficEvent, type ApiTrafficIp } from "@/lib/api";
 import { apiWsUrl } from "@/lib/api-url";
 
 function statusColor(status: number) {
@@ -23,6 +24,41 @@ function formatSize(bytes: number | null) {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
+
+const eventColumnHelper = createColumnHelper<ApiTrafficEvent>();
+const eventColumns = [
+  eventColumnHelper.accessor("time", {
+    header: "Time",
+    meta: { className: "whitespace-nowrap text-muted-foreground" },
+    cell: (info) => new Date(info.getValue()).toLocaleTimeString(),
+  }),
+  eventColumnHelper.accessor("method", { header: "Method", meta: { className: "font-mono" } }),
+  eventColumnHelper.accessor("host", { header: "Host", meta: { className: "max-w-48 truncate font-mono" } }),
+  eventColumnHelper.accessor("path", { header: "Path", meta: { className: "max-w-64 truncate font-mono" } }),
+  eventColumnHelper.accessor("status", { header: "Status", cell: (info) => <span className={`font-mono ${statusColor(info.getValue())}`}>{info.getValue()}</span> }),
+  eventColumnHelper.accessor("durationMs", { header: "Duration", meta: { className: "text-muted-foreground" }, cell: (info) => `${info.getValue()}ms` }),
+  eventColumnHelper.accessor("clientIp", { header: "Client IP", meta: { className: "font-mono text-muted-foreground" }, cell: (info) => info.getValue() ?? "—" }),
+];
+
+const ipColumnHelper = createColumnHelper<ApiTrafficIp>();
+const ipColumns = [
+  ipColumnHelper.accessor("clientIp", { header: "Client IP", meta: { className: "font-mono" } }),
+  ipColumnHelper.accessor("count", { header: "Requests" }),
+  ipColumnHelper.accessor("good", { header: "2xx/3xx", meta: { className: "text-success" } }),
+  ipColumnHelper.accessor("warning", {
+    header: "4xx",
+    cell: (info) => <span className={info.getValue() > 0 ? "text-amber-600 dark:text-amber-500" : "text-muted-foreground"}>{info.getValue()}</span>,
+  }),
+  ipColumnHelper.accessor("critical", {
+    header: "5xx",
+    cell: (info) => <span className={info.getValue() > 0 ? "text-destructive" : "text-muted-foreground"}>{info.getValue()}</span>,
+  }),
+  ipColumnHelper.accessor("lastSeen", {
+    header: "Last seen",
+    meta: { className: "whitespace-nowrap text-muted-foreground" },
+    cell: (info) => new Date(info.getValue()).toLocaleTimeString(),
+  }),
+];
 
 const chartConfig = {
   good: { label: "2xx/3xx", color: "var(--color-success)" },
@@ -190,61 +226,19 @@ function TrafficPageInner() {
             </TabsList>
             <TabsContent value="events">
               <div className="rounded-md border border-border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Time</TableHead>
-                      <TableHead>Method</TableHead>
-                      <TableHead>Host</TableHead>
-                      <TableHead>Path</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Duration</TableHead>
-                      <TableHead>Client IP</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(eventsQuery.data?.items ?? []).map((e, i) => (
-                      <TableRow key={i} className="cursor-pointer" onClick={() => setSelected(e)}>
-                        <TableCell className="whitespace-nowrap text-muted-foreground">{new Date(e.time).toLocaleTimeString()}</TableCell>
-                        <TableCell className="font-mono">{e.method}</TableCell>
-                        <TableCell className="max-w-48 truncate font-mono">{e.host}</TableCell>
-                        <TableCell className="max-w-64 truncate font-mono">{e.path}</TableCell>
-                        <TableCell className={`font-mono ${statusColor(e.status)}`}>{e.status}</TableCell>
-                        <TableCell className="text-muted-foreground">{e.durationMs}ms</TableCell>
-                        <TableCell className="font-mono text-muted-foreground">{e.clientIp ?? "—"}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <DataTable
+                  columns={eventColumns}
+                  data={eventsQuery.data?.items ?? []}
+                  getRowId={(e, i) => `${e.time}-${i}`}
+                  rowClassName={() => "cursor-pointer"}
+                  onRowClick={setSelected}
+                />
                 <TablePagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
               </div>
             </TabsContent>
             <TabsContent value="ips">
               <div className="rounded-md border border-border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Client IP</TableHead>
-                      <TableHead>Requests</TableHead>
-                      <TableHead>2xx/3xx</TableHead>
-                      <TableHead>4xx</TableHead>
-                      <TableHead>5xx</TableHead>
-                      <TableHead>Last seen</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(ipsQuery.data?.items ?? []).map((ip) => (
-                      <TableRow key={ip.clientIp}>
-                        <TableCell className="font-mono">{ip.clientIp}</TableCell>
-                        <TableCell>{ip.count}</TableCell>
-                        <TableCell className="text-success">{ip.good}</TableCell>
-                        <TableCell className={ip.warning > 0 ? "text-amber-600 dark:text-amber-500" : "text-muted-foreground"}>{ip.warning}</TableCell>
-                        <TableCell className={ip.critical > 0 ? "text-destructive" : "text-muted-foreground"}>{ip.critical}</TableCell>
-                        <TableCell className="whitespace-nowrap text-muted-foreground">{new Date(ip.lastSeen).toLocaleTimeString()}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <DataTable columns={ipColumns} data={ipsQuery.data?.items ?? []} getRowId={(ip) => ip.clientIp} />
                 <TablePagination page={ipsPage} pageSize={PAGE_SIZE} total={ipsQuery.data?.total ?? 0} onPageChange={setIpsPage} />
               </div>
             </TabsContent>

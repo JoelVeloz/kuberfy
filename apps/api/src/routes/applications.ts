@@ -45,6 +45,7 @@ applications.get("/:id", async (c) => {
       // only the latest — the full history is paginated separately via /:id/deployments
       deployments: { orderBy: desc(deployment.createdAt), limit: 1 },
       domains: true,
+      volumes: true,
     },
   });
   if (!found) throw new HTTPException(StatusCodes.NOT_FOUND, { message: "Application not found" });

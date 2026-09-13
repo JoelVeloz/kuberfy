@@ -1,14 +1,9 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { AddVariableDialog, BulkEditDialog, EnvVarsCard } from "@/components/EnvVarsCard";
-import { ApplicationShell } from "@/components/ApplicationShell";
 import type { ApiApplicationDetail } from "@/lib/api";
 
-// Client island: environment variables applied to the container, as its own tab/page.
-export function ApplicationEnvironmentTab() {
-  return <ApplicationShell activeTab="environment">{(app) => <EnvironmentContent app={app} />}</ApplicationShell>;
-}
-
-function EnvironmentContent({ app }: { app: ApiApplicationDetail }) {
+// Environment variables applied to the container.
+export function EnvironmentContent({ app }: { app: ApiApplicationDetail }) {
   const envVars = app.envVars ? (JSON.parse(app.envVars) as Record<string, string>) : {};
 
   return (

@@ -120,6 +120,20 @@
       "when": 1789333995664,
       "tag": "0016_abnormal_ricochet",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1789342465360,
+      "tag": "0017_add_volumes",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1789342879135,
+      "tag": "0018_optimal_star_brand",
+      "breakpoints": true
     }
   ]
 }

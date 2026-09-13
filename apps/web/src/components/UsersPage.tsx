@@ -1,16 +1,18 @@
 import * as React from "react";
 import { ArrowClockwise, Copy, Fingerprint } from "@phosphor-icons/react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createColumnHelper } from "@tanstack/react-table";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DataTable } from "@/components/ui/data-table";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { TablePagination } from "@/components/ui/table-pagination";
 import { QueryProvider } from "@/components/QueryProvider";
-import { api } from "@/lib/api";
+import { api, type ApiUser } from "@/lib/api";
 import { toastError } from "@/lib/toast";
 import { authClient } from "@/lib/auth-client";
 
@@ -148,10 +150,54 @@ function NewUserDialog() {
 
 const PAGE_SIZE = 20;
 
+const columnHelper = createColumnHelper<ApiUser>();
+
+function useColumns(isAdmin: boolean) {
+  return React.useMemo(
+    () => [
+      columnHelper.accessor("email", {
+        header: "Email",
+        meta: { className: "font-mono" },
+        cell: (info) =>
+          isAdmin ? (
+            <a href={`/users/view?id=${info.row.original.id}`} className="after:absolute after:inset-0">
+              {info.getValue()}
+            </a>
+          ) : (
+            info.getValue()
+          ),
+      }),
+      columnHelper.accessor("role", {
+        header: "Role",
+        cell: (info) => <Badge variant="outline">{info.getValue() ?? "user"}</Badge>,
+      }),
+      columnHelper.accessor("passkeyCount", {
+        header: "Passkeys",
+        meta: { className: "text-muted-foreground" },
+        cell: (info) =>
+          info.getValue() > 0 ? (
+            <span className="inline-flex items-center gap-1">
+              <Fingerprint /> {info.getValue()}
+            </span>
+          ) : (
+            "—"
+          ),
+      }),
+      columnHelper.accessor("createdAt", {
+        header: "Created",
+        meta: { className: "text-muted-foreground" },
+        cell: (info) => new Date(info.getValue()).toLocaleDateString(),
+      }),
+    ],
+    [isAdmin],
+  );
+}
+
 function UsersPageInner() {
   const { data: session } = authClient.useSession();
   const isAdmin = (session?.user as { role?: string } | undefined)?.role === "admin";
   const [page, setPage] = React.useState(1);
+  const columns = useColumns(isAdmin);
 
   const { data, isPending, error } = useQuery({
     queryKey: ["users", page],
@@ -174,47 +220,12 @@ function UsersPageInner() {
       ) : error ? (
         <p className="text-xs text-destructive">Failed to load users.</p>
       ) : (
-        <div className="rounded-md border border-border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Email</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Passkeys</TableHead>
-                <TableHead>Created</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.items.map((u) => (
-                <TableRow key={u.id} className={isAdmin ? "relative cursor-pointer" : undefined}>
-                  <TableCell className="font-mono">
-                    {isAdmin ? (
-                      <a href={`/users/view?id=${u.id}`} className="after:absolute after:inset-0">
-                        {u.email}
-                      </a>
-                    ) : (
-                      u.email
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{u.role ?? "user"}</Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {u.passkeyCount > 0 ? (
-                      <span className="inline-flex items-center gap-1">
-                        <Fingerprint /> {u.passkeyCount}
-                      </span>
-                    ) : (
-                      "—"
-                    )}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{new Date(u.createdAt).toLocaleDateString()}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <TablePagination page={page} pageSize={PAGE_SIZE} total={data.total} onPageChange={setPage} />
-        </div>
+        <Card>
+          <CardContent className="px-0">
+            <DataTable columns={columns} data={data.items} getRowId={(u) => u.id} rowClassName={() => (isAdmin ? "relative cursor-pointer" : undefined)} />
+            <TablePagination page={page} pageSize={PAGE_SIZE} total={data.total} onPageChange={setPage} />
+          </CardContent>
+        </Card>
       )}
     </div>
   );

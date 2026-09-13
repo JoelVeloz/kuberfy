@@ -3,17 +3,12 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ApplicationShell } from "@/components/ApplicationShell";
 import { api, type ApiApplicationDetail } from "@/lib/api";
 import { toastError } from "@/lib/toast";
 import { toast } from "sonner";
 
-// Client island: the hard memory cap enforced on the container (Docker HostConfig.Memory), as its own tab.
-export function ApplicationResourcesTab() {
-  return <ApplicationShell activeTab="resources">{(app) => <ResourcesContent app={app} />}</ApplicationShell>;
-}
-
-function ResourcesContent({ app }: { app: ApiApplicationDetail }) {
+// The hard memory cap enforced on the container (Docker HostConfig.Memory).
+export function ResourcesContent({ app }: { app: ApiApplicationDetail }) {
   const [memoryLimitMb, setMemoryLimitMb] = React.useState(String(app.memoryLimitMb));
   const queryClient = useQueryClient();
   const save = useMutation({

@@ -1,13 +1,14 @@
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createColumnHelper } from "@tanstack/react-table";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { DataTable } from "@/components/ui/data-table";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { QueryProvider } from "@/components/QueryProvider";
 import { api } from "@/lib/api";
 import { toastError } from "@/lib/toast";
@@ -20,6 +21,20 @@ const HOST_LEVEL_PORTS = [
   { key: "7946/tcp", label: "7946/tcp", service: "Docker Swarm — node gossip", note: "Blocked by the installer's firewall (single-node, never needed)" },
   { key: "7946/udp", label: "7946/udp", service: "Docker Swarm — node gossip", note: "Blocked by the installer's firewall (single-node, never needed)" },
   { key: "4789/udp", label: "4789/udp", service: "Docker Swarm — overlay network", note: "Blocked by the installer's firewall (single-node, never needed)" },
+];
+
+interface PortRow {
+  key: string;
+  port: React.ReactNode;
+  service: React.ReactNode;
+  access: React.ReactNode;
+}
+
+const columnHelper = createColumnHelper<PortRow>();
+const columns = [
+  columnHelper.accessor("port", { header: "Port", meta: { className: "font-mono" } }),
+  columnHelper.accessor("service", { header: "Service" }),
+  columnHelper.accessor("access", { header: "Access", meta: { headerClassName: "text-right", className: "text-right" } }),
 ];
 
 export function ExposedPortsCard() {
@@ -69,6 +84,40 @@ function ExposedPortsCardInner() {
   const isLocalDomain = !domain || domain === "localhost" || domain.endsWith(".localhost");
   const domainUrl = domain ? `${isLocalDomain ? "http" : "https"}://${domain}` : null;
 
+  const rows: PortRow[] = [
+    ...otherPorts.map((p) => ({
+      key: `${p.port}/${p.protocol}`,
+      port: (
+        <>
+          {p.port}/{p.protocol}
+        </>
+      ),
+      service: p.container,
+      access: <Badge variant="outline">Always on</Badge>,
+    })),
+    {
+      key: "3000/tcp",
+      port: "3000/tcp",
+      service: "kuberfy panel (direct, bypasses HTTPS)",
+      access: <Switch checked={panelExposed} disabled={togglePanelPort.isPending} onCheckedChange={handleToggle} />,
+    },
+    ...HOST_LEVEL_PORTS.map((p) => ({
+      key: p.key,
+      port: <span className="text-muted-foreground">{p.label}</span>,
+      service: (
+        <>
+          <div>{p.service}</div>
+          <div className="text-xs text-muted-foreground">{p.note}</div>
+        </>
+      ),
+      access: (
+        <Badge variant="outline" className="text-muted-foreground">
+          {p.service === "SSH" ? "Not monitored" : "Blocked"}
+        </Badge>
+      ),
+    })),
+  ];
+
   function handleToggle(next: boolean) {
     if (next) {
       togglePanelPort.mutate(true);
@@ -91,49 +140,7 @@ function ExposedPortsCardInner() {
           <p className="text-xs text-muted-foreground">Every port open on this server — Docker's own state read live, plus the host-level ports kuberfy can't see directly.</p>
         </div>
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Port</TableHead>
-              <TableHead>Service</TableHead>
-              <TableHead className="text-right">Access</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {otherPorts.map((p) => (
-              <TableRow key={`${p.port}/${p.protocol}`}>
-                <TableCell className="font-mono">
-                  {p.port}/{p.protocol}
-                </TableCell>
-                <TableCell>{p.container}</TableCell>
-                <TableCell className="text-right">
-                  <Badge variant="outline">Always on</Badge>
-                </TableCell>
-              </TableRow>
-            ))}
-            <TableRow>
-              <TableCell className="font-mono">3000/tcp</TableCell>
-              <TableCell>kuberfy panel (direct, bypasses HTTPS)</TableCell>
-              <TableCell className="text-right">
-                <Switch checked={panelExposed} disabled={togglePanelPort.isPending} onCheckedChange={handleToggle} />
-              </TableCell>
-            </TableRow>
-            {HOST_LEVEL_PORTS.map((p) => (
-              <TableRow key={p.key}>
-                <TableCell className="font-mono text-muted-foreground">{p.label}</TableCell>
-                <TableCell>
-                  <div>{p.service}</div>
-                  <div className="text-xs text-muted-foreground">{p.note}</div>
-                </TableCell>
-                <TableCell className="text-right">
-                  <Badge variant="outline" className="text-muted-foreground">
-                    {p.service === "SSH" ? "Not monitored" : "Blocked"}
-                  </Badge>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <DataTable columns={columns} data={rows} getRowId={(r) => r.key} />
       </CardContent>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>

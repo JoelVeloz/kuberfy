@@ -1,4 +1,5 @@
 import * as React from "react";
+import { navigate } from "astro:transitions/client";
 import { Fingerprint } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,7 +33,7 @@ export function LoginForm() {
       setError(signInError.message ?? "Invalid email or password.");
       return;
     }
-    window.location.href = getQueryParam("redirect") || "/";
+    navigate(getQueryParam("redirect") || "/");
   }
 
   async function handlePasskeySignIn() {
@@ -44,7 +45,7 @@ export function LoginForm() {
       setError(result.error.message ?? "Passkey sign-in failed.");
       return;
     }
-    window.location.href = getQueryParam("redirect") || "/";
+    navigate(getQueryParam("redirect") || "/");
   }
 
   return (

@@ -47,10 +47,19 @@ export interface ApiDomain {
   createdAt: string;
 }
 
+export interface ApiVolume {
+  id: string;
+  applicationId: string;
+  mountPath: string;
+  volumeName: string;
+  createdAt: string;
+}
+
 export interface ApiApplicationDetail extends ApiApplication {
   // only the latest — the full history is fetched separately, paginated, via api.listDeployments
   deployments: ApiDeployment[];
   domains: ApiDomain[];
+  volumes: ApiVolume[];
 }
 
 // Shared shape for every paginated list endpoint.
@@ -162,13 +171,15 @@ export interface ApiMarketplaceTemplate {
   id: string;
   name: string;
   description: string;
-  source: "dokploy" | "coolify";
+  source: "dokploy" | "coolify" | "official";
   sourceUrl: string;
   logo: string | null;
   image: string;
   port: number | null;
   envVars: ApiMarketplaceTemplateEnvVar[];
   tags: string[];
+  volumes: string[];
+  category: "application" | "database";
 }
 
 export class UnauthorizedError extends Error {}
@@ -276,6 +287,13 @@ export const api = {
     }),
   deleteDomain: (id: string) => request<ApiDomain>(`/api/domains/${id}`, { method: "DELETE" }),
   setPrimaryDomain: (id: string) => request<ApiDomain>(`/api/domains/${id}/primary`, { method: "PATCH" }),
+  createVolume: (applicationId: string, mountPath: string) =>
+    request<ApiVolume>("/api/volumes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ applicationId, mountPath }),
+    }),
+  deleteVolume: (id: string) => request<ApiVolume>(`/api/volumes/${id}`, { method: "DELETE" }),
   deploy: (applicationId: string) => request<ApiDeployment>(`/api/applications/${applicationId}/deploy`, { method: "POST" }),
   restartApplication: (applicationId: string) => request<ApiDeployment>(`/api/applications/${applicationId}/restart`, { method: "POST" }),
   stopApplication: (applicationId: string) => request<ApiDeployment>(`/api/applications/${applicationId}/stop`, { method: "POST" }),

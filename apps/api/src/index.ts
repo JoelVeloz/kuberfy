@@ -9,6 +9,7 @@ import { env } from "./lib/env";
 import projects from "./routes/projects";
 import { applications } from "./routes/applications";
 import { domains } from "./routes/domains";
+import { volumes } from "./routes/volumes";
 import { marketplace } from "./routes/marketplace";
 import { settings, ensureSettingsSeeded } from "./routes/settings";
 import { observability } from "./routes/observability";
@@ -31,11 +32,23 @@ app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 app.route("/api/projects", projects);
 app.route("/api/applications", applications);
 app.route("/api/domains", domains);
+app.route("/api/volumes", volumes);
 app.route("/api/marketplace/templates", marketplace);
 app.route("/api/settings", settings);
 app.route("/api/observability", observability);
 app.route("/api/system", system);
 app.route("/api/users", users);
+
+// Guards the static dashboard pages server-side so an unauthenticated request never receives the
+// dashboard HTML at all — avoids the flash of protected content that a client-side-only redirect causes.
+app.use("/*", async (c, next) => {
+  const path = c.req.path;
+  const isPublic = path.startsWith("/_astro") || path === "/login" || path.startsWith("/login/") || path.includes(".");
+  if (isPublic) return next();
+  const session = await auth.api.getSession({ headers: c.req.raw.headers });
+  if (!session) return c.redirect(`/login?redirect=${encodeURIComponent(path)}`);
+  return next();
+});
 
 app.use("/*", serveStatic({ root: "./public" }));
 

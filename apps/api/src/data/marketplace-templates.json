@@ -15,7 +15,9 @@
         "secret": false
       }
     ],
-    "tags": ["budgeting", "finance", "money"]
+    "tags": ["budgeting", "finance", "money"],
+    "volumes": ["/data"],
+    "category": "application"
   },
   {
     "id": "audiobookshelf",
@@ -33,7 +35,9 @@
         "secret": false
       }
     ],
-    "tags": ["media", "audiobooks", "podcasts"]
+    "tags": ["media", "audiobooks", "podcasts"],
+    "volumes": ["/config", "/metadata", "/audiobooks"],
+    "category": "application"
   },
   {
     "id": "calibre-web",
@@ -66,7 +70,9 @@
         "secret": true
       }
     ],
-    "tags": ["ebooks", "media", "library", "self-hosted"]
+    "tags": ["ebooks", "media", "library", "self-hosted"],
+    "volumes": ["/config", "/books"],
+    "category": "application"
   },
   {
     "id": "changedetection",
@@ -78,7 +84,9 @@
     "image": "ghcr.io/dgtlmoon/changedetection.io:0.49",
     "port": 5000,
     "envVars": [],
-    "tags": ["monitoring", "data", "notifications"]
+    "tags": ["monitoring", "data", "notifications"],
+    "volumes": ["/datastore"],
+    "category": "application"
   },
   {
     "id": "code-server",
@@ -101,7 +109,9 @@
         "secret": false
       }
     ],
-    "tags": ["ide", "development", "vscode", "self-hosted"]
+    "tags": ["ide", "development", "vscode", "self-hosted"],
+    "volumes": ["/home/coder"],
+    "category": "application"
   },
   {
     "id": "dashy",
@@ -113,19 +123,9 @@
     "image": "lissy93/dashy:latest",
     "port": 8080,
     "envVars": [],
-    "tags": ["dashboard", "monitoring", "self-hosted", "homelab"]
-  },
-  {
-    "id": "dozzle",
-    "name": "Dozzle",
-    "description": "Dozzle is a lightweight, real-time log viewer for Docker containers.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/dozzle",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/dozzle/image.png",
-    "image": "amir20/dozzle:latest",
-    "port": 8080,
-    "envVars": [],
-    "tags": ["monitoring", "logs", "docker"]
+    "tags": ["dashboard", "monitoring", "self-hosted", "homelab"],
+    "volumes": ["/app/user-data"],
+    "category": "application"
   },
   {
     "id": "excalidraw",
@@ -137,7 +137,9 @@
     "image": "excalidraw/excalidraw:latest",
     "port": 80,
     "envVars": [],
-    "tags": ["drawing"]
+    "tags": ["drawing"],
+    "volumes": [],
+    "category": "application"
   },
   {
     "id": "filebrowser",
@@ -155,7 +157,9 @@
         "secret": false
       }
     ],
-    "tags": ["file-manager", "storage"]
+    "tags": ["file-manager", "storage"],
+    "volumes": ["/data", "/config"],
+    "category": "application"
   },
   {
     "id": "freshrss",
@@ -203,7 +207,9 @@
         "secret": false
       }
     ],
-    "tags": ["rss", "feed-reader", "news", "self-hosted", "aggregator", "reader"]
+    "tags": ["rss", "feed-reader", "news", "self-hosted", "aggregator", "reader"],
+    "volumes": ["/var/www/FreshRSS/data", "/var/www/FreshRSS/extensions"],
+    "category": "application"
   },
   {
     "id": "gitea",
@@ -226,25 +232,9 @@
         "secret": false
       }
     ],
-    "tags": ["version control", "collaboration", "code", "hosting", "lightweight"]
-  },
-  {
-    "id": "glances",
-    "name": "Glances",
-    "description": "Glances is a cross-platform system monitoring tool written in Python.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/glances",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/glances/glances.svg",
-    "image": "nicolargo/glances:4.3.0.8-full",
-    "port": 61208,
-    "envVars": [
-      {
-        "key": "GLANCES_OPT",
-        "default": "-w",
-        "secret": false
-      }
-    ],
-    "tags": ["monitoring"]
+    "tags": ["version control", "collaboration", "code", "hosting", "lightweight"],
+    "volumes": ["/data"],
+    "category": "application"
   },
   {
     "id": "grafana",
@@ -256,7 +246,9 @@
     "image": "grafana/grafana-enterprise:12.4",
     "port": 3000,
     "envVars": [],
-    "tags": ["monitoring"]
+    "tags": ["monitoring"],
+    "volumes": ["/var/lib/grafana"],
+    "category": "application"
   },
   {
     "id": "grocy",
@@ -284,7 +276,9 @@
         "secret": false
       }
     ],
-    "tags": ["groceries", "household", "management", "grocery", "shopping"]
+    "tags": ["groceries", "household", "management", "grocery", "shopping"],
+    "volumes": ["/config"],
+    "category": "application"
   },
   {
     "id": "homarr",
@@ -302,7 +296,9 @@
         "secret": true
       }
     ],
-    "tags": ["dashboard", "monitoring"]
+    "tags": ["dashboard", "monitoring"],
+    "volumes": ["/appdata"],
+    "category": "application"
   },
   {
     "id": "homepage",
@@ -314,7 +310,9 @@
     "image": "ghcr.io/gethomepage/homepage:v1.13.1",
     "port": 3000,
     "envVars": [],
-    "tags": ["dashboard", "startpage", "self-hosted", "productivity"]
+    "tags": ["dashboard", "startpage", "self-hosted", "productivity"],
+    "volumes": [],
+    "category": "application"
   },
   {
     "id": "it-tools",
@@ -326,7 +324,9 @@
     "image": "corentinth/it-tools:latest",
     "port": 80,
     "envVars": [],
-    "tags": ["developer", "tools"]
+    "tags": ["developer", "tools"],
+    "volumes": [],
+    "category": "application"
   },
   {
     "id": "kavita",
@@ -344,7 +344,9 @@
         "secret": false
       }
     ],
-    "tags": ["media", "ebooks", "comics", "library"]
+    "tags": ["media", "ebooks", "comics", "library"],
+    "volumes": ["/kavita/config", "/manga", "/books", "/comics"],
+    "category": "application"
   },
   {
     "id": "linkding",
@@ -356,7 +358,44 @@
     "image": "sissbruecker/linkding:latest",
     "port": 9090,
     "envVars": [],
-    "tags": ["bookmark-manager", "self-hosted"]
+    "tags": ["bookmark-manager", "self-hosted"],
+    "volumes": [],
+    "category": "application"
+  },
+  {
+    "id": "mariadb",
+    "name": "MariaDB",
+    "description": "Community-developed, MySQL-compatible relational database.",
+    "source": "official",
+    "sourceUrl": "https://hub.docker.com/_/mariadb",
+    "logo": null,
+    "image": "mariadb:11",
+    "port": 3306,
+    "envVars": [
+      {
+        "key": "MARIADB_ROOT_PASSWORD",
+        "default": null,
+        "secret": true
+      },
+      {
+        "key": "MARIADB_DATABASE",
+        "default": "app",
+        "secret": false
+      },
+      {
+        "key": "MARIADB_USER",
+        "default": "app",
+        "secret": false
+      },
+      {
+        "key": "MARIADB_PASSWORD",
+        "default": null,
+        "secret": true
+      }
+    ],
+    "tags": ["database", "sql", "relational"],
+    "volumes": ["/var/lib/mysql"],
+    "category": "database"
   },
   {
     "id": "meilisearch",
@@ -374,7 +413,9 @@
         "secret": true
       }
     ],
-    "tags": ["search"]
+    "tags": ["search"],
+    "volumes": ["/meili_data"],
+    "category": "application"
   },
   {
     "id": "memos",
@@ -397,7 +438,9 @@
         "secret": false
       }
     ],
-    "tags": ["productivity", "notes", "bookmarks"]
+    "tags": ["productivity", "notes", "bookmarks"],
+    "volumes": ["/var/opt/memos"],
+    "category": "application"
   },
   {
     "id": "minio",
@@ -425,7 +468,69 @@
         "secret": false
       }
     ],
-    "tags": ["storage"]
+    "tags": ["storage"],
+    "volumes": ["/data"],
+    "category": "application"
+  },
+  {
+    "id": "mongodb",
+    "name": "MongoDB",
+    "description": "General-purpose, document-based, distributed NoSQL database.",
+    "source": "official",
+    "sourceUrl": "https://hub.docker.com/_/mongo",
+    "logo": null,
+    "image": "mongo:8",
+    "port": 27017,
+    "envVars": [
+      {
+        "key": "MONGO_INITDB_ROOT_USERNAME",
+        "default": "root",
+        "secret": false
+      },
+      {
+        "key": "MONGO_INITDB_ROOT_PASSWORD",
+        "default": null,
+        "secret": true
+      }
+    ],
+    "tags": ["database", "nosql", "document"],
+    "volumes": ["/data/db"],
+    "category": "database"
+  },
+  {
+    "id": "mysql",
+    "name": "MySQL",
+    "description": "The world's most popular open source relational database.",
+    "source": "official",
+    "sourceUrl": "https://hub.docker.com/_/mysql",
+    "logo": null,
+    "image": "mysql:9",
+    "port": 3306,
+    "envVars": [
+      {
+        "key": "MYSQL_ROOT_PASSWORD",
+        "default": null,
+        "secret": true
+      },
+      {
+        "key": "MYSQL_DATABASE",
+        "default": "app",
+        "secret": false
+      },
+      {
+        "key": "MYSQL_USER",
+        "default": "app",
+        "secret": false
+      },
+      {
+        "key": "MYSQL_PASSWORD",
+        "default": null,
+        "secret": true
+      }
+    ],
+    "tags": ["database", "sql", "relational"],
+    "volumes": ["/var/lib/mysql"],
+    "category": "database"
   },
   {
     "id": "n8n",
@@ -473,7 +578,9 @@
         "secret": false
       }
     ],
-    "tags": ["automation"]
+    "tags": ["automation"],
+    "volumes": ["/home/node/.n8n"],
+    "category": "application"
   },
   {
     "id": "ntfy",
@@ -485,7 +592,9 @@
     "image": "binwiederhier/ntfy",
     "port": 80,
     "envVars": [],
-    "tags": ["alerting", "alerts", "api", "notifications", "self-hosted"]
+    "tags": ["alerting", "alerts", "api", "notifications", "self-hosted"],
+    "volumes": ["/var/lib/ntfy", "/var/cache/ntfy"],
+    "category": "application"
   },
   {
     "id": "pocketbase",
@@ -518,19 +627,39 @@
         "secret": false
       }
     ],
-    "tags": ["backend", "database", "api"]
+    "tags": ["backend", "database", "api"],
+    "volumes": ["/pocketbase"],
+    "category": "application"
   },
   {
-    "id": "portainer",
-    "name": "Portainer",
-    "description": "Portainer is a container management tool for deploying, troubleshooting, and securing applications across cloud, data centers, and IoT.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/portainer",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/portainer/portainer.png",
-    "image": "portainer/portainer-ce:latest",
-    "port": 9000,
-    "envVars": [],
-    "tags": ["cloud", "monitoring"]
+    "id": "postgresql",
+    "name": "PostgreSQL",
+    "description": "The world's most advanced open source relational database.",
+    "source": "official",
+    "sourceUrl": "https://hub.docker.com/_/postgres",
+    "logo": null,
+    "image": "postgres:17-alpine",
+    "port": 5432,
+    "envVars": [
+      {
+        "key": "POSTGRES_PASSWORD",
+        "default": null,
+        "secret": true
+      },
+      {
+        "key": "POSTGRES_USER",
+        "default": "postgres",
+        "secret": false
+      },
+      {
+        "key": "POSTGRES_DB",
+        "default": "postgres",
+        "secret": false
+      }
+    ],
+    "tags": ["database", "sql", "relational"],
+    "volumes": ["/var/lib/postgresql/data"],
+    "category": "database"
   },
   {
     "id": "privatebin",
@@ -542,7 +671,29 @@
     "image": "privatebin/nginx-fpm-alpine:2.0.4",
     "port": 8080,
     "envVars": [],
-    "tags": ["pastebin", "privacy", "self-hosted"]
+    "tags": ["pastebin", "privacy", "self-hosted"],
+    "volumes": ["/srv/data"],
+    "category": "application"
+  },
+  {
+    "id": "redis",
+    "name": "Redis",
+    "description": "In-memory key-value store used as a database, cache, and message broker.",
+    "source": "official",
+    "sourceUrl": "https://hub.docker.com/r/bitnami/redis",
+    "logo": null,
+    "image": "bitnami/redis:latest",
+    "port": 6379,
+    "envVars": [
+      {
+        "key": "REDIS_PASSWORD",
+        "default": null,
+        "secret": true
+      }
+    ],
+    "tags": ["database", "cache", "key-value"],
+    "volumes": ["/bitnami/redis/data"],
+    "category": "database"
   },
   {
     "id": "speedtest-tracker",
@@ -575,7 +726,9 @@
         "secret": false
       }
     ],
-    "tags": ["monitoring", "network", "speedtest"]
+    "tags": ["monitoring", "network", "speedtest"],
+    "volumes": ["/config"],
+    "category": "application"
   },
   {
     "id": "stirling-pdf",
@@ -593,7 +746,9 @@
         "secret": false
       }
     ],
-    "tags": ["pdf", "manipulation", "web", "tool"]
+    "tags": ["pdf", "manipulation", "web", "tool"],
+    "volumes": ["/usr/share/tesseract-ocr/5/tessdata", "/configs", "/customFiles/", "/logs/"],
+    "category": "application"
   },
   {
     "id": "syncthing",
@@ -621,19 +776,9 @@
         "secret": false
       }
     ],
-    "tags": ["file-sync", "synchronization", "backup"]
-  },
-  {
-    "id": "uptime-kuma",
-    "name": "Uptime Kuma",
-    "description": "Uptime Kuma is a free and open source monitoring tool that allows you to monitor your websites and applications.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/uptime-kuma",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/uptime-kuma/uptime-kuma.png",
-    "image": "louislam/uptime-kuma:2.1.0",
-    "port": 3001,
-    "envVars": [],
-    "tags": ["monitoring"]
+    "tags": ["file-sync", "synchronization", "backup"],
+    "volumes": ["/config", "/var/syncthing/Sync"],
+    "category": "application"
   },
   {
     "id": "vaultwarden",
@@ -656,6 +801,8 @@
         "secret": false
       }
     ],
-    "tags": ["open-source"]
+    "tags": ["open-source"],
+    "volumes": ["/data"],
+    "category": "application"
   }
 ]

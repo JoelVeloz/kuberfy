@@ -1,7 +1,8 @@
 import * as React from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { createColumnHelper } from "@tanstack/react-table";
 import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DataTable } from "@/components/ui/data-table";
 import { TablePagination } from "@/components/ui/table-pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryProvider } from "@/components/QueryProvider";
@@ -19,6 +20,28 @@ async function fetchRows(page: number): Promise<{ items: Row[]; total: number }>
   const counts = await Promise.all(projects.items.map((p) => api.listProjectApplications(p.id, 1, 1).then((apps) => apps.total)));
   return { items: projects.items.map((p, i) => ({ ...p, appCount: counts[i]! })), total: projects.total };
 }
+
+const columnHelper = createColumnHelper<Row>();
+const columns = [
+  columnHelper.accessor("name", {
+    header: "Name",
+    cell: (info) => (
+      <a href={`/projects/view?id=${info.row.original.id}`} className="font-medium after:absolute after:inset-0">
+        {info.getValue()}
+      </a>
+    ),
+  }),
+  columnHelper.accessor("appCount", {
+    header: "Applications",
+    cell: (info) => <span className="text-muted-foreground">{`${info.getValue()} ${info.getValue() === 1 ? "application" : "applications"}`}</span>,
+  }),
+  columnHelper.accessor("createdAt", {
+    header: "Created",
+    cell: (info) => (
+      <span className="text-muted-foreground">{new Date(info.getValue()).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</span>
+    ),
+  }),
+];
 
 // Client island: real ids/counts don't exist at build time, so the list fetches from the API on mount
 export function ProjectsTable() {
@@ -46,30 +69,7 @@ function ProjectsTableInner() {
         ) : data.items.length === 0 ? (
           <p className="px-4 py-6 text-xs text-muted-foreground">No projects yet.</p>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Applications</TableHead>
-                <TableHead>Created</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.items.map((project) => (
-                <TableRow key={project.id} className="relative cursor-pointer">
-                  <TableCell>
-                    <a href={`/projects/view?id=${project.id}`} className="font-medium after:absolute after:inset-0">
-                      {project.name}
-                    </a>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{`${project.appCount} ${project.appCount === 1 ? "application" : "applications"}`}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {new Date(project.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <DataTable columns={columns} data={data.items} getRowId={(p) => p.id} rowClassName={() => "relative cursor-pointer"} />
         )}
         {data && data.items.length > 0 && <TablePagination page={page} pageSize={PAGE_SIZE} total={data.total} onPageChange={setPage} />}
       </CardContent>

@@ -24,8 +24,8 @@ function TemplateCard({ template, onSelect }: { template: ApiMarketplaceTemplate
         <div className="flex items-center gap-2">
           {template.logo && <img src={template.logo} alt="" className="size-5 shrink-0" onError={(e) => e.currentTarget.remove()} />}
           <span className="font-medium">{template.name}</span>
-          <Badge variant="outline" className="ml-auto capitalize">
-            {template.source}
+          <Badge variant="outline" className="ml-auto">
+            Kuberfy
           </Badge>
         </div>
         <p className="line-clamp-2 text-xs text-muted-foreground">{template.description || "No description provided."}</p>
@@ -41,8 +41,8 @@ function ConfigureTemplate({ template, projId, onBack }: { template: ApiMarketpl
   );
   const queryClient = useQueryClient();
   const { mutate, isPending } = useMutation({
-    mutationFn: () =>
-      api.createApplication({
+    mutationFn: async () => {
+      const app = await api.createApplication({
         projectId: projId,
         name: name.trim(),
         repoUrl: template.image,
@@ -50,7 +50,10 @@ function ConfigureTemplate({ template, projId, onBack }: { template: ApiMarketpl
         buildType: "image",
         port: template.port ?? undefined,
         envVars: Object.keys(envValues).length > 0 ? JSON.stringify(envValues) : undefined,
-      }),
+      });
+      for (const mountPath of template.volumes) await api.createVolume(app.id, mountPath);
+      return app;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["project", projId, "apps"] });
       window.location.href = `/projects/view?id=${projId}`;
@@ -73,11 +76,7 @@ function ConfigureTemplate({ template, projId, onBack }: { template: ApiMarketpl
               on internal port <span className="font-mono text-foreground">{template.port}</span>
             </>
           )}
-          . Source:{" "}
-          <a href={template.sourceUrl} target="_blank" rel="noreferrer" className="underline">
-            {template.source}
-          </a>
-          .
+          . {template.volumes.length > 0 && `Persistent storage will be provisioned at ${template.volumes.join(", ")}.`}
         </p>
       </div>
 
@@ -141,6 +140,8 @@ function MarketplaceBrowserInner() {
     if (q.length === 0) return true;
     return t.name.toLowerCase().includes(q) || t.tags.some((tag) => tag.toLowerCase().includes(q));
   });
+  const databases = filtered.filter((t) => t.category === "database");
+  const applications = filtered.filter((t) => t.category === "application");
 
   return (
     <>
@@ -161,19 +162,38 @@ function MarketplaceBrowserInner() {
 
       <Input placeholder="Search templates…" value={search} onChange={(e) => setSearch(e.target.value)} className="mt-6 max-w-sm" />
 
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {templates.isPending ? (
-          <>
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-20 w-full" />
-          </>
-        ) : filtered.length === 0 ? (
-          <p className="col-span-full py-6 text-xs text-muted-foreground">No templates match "{search}".</p>
-        ) : (
-          filtered.map((t) => <TemplateCard key={t.id} template={t} onSelect={() => setSelected(t)} />)
-        )}
-      </div>
+      {templates.isPending ? (
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-20 w-full" />
+        </div>
+      ) : filtered.length === 0 ? (
+        <p className="mt-4 py-6 text-xs text-muted-foreground">No templates match "{search}".</p>
+      ) : (
+        <>
+          {databases.length > 0 && (
+            <div className="mt-6">
+              <h2 className="text-sm font-medium">Databases</h2>
+              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {databases.map((t) => (
+                  <TemplateCard key={t.id} template={t} onSelect={() => setSelected(t)} />
+                ))}
+              </div>
+            </div>
+          )}
+          {applications.length > 0 && (
+            <div className="mt-6">
+              <h2 className="text-sm font-medium">Applications</h2>
+              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {applications.map((t) => (
+                  <TemplateCard key={t.id} template={t} onSelect={() => setSelected(t)} />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </>
   );
 }

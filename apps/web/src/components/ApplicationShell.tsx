@@ -9,10 +9,21 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbP
 import { QueryProvider } from "@/components/QueryProvider";
 import { DeleteApplicationDialog } from "@/components/DeleteApplicationDialog";
 import { DeploymentStatusBadge } from "@/components/DeploymentStatusBadge";
+import { OverviewContent } from "@/components/ApplicationOverviewTab";
+import { LogsContent } from "@/components/ApplicationLogsTab";
+import { DeploymentsContent } from "@/components/ApplicationDeploymentsTab";
+import { DomainsContent } from "@/components/ApplicationDomainsTab";
+import { VolumesContent } from "@/components/ApplicationVolumesTab";
+import { EnvironmentContent } from "@/components/ApplicationEnvironmentTab";
+import { ResourcesContent } from "@/components/ApplicationResourcesTab";
 import { api, UnauthorizedError, NotFoundError, type ApiApplicationDetail } from "@/lib/api";
 import { isDeploymentInProgress } from "@/lib/deployment-status";
 import { getQueryParam } from "@/lib/query-params";
 import { toastError } from "@/lib/toast";
+
+// Lazy: @xterm/xterm touches browser globals at import time, which crashes this island's SSR pass if it's
+// pulled in eagerly — deferred to only load once someone actually opens the Terminal tab.
+const TerminalContent = React.lazy(() => import("@/components/ApplicationTerminalTab").then((m) => ({ default: m.TerminalContent })));
 
 // Compact "3d 4h" / "2h 15m" / "45m" / "12s" — coarsest two units, dropping to one once it's the largest
 function formatUptime(since: string): string {
@@ -27,17 +38,27 @@ function formatUptime(since: string): string {
   return `${totalSeconds}s`;
 }
 
-export type ApplicationTab = "overview" | "deployments" | "logs" | "terminal" | "domains" | "environment" | "resources";
+export type ApplicationTab = "overview" | "deployments" | "logs" | "terminal" | "domains" | "volumes" | "environment" | "resources";
 
-const TABS: Array<{ id: ApplicationTab; label: string; path: (id: string) => string }> = [
-  { id: "overview", label: "Overview", path: (id) => `/applications/view?id=${id}` },
-  { id: "deployments", label: "Deployments", path: (id) => `/applications/deployments?id=${id}` },
-  { id: "logs", label: "Logs", path: (id) => `/applications/logs?id=${id}` },
-  { id: "terminal", label: "Terminal", path: (id) => `/applications/terminal?id=${id}` },
-  { id: "domains", label: "Domains", path: (id) => `/applications/domains?id=${id}` },
-  { id: "environment", label: "Environment", path: (id) => `/applications/environment?id=${id}` },
-  { id: "resources", label: "Resources", path: (id) => `/applications/resources?id=${id}` },
+const TABS: Array<{ id: ApplicationTab; label: string }> = [
+  { id: "overview", label: "Overview" },
+  { id: "deployments", label: "Deployments" },
+  { id: "logs", label: "Logs" },
+  { id: "terminal", label: "Terminal" },
+  { id: "domains", label: "Domains" },
+  { id: "volumes", label: "Volumes" },
+  { id: "environment", label: "Environment" },
+  { id: "resources", label: "Resources" },
 ];
+
+function isApplicationTab(value: string): value is ApplicationTab {
+  return TABS.some((tab) => tab.id === value);
+}
+
+function readTabFromUrl(): ApplicationTab {
+  const raw = getQueryParam("tab");
+  return isApplicationTab(raw) ? raw : "overview";
+}
 
 async function fetchApp(id: string): Promise<ApiApplicationDetail> {
   const app = await api.getApplication(id);
@@ -45,20 +66,36 @@ async function fetchApp(id: string): Promise<ApiApplicationDetail> {
   return app;
 }
 
-// Shared chrome for every application tab (each tab is its own route/page, not client-side tab state) —
-// breadcrumb, header actions, and the tab bar. Fetches the application once and hands it to the active tab via a
-// render-prop, so each tab page stays a thin wrapper instead of re-fetching/re-rendering the header itself.
-export function ApplicationShell({ activeTab, children }: { activeTab: ApplicationTab; children: (app: ApiApplicationDetail) => React.ReactNode }) {
+// A single page/island for the whole application detail view — tabs switch via client state instead of each
+// being its own route, so the header, breadcrumb, and the `application` query it all shares survive a tab
+// change instead of refetching and remounting from a blank page every time.
+export function ApplicationShell() {
   return (
     <QueryProvider>
-      <ApplicationShellInner activeTab={activeTab}>{children}</ApplicationShellInner>
+      <ApplicationShellInner />
     </QueryProvider>
   );
 }
 
-function ApplicationShellInner({ activeTab, children }: { activeTab: ApplicationTab; children: (app: ApiApplicationDetail) => React.ReactNode }) {
+function ApplicationShellInner() {
   const id = getQueryParam("id");
   const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = React.useState<ApplicationTab>(readTabFromUrl);
+
+  React.useEffect(() => {
+    const onPopState = () => setActiveTab(readTabFromUrl());
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  function selectTab(tab: ApplicationTab) {
+    setActiveTab(tab);
+    const url = new URL(window.location.href);
+    if (tab === "overview") url.searchParams.delete("tab");
+    else url.searchParams.set("tab", tab);
+    window.history.pushState({}, "", url);
+  }
+
   const query = useQuery({
     queryKey: ["application", id],
     queryFn: () => fetchApp(id),
@@ -186,19 +223,33 @@ function ApplicationShellInner({ activeTab, children }: { activeTab: Application
 
       <nav className="mt-6 flex items-center gap-1 border-b border-border">
         {TABS.map((tab) => (
-          <a
+          <button
             key={tab.id}
-            href={tab.path(app.id)}
+            type="button"
+            onClick={() => selectTab(tab.id)}
             className={`border-b px-3 py-2 text-xs font-medium transition-colors ${
               tab.id === activeTab ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
             {tab.label}
-          </a>
+          </button>
         ))}
       </nav>
 
-      <div className="mt-6">{children(app)}</div>
+      <div className="mt-6">
+        {activeTab === "overview" && <OverviewContent app={app} onSelectTab={selectTab} />}
+        {activeTab === "deployments" && <DeploymentsContent app={app} />}
+        {activeTab === "logs" && <LogsContent app={app} />}
+        {activeTab === "terminal" && (
+          <React.Suspense fallback={<Skeleton className="h-64 w-full" />}>
+            <TerminalContent app={app} />
+          </React.Suspense>
+        )}
+        {activeTab === "domains" && <DomainsContent app={app} />}
+        {activeTab === "volumes" && <VolumesContent app={app} />}
+        {activeTab === "environment" && <EnvironmentContent app={app} />}
+        {activeTab === "resources" && <ResourcesContent app={app} />}
+      </div>
     </>
   );
 }

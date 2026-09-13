@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
+import { createColumnHelper } from "@tanstack/react-table";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DataTable } from "@/components/ui/data-table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryProvider } from "@/components/QueryProvider";
 import { EditProjectDialog } from "@/components/EditProjectDialog";
@@ -14,6 +15,24 @@ import type { DeploymentStatus } from "@/lib/types";
 interface AppRow extends ApiApplication {
   latestStatus: DeploymentStatus | null;
 }
+
+const columnHelper = createColumnHelper<AppRow>();
+const columns = [
+  columnHelper.accessor("name", {
+    header: "Name",
+    cell: (info) => (
+      <a href={`/applications/view?id=${info.row.original.id}`} className="font-medium after:absolute after:inset-0">
+        {info.getValue()}
+      </a>
+    ),
+  }),
+  columnHelper.accessor("repoUrl", { header: "Repository", meta: { className: "text-muted-foreground" } }),
+  columnHelper.accessor("branch", { header: "Branch", meta: { className: "font-mono text-muted-foreground" } }),
+  columnHelper.accessor("latestStatus", {
+    header: "Latest deployment",
+    cell: (info) => (info.getValue() ? <DeploymentStatusBadge status={info.getValue()!} /> : <span className="text-muted-foreground">No deployments</span>),
+  }),
+];
 
 async function fetchProject(id: string): Promise<ApiProject> {
   const project = await api.getProject(id);
@@ -104,35 +123,10 @@ function ProjectDetailInner() {
               <Skeleton className="h-8 w-full" />
               <Skeleton className="h-8 w-full" />
             </div>
-          ) : apps.data.length === 0 ? (
+          ) : !apps.data || apps.data.length === 0 ? (
             <p className="px-4 py-6 text-xs text-muted-foreground">This project has no applications yet.</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Repository</TableHead>
-                  <TableHead>Branch</TableHead>
-                  <TableHead>Latest deployment</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {apps.data.map((app) => (
-                  <TableRow key={app.id} className="relative cursor-pointer">
-                    <TableCell>
-                      <a href={`/applications/view?id=${app.id}`} className="font-medium after:absolute after:inset-0">
-                        {app.name}
-                      </a>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{app.repoUrl}</TableCell>
-                    <TableCell className="font-mono text-muted-foreground">{app.branch}</TableCell>
-                    <TableCell>
-                      {app.latestStatus ? <DeploymentStatusBadge status={app.latestStatus} /> : <span className="text-muted-foreground">No deployments</span>}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <DataTable columns={columns} data={apps.data} getRowId={(app) => app.id} rowClassName={() => "relative cursor-pointer"} />
           )}
         </CardContent>
       </Card>

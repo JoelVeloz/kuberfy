@@ -1,19 +1,72 @@
 import * as React from "react";
 import { Desktop, Fingerprint, Trash } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createColumnHelper } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { DataTable } from "@/components/ui/data-table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { QueryProvider } from "@/components/QueryProvider";
-import { api, UnauthorizedError, NotFoundError } from "@/lib/api";
+import { api, UnauthorizedError, NotFoundError, type ApiUserPasskey, type ApiUserSession } from "@/lib/api";
 import { getQueryParam } from "@/lib/query-params";
 import { toastError } from "@/lib/toast";
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
+const passkeyColumnHelper = createColumnHelper<ApiUserPasskey>();
+function usePasskeyColumns(onDelete: (id: string) => void, deleting: boolean) {
+  return React.useMemo(
+    () => [
+      passkeyColumnHelper.display({ id: "icon", meta: { className: "w-8" }, cell: () => <Fingerprint className="text-muted-foreground" /> }),
+      passkeyColumnHelper.accessor("name", { cell: (info) => info.getValue() || "Passkey" }),
+      passkeyColumnHelper.accessor("createdAt", {
+        meta: { className: "text-muted-foreground" },
+        cell: (info) => `Added ${info.getValue() ? formatDate(info.getValue()!) : "—"}`,
+      }),
+      passkeyColumnHelper.display({
+        id: "actions",
+        meta: { className: "w-8" },
+        cell: (info) => (
+          <Button type="button" variant="ghost" size="icon" disabled={deleting} onClick={() => onDelete(info.row.original.id)}>
+            <Trash />
+          </Button>
+        ),
+      }),
+    ],
+    [onDelete, deleting],
+  );
+}
+
+const sessionColumnHelper = createColumnHelper<ApiUserSession>();
+function useSessionColumns(onRevoke: (token: string) => void, revoking: boolean) {
+  return React.useMemo(
+    () => [
+      sessionColumnHelper.display({ id: "icon", meta: { className: "w-8" }, cell: () => <Desktop className="text-muted-foreground" /> }),
+      sessionColumnHelper.accessor("userAgent", {
+        cell: (info) => (
+          <div className="max-w-64 truncate" title={info.getValue() || "Unknown device"}>
+            {info.getValue() || "Unknown device"}
+          </div>
+        ),
+      }),
+      sessionColumnHelper.accessor("ipAddress", { meta: { className: "text-muted-foreground" }, cell: (info) => info.getValue() || "Unknown IP" }),
+      sessionColumnHelper.accessor("createdAt", { meta: { className: "text-muted-foreground" }, cell: (info) => formatDate(info.getValue()) }),
+      sessionColumnHelper.display({
+        id: "actions",
+        meta: { className: "w-8" },
+        cell: (info) => (
+          <Button type="button" variant="ghost" size="sm" disabled={revoking} onClick={() => onRevoke(info.row.original.token)}>
+            Revoke
+          </Button>
+        ),
+      }),
+    ],
+    [onRevoke, revoking],
+  );
 }
 
 // Client island: real user ids don't exist at build time, so the id is read from the URL and fetched here.
@@ -47,6 +100,9 @@ function UserDetailInner() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["user", id] }),
     onError: (err) => toastError(err, "Failed to remove passkey."),
   });
+
+  const passkeyColumns = usePasskeyColumns((passkeyId) => deletePasskey.mutate(passkeyId), deletePasskey.isPending);
+  const sessionColumns = useSessionColumns((token) => revokeSession.mutate(token), revokeSession.isPending);
 
   if (user.isPending) {
     return (
@@ -99,24 +155,7 @@ function UserDetailInner() {
           ) : (
             <div className="rounded-md border border-border">
               <ScrollArea className="max-h-72">
-                <Table>
-                  <TableBody>
-                    {passkeys.map((passkey) => (
-                      <TableRow key={passkey.id}>
-                        <TableCell className="w-8">
-                          <Fingerprint className="text-muted-foreground" />
-                        </TableCell>
-                        <TableCell>{passkey.name || "Passkey"}</TableCell>
-                        <TableCell className="text-muted-foreground">Added {passkey.createdAt ? formatDate(passkey.createdAt) : "—"}</TableCell>
-                        <TableCell className="w-8">
-                          <Button type="button" variant="ghost" size="icon" disabled={deletePasskey.isPending} onClick={() => deletePasskey.mutate(passkey.id)}>
-                            <Trash />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <DataTable columns={passkeyColumns} data={passkeys} getRowId={(p) => p.id} hideHeader />
               </ScrollArea>
             </div>
           )}
@@ -138,29 +177,7 @@ function UserDetailInner() {
           ) : (
             <div className="rounded-md border border-border">
               <ScrollArea className="max-h-72">
-                <Table>
-                  <TableBody>
-                    {sessions.map((session) => (
-                      <TableRow key={session.id}>
-                        <TableCell className="w-8">
-                          <Desktop className="text-muted-foreground" />
-                        </TableCell>
-                        <TableCell>
-                          <div className="max-w-64 truncate" title={session.userAgent || "Unknown device"}>
-                            {session.userAgent || "Unknown device"}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">{session.ipAddress || "Unknown IP"}</TableCell>
-                        <TableCell className="text-muted-foreground">{formatDate(session.createdAt)}</TableCell>
-                        <TableCell className="w-8">
-                          <Button type="button" variant="ghost" size="sm" disabled={revokeSession.isPending} onClick={() => revokeSession.mutate(session.token)}>
-                            Revoke
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <DataTable columns={sessionColumns} data={sessions} getRowId={(s) => s.id} hideHeader />
               </ScrollArea>
             </div>
           )}

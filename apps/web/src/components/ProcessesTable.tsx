@@ -1,8 +1,7 @@
 import * as React from "react";
-import { CaretDown, CaretUp, CaretUpDown } from "@phosphor-icons/react";
-import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, useReactTable, type SortingState } from "@tanstack/react-table";
+import { createColumnHelper, type SortingState } from "@tanstack/react-table";
 import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DataTable } from "@/components/ui/data-table";
 import { apiWsUrl } from "@/lib/api-url";
 
 interface ProcessSample {
@@ -25,7 +24,11 @@ function formatBytes(bytes: number) {
 
 const columnHelper = createColumnHelper<ProcessSample>();
 const columns = [
-  columnHelper.accessor("pid", { header: "PID", size: 64, cell: (info) => <span className="font-mono tabular-nums text-muted-foreground">{info.getValue()}</span> }),
+  columnHelper.accessor("pid", {
+    header: "PID",
+    meta: { headerClassName: "w-16" },
+    cell: (info) => <span className="font-mono tabular-nums text-muted-foreground">{info.getValue()}</span>,
+  }),
   columnHelper.accessor("command", {
     header: "Command",
     cell: (info) => (
@@ -34,10 +37,14 @@ const columns = [
       </span>
     ),
   }),
-  columnHelper.accessor("cpu", { header: "CPU", size: 80, cell: (info) => <span className="font-mono tabular-nums">{info.getValue().toFixed(1)}%</span> }),
+  columnHelper.accessor("cpu", {
+    header: "CPU",
+    meta: { headerClassName: "w-20" },
+    cell: (info) => <span className="font-mono tabular-nums">{info.getValue().toFixed(1)}%</span>,
+  }),
   columnHelper.accessor("memUsed", {
     header: "Memory",
-    size: 96,
+    meta: { headerClassName: "w-24" },
     cell: (info) => <span className="font-mono tabular-nums text-muted-foreground">{formatBytes(info.getValue())}</span>,
   }),
 ];
@@ -58,15 +65,6 @@ export function ProcessesTable() {
     return () => ws.close();
   }, []);
 
-  const table = useReactTable({
-    data: message?.processes ?? [],
-    columns,
-    state: { sorting },
-    onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-  });
-
   if (!message) {
     return (
       <Card>
@@ -77,57 +75,19 @@ export function ProcessesTable() {
     );
   }
 
-  const rows = table.getRowModel().rows;
-
   return (
     <Card>
       <CardContent className="max-h-[32rem] overflow-y-auto px-0">
-        <Table className="table-fixed">
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} className="[&_th]:sticky [&_th]:top-0 [&_th]:bg-card">
-                {headerGroup.headers.map((header) => {
-                  const sortDir = header.column.getIsSorted();
-                  return (
-                    <TableHead key={header.id} style={{ width: header.getSize() }}>
-                      <button
-                        type="button"
-                        onClick={header.column.getToggleSortingHandler()}
-                        className={`flex cursor-pointer items-center gap-1 hover:text-foreground ${sortDir ? "text-foreground" : ""}`}
-                      >
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                        {sortDir === "desc" ? (
-                          <CaretDown weight="bold" />
-                        ) : sortDir === "asc" ? (
-                          <CaretUp weight="bold" />
-                        ) : (
-                          <CaretUpDown className="text-muted-foreground/50" />
-                        )}
-                      </button>
-                    </TableHead>
-                  );
-                })}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {rows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={columns.length} className="text-xs text-muted-foreground">
-                  No process data — is /host/proc mounted?
-                </TableCell>
-              </TableRow>
-            ) : (
-              rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
-                  ))}
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+        <DataTable
+          columns={columns}
+          data={message.processes}
+          getRowId={(p) => String(p.pid)}
+          sorting={sorting}
+          onSortingChange={setSorting}
+          fixedLayout
+          stickyHeader
+          emptyMessage="No process data — is /host/proc mounted?"
+        />
       </CardContent>
     </Card>
   );

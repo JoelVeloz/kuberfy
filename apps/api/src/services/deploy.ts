@@ -6,7 +6,7 @@ import Docker from "dockerode";
 import { and, eq, inArray } from "drizzle-orm";
 import simpleGit from "simple-git";
 import { db } from "../db";
-import { application, deployment, domain } from "../db/schema/app";
+import { application, deployment, domain, volume } from "../db/schema/app";
 
 export const docker = new Docker();
 // Deployed apps get their own network, separate from kuberfy-network (where kuberfy's own dashboard/API and its
@@ -111,6 +111,10 @@ async function deploy(app: typeof application.$inferSelect, deploymentId: string
 
   const env = app.envVars ? Object.entries(JSON.parse(app.envVars) as Record<string, string>).map(([k, v]) => `${k}=${v}`) : undefined;
 
+  const appVolumes = await db.query.volume.findMany({ where: eq(volume.applicationId, app.id) });
+  const mounts = appVolumes.map((v) => ({ Type: "volume" as const, Source: v.volumeName, Target: v.mountPath }));
+  for (const v of appVolumes) log(`Mounting persistent volume at ${v.mountPath}`);
+
   log(`Creating service ${serviceName} from ${imageTag}`);
   // A Swarm service, not a plain container — Traefik's swarm provider only ever sees labels on the service
   // itself (never on the task's real container), so this is what makes deployed apps show up in Traefik
@@ -119,7 +123,7 @@ async function deploy(app: typeof application.$inferSelect, deploymentId: string
     Name: serviceName,
     Labels: labels,
     TaskTemplate: {
-      ContainerSpec: { Image: imageTag, Env: env },
+      ContainerSpec: { Image: imageTag, Env: env, Mounts: mounts },
       RestartPolicy: { Condition: "any" },
       Resources: { Limits: { MemoryBytes: app.memoryLimitMb * 1024 * 1024 } },
       Networks: [{ Target: DEPLOY_NETWORK }],

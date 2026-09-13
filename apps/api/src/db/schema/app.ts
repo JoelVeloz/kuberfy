@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 import { users as user } from "./auth";
 
@@ -80,6 +80,7 @@ export const applicationRelations = relations(application, ({ one, many }) => ({
   }),
   deployments: many(deployment),
   domains: many(domain),
+  volumes: many(volume),
 }));
 
 export const apiCreateApplication = z.object({
@@ -182,6 +183,36 @@ export const apiUpdateDomain = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// volume
+// ---------------------------------------------------------------------------
+
+export const volume = sqliteTable("volumes", {
+  id: id(),
+  applicationId: text("application_id")
+    .notNull()
+    .references(() => application.id, { onDelete: "cascade" }),
+  // container-side path only — the Docker-managed volume name is server-generated (routes/volumes.ts) so
+  // users never have to think about naming a Docker resource
+  mountPath: text("mount_path").notNull(),
+  volumeName: text("volume_name").notNull().unique(),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});
+
+export const volumeRelations = relations(volume, ({ one }) => ({
+  application: one(application, {
+    fields: [volume.applicationId],
+    references: [application.id],
+  }),
+}));
+
+export const apiCreateVolume = z.object({
+  applicationId: z.string().min(1),
+  mountPath: z.string().regex(/^\/\S+$/, "Must be an absolute path, e.g. /data"),
+});
+
+// ---------------------------------------------------------------------------
 // job
 // ---------------------------------------------------------------------------
 
@@ -221,22 +252,28 @@ export const apiUpdateJob = z.object({
 // requestLog
 // ---------------------------------------------------------------------------
 
-export const requestLog = sqliteTable("request_log", {
-  id: id(),
-  time: integer("time", { mode: "timestamp" }).notNull(),
-  method: text("method").notNull(),
-  host: text("host").notNull(),
-  path: text("path").notNull(),
-  status: integer("status").notNull(),
-  durationMs: integer("duration_ms").notNull(),
-  service: text("service"),
-  clientIp: text("client_ip"),
-  userAgent: text("user_agent"),
-  protocol: text("protocol"),
-  originStatus: integer("origin_status"),
-  requestContentSize: integer("request_content_size"),
-  downstreamContentSize: integer("downstream_content_size"),
-});
+export const requestLog = sqliteTable(
+  "request_log",
+  {
+    id: id(),
+    time: integer("time", { mode: "timestamp" }).notNull(),
+    method: text("method").notNull(),
+    host: text("host").notNull(),
+    path: text("path").notNull(),
+    status: integer("status").notNull(),
+    durationMs: integer("duration_ms").notNull(),
+    service: text("service"),
+    clientIp: text("client_ip"),
+    userAgent: text("user_agent"),
+    protocol: text("protocol"),
+    originStatus: integer("origin_status"),
+    requestContentSize: integer("request_content_size"),
+    downstreamContentSize: integer("downstream_content_size"),
+  },
+  // Every observability.ts query filters `time >= ?`, optionally `AND host = ?` — without these, both scan the
+  // whole table, which only gets worse as this table grows (it gets a row per request Traefik proxies).
+  (table) => [index("request_log_time_idx").on(table.time), index("request_log_host_time_idx").on(table.host, table.time)],
+);
 
 // ---------------------------------------------------------------------------
 // setting — single row holding kuberfy's own instance-level settings

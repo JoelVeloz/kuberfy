@@ -1,5 +1,6 @@
 ---
 import "@/styles/global.css";
+import { ClientRouter } from "astro:transitions";
 import { LoginForm } from "@/components/LoginForm";
 ---
 
@@ -10,6 +11,7 @@ import { LoginForm } from "@/components/LoginForm";
     <meta name="viewport" content="width=device-width" />
     <meta name="generator" content={Astro.generator} />
     <title>Sign in · Kuberfy</title>
+    <ClientRouter />
   </head>
   <body>
     <div class="grid min-h-screen bg-background lg:grid-cols-2">

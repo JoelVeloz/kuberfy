@@ -1,10 +1,11 @@
 import * as React from "react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { createColumnHelper, type SortingState } from "@tanstack/react-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DataTable } from "@/components/ui/data-table";
 import { DeploymentStatusBadge } from "@/components/DeploymentStatusBadge";
 import type { DeploymentStatus } from "@/lib/types";
 import { apiWsUrl } from "@/lib/api-url";
@@ -82,11 +83,60 @@ function levelColor(percent: number) {
   return "";
 }
 
+const infraColumnHelper = createColumnHelper<InfraStat>();
+const infraColumns = [
+  infraColumnHelper.accessor("name", { header: "Name", meta: { headerClassName: "w-2/5" }, cell: (info) => <span className="truncate font-medium">{info.getValue()}</span> }),
+  infraColumnHelper.display({ id: "status", header: "Status", meta: { headerClassName: "w-28" }, cell: () => <Badge variant="success">Running</Badge> }),
+  infraColumnHelper.accessor("cpu", {
+    header: "CPU",
+    meta: { headerClassName: "w-20" },
+    cell: (info) => <span className="font-mono tabular-nums">{info.getValue().toFixed(1)}%</span>,
+  }),
+  infraColumnHelper.accessor("memUsed", {
+    header: "Memory",
+    cell: (info) => <MemoryCell memUsed={info.getValue()} memLimit={info.row.original.memLimit} />,
+  }),
+];
+
+const appColumnHelper = createColumnHelper<AppStat>();
+const appColumns = [
+  appColumnHelper.accessor("name", {
+    header: "Name",
+    meta: { headerClassName: "w-2/5" },
+    cell: (info) => (
+      <a href={`/applications/view?id=${info.row.original.id}`} className="block truncate font-medium hover:underline">
+        {info.getValue()}
+      </a>
+    ),
+  }),
+  appColumnHelper.accessor("status", {
+    header: "Status",
+    meta: { headerClassName: "w-28" },
+    cell: (info) => (info.getValue() ? <DeploymentStatusBadge status={info.getValue()!} /> : <span className="text-xs text-muted-foreground">No deployments</span>),
+  }),
+  appColumnHelper.accessor("cpu", {
+    header: "CPU",
+    meta: { headerClassName: "w-20" },
+    cell: (info) => <span className="font-mono tabular-nums">{info.row.original.status === "running" ? `${info.getValue().toFixed(1)}%` : "—"}</span>,
+  }),
+  appColumnHelper.accessor("memUsed", {
+    header: "Memory",
+    cell: (info) =>
+      info.row.original.status === "running" ? (
+        <MemoryCell memUsed={info.getValue()} memLimit={info.row.original.memLimit} />
+      ) : (
+        <span className="text-xs text-muted-foreground">—</span>
+      ),
+  }),
+];
+
 // Client island: the host's own resource usage (not any one application's) — CPU, RAM, disk, plus every
 // application's current footprint in one table. Same live-WebSocket pattern as ApplicationStatsChart.
 export function SystemPage() {
   const [samples, setSamples] = React.useState<StatsSample[]>([]);
   const [connected, setConnected] = React.useState(false);
+  const [infraSorting, setInfraSorting] = React.useState<SortingState>([{ id: "memUsed", desc: true }]);
+  const [appSorting, setAppSorting] = React.useState<SortingState>([{ id: "memUsed", desc: true }]);
 
   React.useEffect(() => {
     const ws = new WebSocket(apiWsUrl("/api/system/stats"));
@@ -183,40 +233,15 @@ export function SystemPage() {
         <p className="mt-1 text-xs text-muted-foreground">Kuberfy's own containers, not anything deployed on it.</p>
         <Card className="mt-3">
           <CardContent className="px-0">
-            <Table className="table-fixed">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-2/5">Name</TableHead>
-                  <TableHead className="w-28">Status</TableHead>
-                  <TableHead className="w-20">CPU</TableHead>
-                  <TableHead>Memory</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {latest.infra.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-xs text-muted-foreground">
-                      No infrastructure containers found.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  [...latest.infra]
-                    .sort((a, b) => b.memUsed - a.memUsed)
-                    .map((c) => (
-                      <TableRow key={c.id}>
-                        <TableCell className="truncate font-medium">{c.name}</TableCell>
-                        <TableCell>
-                          <Badge variant="success">Running</Badge>
-                        </TableCell>
-                        <TableCell className="font-mono tabular-nums">{c.cpu.toFixed(1)}%</TableCell>
-                        <TableCell>
-                          <MemoryCell memUsed={c.memUsed} memLimit={c.memLimit} />
-                        </TableCell>
-                      </TableRow>
-                    ))
-                )}
-              </TableBody>
-            </Table>
+            <DataTable
+              columns={infraColumns}
+              data={latest.infra}
+              getRowId={(c) => c.id}
+              sorting={infraSorting}
+              onSortingChange={setInfraSorting}
+              fixedLayout
+              emptyMessage="No infrastructure containers found."
+            />
           </CardContent>
         </Card>
       </div>
@@ -225,36 +250,7 @@ export function SystemPage() {
         <h2 className="font-heading text-sm font-medium">Applications</h2>
         <Card className="mt-3">
           <CardContent className="px-0">
-            <Table className="table-fixed">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-2/5">Name</TableHead>
-                  <TableHead className="w-28">Status</TableHead>
-                  <TableHead className="w-20">CPU</TableHead>
-                  <TableHead>Memory</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {[...latest.apps]
-                  .sort((a, b) => b.memUsed - a.memUsed)
-                  .map((app) => (
-                    <TableRow key={app.id}>
-                      <TableCell className="truncate">
-                        <a href={`/applications/view?id=${app.id}`} className="font-medium hover:underline">
-                          {app.name}
-                        </a>
-                      </TableCell>
-                      <TableCell>
-                        {app.status ? <DeploymentStatusBadge status={app.status} /> : <span className="text-xs text-muted-foreground">No deployments</span>}
-                      </TableCell>
-                      <TableCell className="font-mono tabular-nums">{app.status === "running" ? `${app.cpu.toFixed(1)}%` : "—"}</TableCell>
-                      <TableCell>
-                        {app.status === "running" ? <MemoryCell memUsed={app.memUsed} memLimit={app.memLimit} /> : <span className="text-xs text-muted-foreground">—</span>}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-              </TableBody>
-            </Table>
+            <DataTable columns={appColumns} data={latest.apps} getRowId={(app) => app.id} sorting={appSorting} onSortingChange={setAppSorting} fixedLayout />
           </CardContent>
         </Card>
       </div>

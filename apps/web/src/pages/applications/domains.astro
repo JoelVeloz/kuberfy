@@ -1,8 +1,12 @@
 ---
-import Layout from "@/layouts/Layout.astro";
-import { ApplicationDomainsTab } from "@/components/ApplicationDomainsTab";
+// The tabs used to each be their own page — now client-side state on /applications/view (see ApplicationShell).
+// Kept as a redirect so an old bookmark/link still lands on the right tab instead of 404ing. A plain
+// Astro.redirect() can't read the real `id` here — this is a static build, so it only ever sees an empty query
+// string at build time — hence the client-side script reading the browser's actual location instead.
 ---
 
-<Layout title="Domains">
-  <ApplicationDomainsTab client:load />
-</Layout>
+<script>
+  const params = new URLSearchParams(window.location.search);
+  params.set("tab", "domains");
+  window.location.replace(`/applications/view?${params.toString()}`);
+</script>

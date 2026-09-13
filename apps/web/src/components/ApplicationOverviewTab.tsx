@@ -2,17 +2,12 @@ import { ArrowRight } from "@phosphor-icons/react";
 import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { DeploymentStatusBadge } from "@/components/DeploymentStatusBadge";
-import { ApplicationShell } from "@/components/ApplicationShell";
 import { ApplicationStatsChart } from "@/components/ApplicationStatsChart";
+import type { ApplicationTab } from "@/components/ApplicationShell";
 import type { ApiApplicationDetail } from "@/lib/api";
 
-// Client island: the application's landing tab — a quick summary with links into the other tabs, rather than
-// repeating their full content here.
-export function ApplicationOverviewTab() {
-  return <ApplicationShell activeTab="overview">{(app) => <OverviewContent app={app} />}</ApplicationShell>;
-}
-
-function OverviewContent({ app }: { app: ApiApplicationDetail }) {
+// The application's landing tab — a quick summary with links into the other tabs, rather than repeating their full content here.
+export function OverviewContent({ app, onSelectTab }: { app: ApiApplicationDetail; onSelectTab: (tab: ApplicationTab) => void }) {
   const latest = app.deployments[0];
 
   return (
@@ -60,13 +55,13 @@ function OverviewContent({ app }: { app: ApiApplicationDetail }) {
 
         <div className="flex flex-col gap-6">
           <SummaryLink
-            href={`/applications/domains?id=${app.id}`}
+            onClick={() => onSelectTab("domains")}
             title="Domains"
             value={app.domains.length}
             description={app.domains.length === 1 ? "domain configured" : "domains configured"}
           />
           <SummaryLink
-            href={`/applications/environment?id=${app.id}`}
+            onClick={() => onSelectTab("environment")}
             title="Environment variables"
             value={app.envVars ? Object.keys(JSON.parse(app.envVars) as Record<string, string>).length : 0}
             description="variables set"
@@ -77,9 +72,9 @@ function OverviewContent({ app }: { app: ApiApplicationDetail }) {
   );
 }
 
-function SummaryLink({ href, title, value, description }: { href: string; title: string; value: number; description: string }) {
+function SummaryLink({ onClick, title, value, description }: { onClick: () => void; title: string; value: number; description: string }) {
   return (
-    <a href={href} className="group block">
+    <button type="button" onClick={onClick} className="group block text-left">
       <h2 className="font-heading text-sm font-medium">{title}</h2>
       <Card className="mt-3 transition-colors group-hover:bg-muted/30">
         <CardContent className="flex items-center justify-between gap-3">
@@ -89,6 +84,6 @@ function SummaryLink({ href, title, value, description }: { href: string; title:
           <ArrowRight className="text-muted-foreground transition-colors group-hover:text-foreground" />
         </CardContent>
       </Card>
-    </a>
+    </button>
   );
 }

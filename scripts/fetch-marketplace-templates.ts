@@ -23,7 +23,6 @@ const OUTPUT_PATH = new URL("../apps/api/src/data/marketplace-templates.json", i
 // and re-run to grow the catalog; the script itself decides pass/fail, not this list.
 const CANDIDATES = [
   "pocketbase",
-  "uptime-kuma",
   "vaultwarden",
   "n8n",
   "homepage",
@@ -32,7 +31,6 @@ const CANDIDATES = [
   "gitea",
   "filebrowser",
   "code-server",
-  "portainer",
   "grafana",
   "searxng",
   "changedetection",
@@ -45,7 +43,6 @@ const CANDIDATES = [
   "freshrss",
   "wikijs",
   "it-tools",
-  "glances",
   "meilisearch",
   "minio",
   "audiobookshelf",
@@ -53,11 +50,112 @@ const CANDIDATES = [
   "kavita",
   "grocy",
   "privatebin",
-  "dozzle",
   "memos",
   "actualbudget",
   "speedtest-tracker",
   "wastebin",
+];
+
+// dozzle, glances, portainer and uptime-kuma were removed: their upstream templates mount
+// /var/run/docker.sock into the container (dozzle/portainer can't work at all without it), which
+// kuberfy's deploy pipeline has no way to provide — it only ever creates named Docker volumes, never
+// host bind mounts.
+
+// PostgreSQL, MySQL and MongoDB have no standalone single-container blueprint in either Dokploy/templates
+// or coollabsio/coolify — both platforms treat them as a first-class "database" resource type in their own
+// app code, not a template. Defined by hand instead, straight from each database's official Docker Hub
+// image and documented env vars (verified against the live tags before adding).
+const MANUAL_TEMPLATES: Template[] = [
+  {
+    id: "postgresql",
+    name: "PostgreSQL",
+    description: "The world's most advanced open source relational database.",
+    source: "official",
+    sourceUrl: "https://hub.docker.com/_/postgres",
+    logo: null,
+    image: "postgres:17-alpine",
+    port: 5432,
+    envVars: [
+      { key: "POSTGRES_PASSWORD", default: null, secret: true },
+      { key: "POSTGRES_USER", default: "postgres", secret: false },
+      { key: "POSTGRES_DB", default: "postgres", secret: false },
+    ],
+    tags: ["database", "sql", "relational"],
+    volumes: ["/var/lib/postgresql/data"],
+    category: "database",
+  },
+  {
+    id: "mysql",
+    name: "MySQL",
+    description: "The world's most popular open source relational database.",
+    source: "official",
+    sourceUrl: "https://hub.docker.com/_/mysql",
+    logo: null,
+    image: "mysql:9",
+    port: 3306,
+    envVars: [
+      { key: "MYSQL_ROOT_PASSWORD", default: null, secret: true },
+      { key: "MYSQL_DATABASE", default: "app", secret: false },
+      { key: "MYSQL_USER", default: "app", secret: false },
+      { key: "MYSQL_PASSWORD", default: null, secret: true },
+    ],
+    tags: ["database", "sql", "relational"],
+    volumes: ["/var/lib/mysql"],
+    category: "database",
+  },
+  {
+    id: "mariadb",
+    name: "MariaDB",
+    description: "Community-developed, MySQL-compatible relational database.",
+    source: "official",
+    sourceUrl: "https://hub.docker.com/_/mariadb",
+    logo: null,
+    image: "mariadb:11",
+    port: 3306,
+    envVars: [
+      { key: "MARIADB_ROOT_PASSWORD", default: null, secret: true },
+      { key: "MARIADB_DATABASE", default: "app", secret: false },
+      { key: "MARIADB_USER", default: "app", secret: false },
+      { key: "MARIADB_PASSWORD", default: null, secret: true },
+    ],
+    tags: ["database", "sql", "relational"],
+    volumes: ["/var/lib/mysql"],
+    category: "database",
+  },
+  {
+    id: "mongodb",
+    name: "MongoDB",
+    description: "General-purpose, document-based, distributed NoSQL database.",
+    source: "official",
+    sourceUrl: "https://hub.docker.com/_/mongo",
+    logo: null,
+    image: "mongo:8",
+    port: 27017,
+    envVars: [
+      { key: "MONGO_INITDB_ROOT_USERNAME", default: "root", secret: false },
+      { key: "MONGO_INITDB_ROOT_PASSWORD", default: null, secret: true },
+    ],
+    tags: ["database", "nosql", "document"],
+    volumes: ["/data/db"],
+    category: "database",
+  },
+  {
+    id: "redis",
+    name: "Redis",
+    description: "In-memory key-value store used as a database, cache, and message broker.",
+    source: "official",
+    sourceUrl: "https://hub.docker.com/r/bitnami/redis",
+    logo: null,
+    image: "bitnami/redis:latest",
+    port: 6379,
+    // the official redis/redis image only takes --requirepass as a launch argument, which our deploy
+    // pipeline has no way to pass (image + env vars only, no custom command) — bitnami's image is the
+    // well-known build that takes the password as a real env var instead
+    envVars: [{ key: "REDIS_PASSWORD", default: null, secret: true }],
+    tags: ["database", "cache", "key-value"],
+    volumes: ["/bitnami/redis/data"],
+    category: "database",
+  },
 ];
 
 type EnvVarSpec = { key: string; default: string | null; secret: boolean };
@@ -66,13 +164,15 @@ type Template = {
   id: string;
   name: string;
   description: string;
-  source: "dokploy" | "coolify";
+  source: "dokploy" | "coolify" | "official";
   sourceUrl: string;
   logo: string | null;
   image: string;
   port: number | null;
   envVars: EnvVarSpec[];
   tags: string[];
+  volumes: string[];
+  category: "application" | "database";
 };
 
 type SkipReason = { id: string; reason: string };
@@ -95,6 +195,29 @@ async function ghRaw(path: string): Promise<string | null> {
   const res = await fetch(`https://raw.githubusercontent.com/${path}`);
   if (!res.ok) return null;
   return res.text();
+}
+
+// Host bind mounts ("/host/path:/x", "./relative:/x", "../relative:/x") aren't something a named Docker
+// volume can stand in for, and kuberfy's volumes are always server-generated named volumes (routes/volumes.ts)
+// — so only named-volume entries ("some-name:/x") translate into a container path we can actually persist.
+const HOST_BIND_RE = /^\.{0,2}\//;
+// Some templates mount a named volume over these purely to inject a read-only host file (timezone info) —
+// not real application data, so provisioning a persistent volume for them would just be noise.
+const NON_DATA_TARGETS = new Set(["/etc/timezone", "/etc/localtime"]);
+
+function extractVolumePaths(serviceDef: unknown): string[] {
+  if (typeof serviceDef !== "object" || serviceDef === null) return [];
+  const raw = (serviceDef as Record<string, unknown>).volumes;
+  if (!Array.isArray(raw)) return [];
+
+  const paths: string[] = [];
+  for (const entry of raw) {
+    if (typeof entry !== "string") continue; // long-form { type, source, target } mounts — none of our candidates use them
+    const [source, target] = entry.split(":");
+    if (!source || !target || HOST_BIND_RE.test(source) || NON_DATA_TARGETS.has(target)) continue;
+    paths.push(target);
+  }
+  return [...new Set(paths)];
 }
 
 function countServices(compose: unknown): string[] {
@@ -162,6 +285,8 @@ async function tryDokploy(id: string): Promise<Template | SkipReason> {
     port,
     envVars: extractEnvVars(serviceDef),
     tags: meta.tags ?? [],
+    volumes: extractVolumePaths(serviceDef),
+    category: "application",
   };
 }
 
@@ -213,11 +338,13 @@ async function tryCoolify(id: string): Promise<Template | SkipReason> {
     port,
     envVars: extractEnvVars(serviceDef),
     tags: header.tags ? header.tags.split(",").map((t) => t.trim()) : [],
+    volumes: extractVolumePaths(serviceDef),
+    category: "application",
   };
 }
 
 async function main() {
-  const templates: Template[] = [];
+  const templates: Template[] = [...MANUAL_TEMPLATES];
   const skipped: SkipReason[] = [];
 
   for (const id of CANDIDATES) {
