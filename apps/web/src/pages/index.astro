@@ -1,9 +1,7 @@
 ---
 import Layout from "@/layouts/Layout.astro";
 import { NewProjectDialog } from "@/components/NewProjectDialog";
-import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { projects, getApplicationsByProject } from "@/lib/mock-data";
+import { ProjectsTable } from "@/components/ProjectsTable";
 ---
 
 <Layout title="Projects">
@@ -15,39 +13,5 @@ import { projects, getApplicationsByProject } from "@/lib/mock-data";
     <NewProjectDialog client:load />
   </div>
 
-  <Card className="mt-6">
-    <CardContent className="px-0">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Applications</TableHead>
-            <TableHead>Created</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {projects.map((project) => {
-            const appCount = getApplicationsByProject(project.id).length;
-            return (
-              <TableRow className="relative cursor-pointer">
-                <TableCell>
-                  <a href={`/projects/${project.id}`} class="font-medium after:absolute after:inset-0">
-                    {project.name}
-                  </a>
-                </TableCell>
-                <TableCell className="text-muted-foreground">{`${appCount} ${appCount === 1 ? "application" : "applications"}`}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  {new Date(project.createdAt).toLocaleDateString(undefined, {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </CardContent>
-  </Card>
+  <ProjectsTable client:load />
 </Layout>

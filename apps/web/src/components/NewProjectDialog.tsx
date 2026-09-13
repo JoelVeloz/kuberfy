@@ -2,10 +2,21 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { api } from "@/lib/api";
 
-// TODO: submission isn't wired up yet — the API for creating a project doesn't exist yet
 export function NewProjectDialog() {
   const [name, setName] = React.useState("");
+  const [submitting, setSubmitting] = React.useState(false);
+
+  async function handleCreate() {
+    setSubmitting(true);
+    try {
+      await api.createProject(name.trim());
+      window.location.reload();
+    } catch {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <Dialog>
@@ -27,9 +38,9 @@ export function NewProjectDialog() {
           <DialogClose asChild>
             <Button variant="outline">Cancel</Button>
           </DialogClose>
-          <DialogClose asChild>
-            <Button disabled={name.trim().length === 0}>Create</Button>
-          </DialogClose>
+          <Button disabled={name.trim().length === 0 || submitting} onClick={handleCreate}>
+            {submitting ? "Creating…" : "Create"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

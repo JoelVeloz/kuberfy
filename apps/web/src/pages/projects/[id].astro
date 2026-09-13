@@ -1,65 +1,13 @@
 ---
 import Layout from "@/layouts/Layout.astro";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { projects, getApplicationsByProject, getLatestDeployment } from "@/lib/mock-data";
-import { deploymentStatusLabel, deploymentStatusVariant } from "@/lib/deployment-status";
+import { ProjectDetail } from "@/components/ProjectDetail";
 
+// Static output needs at least one path; the real id is read from the URL client-side (see PLAN.md "SPA fallback")
 export function getStaticPaths() {
-  return projects.map((project) => ({
-    params: { id: project.id },
-    props: { project },
-  }));
+  return [{ params: { id: "_" } }];
 }
-
-const { project } = Astro.props;
-const apps = getApplicationsByProject(project.id);
 ---
 
-<Layout title={project.name} back={{ href: "/", label: "Projects" }}>
-  <h1 class="font-heading text-lg font-medium">{project.name}</h1>
-  <p class="mt-1 text-xs text-muted-foreground">Applications deployed as part of this project.</p>
-
-  <Card className="mt-6">
-    <CardContent className="px-0">
-      {apps.length === 0 ? (
-        <p class="px-4 py-6 text-xs text-muted-foreground">This project has no applications yet.</p>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Repository</TableHead>
-              <TableHead>Branch</TableHead>
-              <TableHead>Latest deployment</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {apps.map((app) => {
-              const latest = getLatestDeployment(app.id);
-              return (
-                <TableRow className="relative cursor-pointer">
-                  <TableCell>
-                    <a href={`/applications/${app.id}`} className="font-medium after:absolute after:inset-0">
-                      {app.name}
-                    </a>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{app.repoUrl}</TableCell>
-                  <TableCell className="font-mono text-muted-foreground">{app.branch}</TableCell>
-                  <TableCell>
-                    {latest ? (
-                      <Badge variant={deploymentStatusVariant[latest.status]}>{deploymentStatusLabel[latest.status]}</Badge>
-                    ) : (
-                      <span className="text-muted-foreground">No deployments</span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      )}
-    </CardContent>
-  </Card>
+<Layout title="Project">
+  <ProjectDetail client:load />
 </Layout>

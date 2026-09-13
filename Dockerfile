@@ -12,12 +12,14 @@ RUN bun install --production
 COPY apps/api .
 RUN bun build --compile --minify src/index.ts --outfile server
 RUN bun build --compile --minify src/db/migrate.ts --outfile migrate
+RUN bun build --compile --minify scripts/create-user.ts --outfile create-user
 
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates libstdc++ libgcc
 WORKDIR /app
 COPY --from=api-build /app/server ./server
 COPY --from=api-build /app/migrate ./migrate
+COPY --from=api-build /app/create-user ./create-user
 COPY apps/api/drizzle ./drizzle
 COPY --from=web-build /web/dist ./public
 

@@ -1,0 +1,70 @@
+// Thin fetch wrappers for the real backend — dynamic pages fetch client-side since real ids only exist at request time
+import type { BuildType, DeploymentStatus } from "@/lib/types";
+
+export interface ApiProject {
+  id: string;
+  name: string;
+  ownerId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApiApplication {
+  id: string;
+  projectId: string;
+  name: string;
+  repoUrl: string;
+  branch: string;
+  buildType: BuildType;
+  dockerfilePath: string | null;
+  envVars: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApiDeployment {
+  id: string;
+  applicationId: string;
+  status: DeploymentStatus;
+  commitSha: string | null;
+  imageTag: string | null;
+  logs: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApiDomain {
+  id: string;
+  applicationId: string;
+  host: string;
+  createdAt: string;
+}
+
+export interface ApiApplicationDetail extends ApiApplication {
+  deployments: ApiDeployment[];
+  domains: ApiDomain[];
+}
+
+export class UnauthorizedError extends Error {}
+export class NotFoundError extends Error {}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(path, { credentials: "include", ...init });
+  if (res.status === 401) throw new UnauthorizedError();
+  if (res.status === 404) throw new NotFoundError();
+  if (!res.ok) throw new Error(`${path} failed with ${res.status}`);
+  return res.json();
+}
+
+export const api = {
+  listProjects: () => request<ApiProject[]>("/api/projects"),
+  createProject: (name: string) =>
+    request<ApiProject>("/api/projects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    }),
+  getProject: (id: string) => request<ApiProject>(`/api/projects/${id}`),
+  listProjectApplications: (id: string) => request<ApiApplication[]>(`/api/projects/${id}/applications`),
+  getApplication: (id: string) => request<ApiApplicationDetail>(`/api/applications/${id}`),
+};

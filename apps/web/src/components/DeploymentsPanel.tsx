@@ -2,11 +2,12 @@ import * as React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import type { Deployment, DeploymentStatus } from "@/lib/types";
+import type { ApiDeployment } from "@/lib/api";
+import type { DeploymentStatus } from "@/lib/types";
 import { allDeploymentStatuses, deploymentStatusLabel, deploymentStatusVariant } from "@/lib/deployment-status";
 
-// Client island: only the status filter is interactive; deployments arrive as static, pre-rendered data.
-export function DeploymentsPanel({ deployments }: { deployments: Deployment[] }) {
+// Client island: fed real deployments fetched by the parent (ApplicationDetail); only the status filter is local state.
+export function DeploymentsPanel({ deployments }: { deployments: ApiDeployment[] }) {
   const [filter, setFilter] = React.useState<DeploymentStatus | "all">("all");
 
   const visible = filter === "all" ? deployments : deployments.filter((d) => d.status === filter);
@@ -41,7 +42,7 @@ export function DeploymentsPanel({ deployments }: { deployments: Deployment[] })
                 <TableCell>
                   <Badge variant={deploymentStatusVariant[deployment.status]}>{deploymentStatusLabel[deployment.status]}</Badge>
                 </TableCell>
-                <TableCell className="font-mono text-muted-foreground">{deployment.commitSha}</TableCell>
+                <TableCell className="font-mono text-muted-foreground">{deployment.commitSha ?? "—"}</TableCell>
                 <TableCell className="text-muted-foreground">
                   {new Date(deployment.createdAt).toLocaleString("en-US", {
                     year: "numeric",

@@ -4,6 +4,9 @@
   "workspaces": [
     "apps/*"
   ],
+  "scripts": {
+    "test:install": "bash scripts/test-install-vm.sh"
+  },
   "devDependencies": {
     "oxlint": "^1.82.0",
     "prettier": "^3.9.6",

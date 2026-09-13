@@ -15,7 +15,19 @@ app.route("/api/projects", projects);
 app.route("/api/applications", applications);
 app.route("/api/domains", domains);
 
-app.use("/*", serveStatic({ root: "./public" }));
+// Dynamic project/application ids only exist at request time, not at Astro's build time — fall back to the one
+// prebuilt shell (see PLAN.md) which reads the real id from the URL and fetches data client-side.
+app.use(
+  "/*",
+  serveStatic({
+    root: "./public",
+    rewriteRequestPath: (path) => {
+      if (/^\/projects\/[^/]+$/.test(path)) return "/projects/_/index.html";
+      if (/^\/applications\/[^/]+$/.test(path)) return "/applications/_/index.html";
+      return path;
+    },
+  }),
+);
 
 app.notFound((c) => c.json({ error: "Not found" }, StatusCodes.NOT_FOUND));
 
