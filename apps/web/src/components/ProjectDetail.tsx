@@ -22,9 +22,9 @@ async function fetchProject(id: string): Promise<ApiProject> {
 }
 
 async function fetchApps(id: string): Promise<AppRow[]> {
-  const apps = await api.listProjectApplications(id);
+  const { items } = await api.listProjectApplications(id);
   return Promise.all(
-    apps.map(async (app) => {
+    items.map(async (app) => {
       const detail = await api.getApplication(app.id).catch(() => null);
       return { ...app, latestStatus: detail?.deployments[0]?.status ?? null };
     }),
