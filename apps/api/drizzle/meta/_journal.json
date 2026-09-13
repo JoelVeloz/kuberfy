@@ -36,6 +36,62 @@
       "when": 1789272438789,
       "tag": "0004_furry_otto_octavius",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1789284670985,
+      "tag": "0005_solid_proemial_gods",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1789285284508,
+      "tag": "0006_yellow_stone_men",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1789285305830,
+      "tag": "0007_backfill_domain_port_from_application",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1789285334890,
+      "tag": "0008_empty_hulk",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1789292467235,
+      "tag": "0009_wakeful_banshee",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1789292782408,
+      "tag": "0010_narrow_franklin_richards",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1789322793498,
+      "tag": "0011_fantastic_the_watchers",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1789324645116,
+      "tag": "0012_happy_maelstrom",
+      "breakpoints": true
     }
   ]
 }

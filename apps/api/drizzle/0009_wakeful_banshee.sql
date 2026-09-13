@@ -1,0 +1,1 @@
+ALTER TABLE `domains` ADD `ssl_enabled` integer DEFAULT true NOT NULL;

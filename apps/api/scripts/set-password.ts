@@ -1,4 +1,4 @@
-// Uses auth.$context since setUserPassword requires an admin session (see PLAN.md).
+// Uses auth.$context since setUserPassword requires an admin session (see private/PLAN.md).
 import { parseArgs } from "node:util";
 import { auth } from "../src/auth";
 

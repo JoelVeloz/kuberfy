@@ -1,0 +1,8 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { ApplicationTerminalTab } from "@/components/ApplicationTerminalTab";
+---
+
+<Layout title="Terminal">
+  <ApplicationTerminalTab client:only="react" />
+</Layout>

@@ -1,0 +1,42 @@
+import { zValidator } from "@hono/zod-validator";
+import { StatusCodes } from "http-status-codes";
+import { desc } from "drizzle-orm";
+import { Hono } from "hono";
+import { HTTPException } from "hono/http-exception";
+import { z } from "zod";
+import { auth } from "../auth";
+import { db } from "../db";
+import { users as usersTable } from "../db/schema/auth";
+import { requireAdmin, requireAuth } from "../lib/auth-middleware";
+
+export const users = new Hono();
+
+users.use("*", requireAuth);
+
+// Visible to any signed-in user (not just admins) — the only restriction is on creating accounts, below. A plain
+// read of the table instead of auth.api.listUsers: that endpoint is gated to admin-only inside better-auth's own
+// admin plugin, which doesn't fit here — everyone can see who else has access.
+users.get("/", async (c) => {
+  const list = await db
+    .select({ id: usersTable.id, email: usersTable.email, name: usersTable.name, role: usersTable.role, createdAt: usersTable.createdAt })
+    .from(usersTable)
+    .orderBy(desc(usersTable.createdAt));
+  return c.json(list);
+});
+
+const createUserBody = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+  role: z.enum(["admin", "user"]).default("user"),
+});
+
+users.post("/", requireAdmin, zValidator("json", createUserBody), async (c) => {
+  const { email, password, role } = c.req.valid("json");
+  try {
+    const result = await auth.api.createUser({ headers: c.req.raw.headers, body: { email, password, name: email.split("@")[0]!, role } });
+    return c.json(result.user, StatusCodes.CREATED);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new HTTPException(message.toLowerCase().includes("already exists") ? StatusCodes.CONFLICT : StatusCodes.BAD_REQUEST, { message });
+  }
+});

@@ -70,16 +70,30 @@ if [ -f /.dockerenv ]; then
   fail "This script must run on the host system, not inside a Docker container."
 fi
 
-# Automatically open firewall ports in iptables/ufw if present
+# Automatically open firewall ports in iptables/ufw if present. 3000 (the panel's direct, bypasses-Traefik
+# access) is pre-authorized here but NOT published by Docker below — off by default, toggled from the dashboard's
+# Settings page (which controls the real exposure by publishing/unpublishing it on the Swarm service), so having
+# the firewall rule ready ahead of time doesn't expose anything until that toggle is turned on.
 if command_exists iptables; then
   iptables -I INPUT -p tcp --dport 80 -j ACCEPT 2>/dev/null || true
   iptables -I INPUT -p tcp --dport 443 -j ACCEPT 2>/dev/null || true
   iptables -I INPUT -p tcp --dport 3000 -j ACCEPT 2>/dev/null || true
+  # Docker Swarm's own cluster-management ports — only needed for communication between multiple nodes, which
+  # this single-node install never has. Blocked explicitly since `docker swarm init` below listens on all
+  # interfaces by default, regardless of whether anything else ever gets published on these ports.
+  iptables -I INPUT -p tcp --dport 2377 -j DROP 2>/dev/null || true
+  iptables -I INPUT -p tcp --dport 7946 -j DROP 2>/dev/null || true
+  iptables -I INPUT -p udp --dport 7946 -j DROP 2>/dev/null || true
+  iptables -I INPUT -p udp --dport 4789 -j DROP 2>/dev/null || true
 fi
 if command_exists ufw && ufw status 2>/dev/null | grep -q "Status: active"; then
   ufw allow 80/tcp >/dev/null 2>&1 || true
   ufw allow 443/tcp >/dev/null 2>&1 || true
   ufw allow 3000/tcp >/dev/null 2>&1 || true
+  ufw deny 2377/tcp >/dev/null 2>&1 || true
+  ufw deny 7946/tcp >/dev/null 2>&1 || true
+  ufw deny 7946/udp >/dev/null 2>&1 || true
+  ufw deny 4789/udp >/dev/null 2>&1 || true
 fi
 
 for port in 80 443 3000; do
@@ -115,10 +129,10 @@ fi
 
 if [ -z "$KUBERFY_DOMAIN" ]; then
   if [ -t 0 ]; then
-    printf "${BOLD}${YELLOW}? Domain name (optional, press Enter for server IP):${NC} "
+    printf "${BOLD}${YELLOW}? Domain name (optional, press Enter for a free auto-generated one with HTTPS):${NC} "
     read -r KUBERFY_DOMAIN
   elif (exec 3</dev/tty) 2>/dev/null; then
-    printf "${BOLD}${YELLOW}? Domain name (optional, press Enter for server IP):${NC} " > /dev/tty
+    printf "${BOLD}${YELLOW}? Domain name (optional, press Enter for a free auto-generated one with HTTPS):${NC} " > /dev/tty
     read -r KUBERFY_DOMAIN < /dev/tty
   fi
 fi
@@ -171,7 +185,26 @@ advertise_addr="${ADVERTISE_ADDR:-$local_ip}"
 [ -n "$advertise_addr" ] || advertise_addr="$public_ip"
 [ -n "$advertise_addr" ] || fail "Could not detect server IP address automatically. Set ADVERTISE_ADDR manually."
 
-server_host="${KUBERFY_DOMAIN:-${public_ip:-$advertise_addr}}"
+# No domain given? Default to a free sslip.io hostname off the server's own public IP instead of a bare IP —
+# sslip.io resolves it right back to that IP, so it needs no DNS setup and still qualifies for a real Let's
+# Encrypt certificate (an IP alone never would). Only falls back to a bare IP/address (HTTP only, no TLS) when
+# no public IP could be detected at all (e.g. a private/internal-only server).
+#
+# The label is a random token, not "kuberfy" or anything derived from the IP: Let's Encrypt certs are published
+# forever in public Certificate Transparency logs (crt.sh, Censys), so a product name here would let anyone
+# search those logs and build a list of every exposed kuberfy instance on the internet — and hashing the IP
+# wouldn't help either, since all ~4 billion IPv4 addresses can be hashed and matched back in seconds. A random
+# token from /dev/urandom has neither problem.
+server_tls=""
+if [ -n "$KUBERFY_DOMAIN" ]; then
+  server_host="$KUBERFY_DOMAIN"
+  server_tls="1"
+elif [ -n "$public_ip" ]; then
+  server_host="$(openssl rand -hex 6).$(echo "$public_ip" | tr '.' '-').sslip.io"
+  server_tls="1"
+else
+  server_host="$advertise_addr"
+fi
 
 info "Public IP: ${public_ip:-None} | Local IP: ${local_ip:-None}"
 
@@ -181,7 +214,12 @@ docker swarm init --advertise-addr "$advertise_addr" >/dev/null
 docker network rm -f kuberfy-network 2>/dev/null || true
 docker network create --driver overlay --attachable kuberfy-network >/dev/null
 
-success "Docker Swarm cluster and overlay network initialized."
+# Deployed application containers join this network instead of kuberfy-network — isolated from kuberfy's own
+# dashboard/API and its Docker-socket access. Only Traefik (below) is attached to both, to route to everything.
+docker network rm -f kuberfy-apps-network 2>/dev/null || true
+docker network create --driver overlay --attachable kuberfy-apps-network >/dev/null
+
+success "Docker Swarm cluster and overlay networks initialized."
 
 # Step 5: Pull & Start Services
 step "5/6" "Deploying Kuberfy control plane & Traefik proxy..."
@@ -202,22 +240,31 @@ fi
 
 AUTH_SECRET=$(openssl rand -hex 32)
 
+# kuberfy's image runs as a non-root user by default (see Dockerfile); --group-add puts it in the host's real
+# docker.sock group so it keeps Docker-socket access without running as root inside the container.
+DOCKER_SOCK_GID=$(stat -c '%g' /var/run/docker.sock)
+
 docker service create \
   --name kuberfy \
   --replicas 1 \
   --network kuberfy-network \
+  --group-add "$DOCKER_SOCK_GID" \
   --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
   --mount type=volume,source=kuberfy-data,target=/data \
-  --publish published=3000,target=3000,mode=host \
   --update-parallelism 1 \
   --update-order stop-first \
   --constraint 'node.role == manager' \
   -e BETTER_AUTH_SECRET="$AUTH_SECRET" \
-  -e BETTER_AUTH_URL="http://${server_host}:3000" \
+  -e KUBERFY_DOMAIN="$server_host" \
+  ${public_ip:+-e SERVER_PUBLIC_IP="$public_ip"} \
   --label "traefik.enable=true" \
   --label "traefik.http.routers.kuberfy.rule=Host(\`${server_host}\`)" \
   --label "traefik.http.routers.kuberfy.entrypoints=web" \
   --label "traefik.http.services.kuberfy.loadbalancer.server.port=3000" \
+  ${server_tls:+--label "traefik.http.routers.kuberfy-tls.rule=Host(\`${server_host}\`)"} \
+  ${server_tls:+--label "traefik.http.routers.kuberfy-tls.entrypoints=websecure"} \
+  ${server_tls:+--label "traefik.http.routers.kuberfy-tls.service=kuberfy"} \
+  ${server_tls:+--label "traefik.http.routers.kuberfy-tls.tls.certresolver=le"} \
   "$KUBERFY_IMAGE" >/dev/null
 
 docker run -d \
@@ -231,12 +278,16 @@ docker run -d \
   traefik:v3.7 \
   --providers.swarm=true \
   --providers.swarm.exposedbydefault=false \
+  --accesslog=true \
+  --accesslog.format=json \
   --entrypoints.web.address=:80 \
   --entrypoints.websecure.address=:443 \
   --certificatesresolvers.le.acme.httpchallenge=true \
   --certificatesresolvers.le.acme.httpchallenge.entrypoint=web \
   --certificatesresolvers.le.acme.email="${ACME_EMAIL:-$ADMIN_EMAIL}" \
   --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json >/dev/null
+
+docker network connect kuberfy-apps-network kuberfy-traefik
 
 info "Waiting for Kuberfy service to be ready..."
 container_id=""
@@ -320,7 +371,13 @@ EOF
 chmod +x /usr/local/bin/kuberfy
 success "Host CLI installed to /usr/local/bin/kuberfy."
 
-target_url="http://${server_host}:3000"
+# Traefik (not the panel's own :3000, which is no longer published by default — see the firewall step above and
+# the Settings page's "Exposed ports" toggle) fronts the panel on 80/443 either way.
+if [ -n "$server_tls" ]; then
+  target_url="https://${server_host}"
+else
+  target_url="http://${server_host}"
+fi
 
 if [ -t 1 ] || [ -e /dev/tty ]; then
   clickable_url=$(printf "\033]8;;%s\033\\%s\033]8;;\033\\" "$target_url" "$target_url")

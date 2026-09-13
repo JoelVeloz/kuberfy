@@ -90,8 +90,8 @@ if [ -n "$app_containers" ]; then
   docker rm -f $app_containers 2>/dev/null || true
 fi
 
-info "Removing overlay network 'kuberfy-network'..."
-docker network rm kuberfy-network 2>/dev/null || true
+info "Removing overlay networks..."
+docker network rm kuberfy-network kuberfy-apps-network 2>/dev/null || true
 
 info "Removing data volumes..."
 for _ in $(seq 1 10); do

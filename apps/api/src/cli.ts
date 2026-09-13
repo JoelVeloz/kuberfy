@@ -1,4 +1,4 @@
-// Single compiled entrypoint dispatching to server/migrate/create-user/set-password — see IMAGE_OPTIMIZATION.md.
+// Single compiled entrypoint dispatching to server/migrate/create-user/set-password — see private/IMAGE_OPTIMIZATION.md.
 // Each subcommand used to be its own `bun build --compile` binary, tripling the embedded Bun runtime in the image.
 const [command, ...rest] = Bun.argv.slice(2);
 process.argv = [process.argv[0]!, process.argv[1]!, ...rest];

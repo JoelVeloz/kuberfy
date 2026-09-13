@@ -41,7 +41,7 @@ async function main() {
     ForceUpdate: currentForce + 1,
   };
 
-  await service.update({ version }, spec);
+  await service.update({ _query: { version }, _body: spec });
   console.log(`Update initiated successfully. Docker Swarm is rolling out the new container.`);
 }
 

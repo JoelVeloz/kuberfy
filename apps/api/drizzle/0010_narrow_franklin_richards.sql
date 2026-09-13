@@ -1,0 +1,1 @@
+ALTER TABLE `applications` ADD `memory_limit_mb` integer DEFAULT 256 NOT NULL;

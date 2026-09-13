@@ -1,14 +1,50 @@
+import { EventEmitter } from "node:events";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Docker from "dockerode";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import simpleGit from "simple-git";
 import { db } from "../db";
 import { application, deployment, domain } from "../db/schema/app";
 
 export const docker = new Docker();
-const DEPLOY_NETWORK = "kuberfy-network";
+// Deployed apps get their own network, separate from kuberfy-network (where kuberfy's own dashboard/API and its
+// Docker-socket access live) — a shell inside a deployed container can no longer reach kuberfy itself. Traefik joins
+// both networks so it can still route to everything.
+const DEPLOY_NETWORK = "kuberfy-apps-network";
+
+// In-progress build output, so a build-log page opened mid-build can catch up instantly instead of waiting for the next line.
+export const activeBuildLogs = new Map<string, string[]>();
+// One shared emitter: "line" events carry `${deploymentId}\n${text}`, "done" events carry the deploymentId — keeps the
+// live build-log WebSocket (routes/applications.ts) decoupled from the deploy pipeline without a queue/broker dependency.
+export const buildLogEvents = new EventEmitter();
+
+export interface DockerStatsSample {
+  cpu_stats: { cpu_usage: { total_usage: number }; system_cpu_usage?: number; online_cpus?: number };
+  precpu_stats: { cpu_usage: { total_usage: number }; system_cpu_usage?: number };
+  memory_stats: { usage?: number; limit?: number; stats?: { cache?: number } };
+}
+
+// Same formula `docker stats` itself uses: usage since the previous sample as a share of the host's usage since
+// then, times CPU count. The very first sample has no precpu_stats.system_cpu_usage yet, so it reports 0% briefly.
+export function parseDockerStats(raw: DockerStatsSample) {
+  const cpuDelta = raw.cpu_stats.cpu_usage.total_usage - raw.precpu_stats.cpu_usage.total_usage;
+  const systemDelta = (raw.cpu_stats.system_cpu_usage ?? 0) - (raw.precpu_stats.system_cpu_usage ?? 0);
+  const cpuPercent = systemDelta > 0 && cpuDelta > 0 ? (cpuDelta / systemDelta) * (raw.cpu_stats.online_cpus ?? 1) * 100 : 0;
+  const memUsed = (raw.memory_stats.usage ?? 0) - (raw.memory_stats.stats?.cache ?? 0);
+  return { t: Date.now(), cpu: Math.round(cpuPercent * 10) / 10, memUsed, memLimit: raw.memory_stats.limit ?? 0 };
+}
+
+// A deployment stuck in "pending"/"building" from before this process started can only mean the previous process
+// died mid-deploy — nothing else clears that state, so a stuck row otherwise stays that way forever (the container
+// may well have started fine; the DB update for it just never landed). Run once at boot.
+export async function reconcileInterruptedDeployments() {
+  await db
+    .update(deployment)
+    .set({ status: "failed", logs: "Interrupted by a server restart. Redeploy to try again.", updatedAt: new Date() })
+    .where(inArray(deployment.status, ["pending", "building"]));
+}
 
 export async function runDeployment(applicationId: string) {
   const app = await db.query.application.findFirst({ where: eq(application.id, applicationId) });
@@ -21,14 +57,24 @@ export async function runDeployment(applicationId: string) {
       .update(deployment)
       .set({ status: "failed", logs: err instanceof Error ? err.message : String(err), updatedAt: new Date() })
       .where(eq(deployment.id, dep!.id));
+    finishBuildLog(dep!.id);
   });
 
   return dep!;
 }
 
+function finishBuildLog(deploymentId: string) {
+  activeBuildLogs.delete(deploymentId);
+  buildLogEvents.emit("done", deploymentId);
+}
+
 async function deploy(app: typeof application.$inferSelect, deploymentId: string) {
   const logs: string[] = [];
-  const log = (line: string) => logs.push(line);
+  activeBuildLogs.set(deploymentId, logs);
+  const log = (line: string) => {
+    logs.push(line);
+    buildLogEvents.emit("line", deploymentId, line);
+  };
 
   const imageTag = app.buildType === "image" ? app.repoUrl : `kuberfy/${app.id}:${Date.now()}`;
 
@@ -43,13 +89,30 @@ async function deploy(app: typeof application.$inferSelect, deploymentId: string
 
   const domains = await db.query.domain.findMany({ where: eq(domain.applicationId, app.id) });
   const labels: Record<string, string> = { "kuberfy.application": app.id };
-  if (domains.length > 0 && app.port) {
-    const rule = domains.map((d) => `Host(\`${d.host}\`)`).join(" || ");
+  if (domains.length > 0) {
     labels["traefik.enable"] = "true";
-    labels[`traefik.http.routers.${app.id}.rule`] = rule;
-    labels[`traefik.http.routers.${app.id}.entrypoints`] = "web";
-    labels[`traefik.http.services.${app.id}.loadbalancer.server.port`] = String(app.port);
-    log(`Routing ${domains.map((d) => d.host).join(", ")} → internal port ${app.port} via Traefik`);
+    // one router+service per domain (not one shared router) — different domains of the same app can point at different ports
+    for (const d of domains) {
+      const routerName = `${app.id}-${d.id}`;
+      // `.localhost` never leaves the machine and Let's Encrypt won't issue for it — HTTP only regardless of the
+      // toggle. Any real host (a custom domain, or the sslip.io ones auto-generated in production) gets a TLS
+      // router too, unless the user turned sslEnabled off for it (domains.ts already refuses that combination
+      // for `.localhost`, so this only actually happens for a real host that opted out).
+      const isLocalhost = d.host === "localhost" || d.host.endsWith(".localhost");
+      const tlsRouter = d.sslEnabled && !isLocalhost;
+      labels[`traefik.http.routers.${routerName}.rule`] = `Host(\`${d.host}\`)`;
+      labels[`traefik.http.routers.${routerName}.entrypoints`] = "web";
+      labels[`traefik.http.routers.${routerName}.service`] = routerName;
+      labels[`traefik.http.services.${routerName}.loadbalancer.server.port`] = String(d.port);
+      if (tlsRouter) {
+        const tlsRouterName = `${routerName}-tls`;
+        labels[`traefik.http.routers.${tlsRouterName}.rule`] = `Host(\`${d.host}\`)`;
+        labels[`traefik.http.routers.${tlsRouterName}.entrypoints`] = "websecure";
+        labels[`traefik.http.routers.${tlsRouterName}.service`] = routerName;
+        labels[`traefik.http.routers.${tlsRouterName}.tls.certresolver`] = "le";
+      }
+      log(`Routing ${d.host} → internal port ${d.port} via Traefik${tlsRouter ? " (HTTP + HTTPS via Let's Encrypt)" : ""}`);
+    }
   }
 
   const env = app.envVars ? Object.entries(JSON.parse(app.envVars) as Record<string, string>).map(([k, v]) => `${k}=${v}`) : undefined;
@@ -61,10 +124,16 @@ async function deploy(app: typeof application.$inferSelect, deploymentId: string
     Tty: true,
     Env: env,
     Labels: labels,
-    HostConfig: { RestartPolicy: { Name: "unless-stopped" }, NetworkMode: DEPLOY_NETWORK },
+    HostConfig: {
+      RestartPolicy: { Name: "unless-stopped" },
+      NetworkMode: DEPLOY_NETWORK,
+      // MemorySwap === Memory disables swap on top of the hard cap, matching how the limit reads in the UI
+      Memory: app.memoryLimitMb * 1024 * 1024,
+      MemorySwap: app.memoryLimitMb * 1024 * 1024,
+    },
   });
   await container.start();
-  log(`Started container ${container.id} on network ${DEPLOY_NETWORK} — no ports published to the host`);
+  log(`Container started (${container.id.slice(0, 12)})`);
 
   // A container can exit almost immediately (e.g. a required env var is missing) — briefly
   // wait and check before declaring victory, instead of trusting `start()` alone.
@@ -78,6 +147,7 @@ async function deploy(app: typeof application.$inferSelect, deploymentId: string
       .update(deployment)
       .set({ status: "failed", imageTag, containerId: container.id, logs: logs.join("\n"), updatedAt: new Date() })
       .where(eq(deployment.id, deploymentId));
+    finishBuildLog(deploymentId);
     return;
   }
 
@@ -90,6 +160,7 @@ async function deploy(app: typeof application.$inferSelect, deploymentId: string
     .update(deployment)
     .set({ status: "running", imageTag, containerId: container.id, logs: logs.join("\n"), updatedAt: new Date() })
     .where(eq(deployment.id, deploymentId));
+  finishBuildLog(deploymentId);
 }
 
 export async function restartDeployment(applicationId: string) {

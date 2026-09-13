@@ -7,7 +7,17 @@ import { auth } from "./auth";
 import projects from "./routes/projects";
 import { applications } from "./routes/applications";
 import { domains } from "./routes/domains";
-import { settings } from "./routes/settings";
+import { marketplace } from "./routes/marketplace";
+import { settings, ensureSettingsSeeded } from "./routes/settings";
+import { observability } from "./routes/observability";
+import { system } from "./routes/system";
+import { users } from "./routes/users";
+import { reconcileInterruptedDeployments } from "./services/deploy";
+
+// If the process died mid-deploy last time it ran, any deployment still marked pending/building is orphaned —
+// nothing else would ever clear that state (see services/deploy.ts).
+await reconcileInterruptedDeployments();
+await ensureSettingsSeeded();
 
 const app = new Hono();
 
@@ -18,21 +28,13 @@ app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 app.route("/api/projects", projects);
 app.route("/api/applications", applications);
 app.route("/api/domains", domains);
+app.route("/api/marketplace/templates", marketplace);
 app.route("/api/settings", settings);
+app.route("/api/observability", observability);
+app.route("/api/system", system);
+app.route("/api/users", users);
 
-// Dynamic project/application ids only exist at request time, not at Astro's build time — fall back to the one
-// prebuilt shell (see PLAN.md) which reads the real id from the URL and fetches data client-side.
-app.use(
-  "/*",
-  serveStatic({
-    root: "./public",
-    rewriteRequestPath: (path) => {
-      if (/^\/projects\/[^/]+$/.test(path)) return "/projects/_/index.html";
-      if (/^\/applications\/[^/]+$/.test(path)) return "/applications/_/index.html";
-      return path;
-    },
-  }),
-);
+app.use("/*", serveStatic({ root: "./public" }));
 
 app.notFound((c) => c.json({ error: "Not found" }, StatusCodes.NOT_FOUND));
 

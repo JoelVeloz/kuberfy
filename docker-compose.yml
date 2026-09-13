@@ -4,6 +4,8 @@ services:
     command:
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
+      - --accesslog=true
+      - --accesslog.format=json
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
       - --certificatesresolvers.le.acme.httpchallenge=true
@@ -16,6 +18,9 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - traefik-certs:/letsencrypt
+    networks:
+      - kuberfy-network
+      - kuberfy-apps-network
     restart: unless-stopped
 
   kuberfy:
@@ -25,7 +30,7 @@ services:
     environment:
       - DATABASE_PATH=/data/kuberfy.db
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
-      - BETTER_AUTH_URL=http://${KUBERFY_DOMAIN:-localhost}:3000
+      - KUBERFY_DOMAIN=${KUBERFY_DOMAIN:-localhost}
     volumes:
       - kuberfy-data:/data
       - /var/run/docker.sock:/var/run/docker.sock
@@ -34,11 +39,21 @@ services:
       - traefik.http.routers.kuberfy.rule=Host(`${KUBERFY_DOMAIN:-localhost}`)
       - traefik.http.routers.kuberfy.entrypoints=web
       - traefik.http.services.kuberfy.loadbalancer.server.port=3000
+    networks:
+      - kuberfy-network
+    # Docker Desktop's docker.sock doesn't expose a stable, matchable GID like a real Linux host does, so local dev
+    # keeps this container on root. The production installer (install.sh) runs it non-root with --group-add set to
+    # the host's real docker.sock GID.
+    user: root
     restart: unless-stopped
 
 networks:
-  default:
+  kuberfy-network:
     name: kuberfy-network
+  # Deployed application containers live here instead — isolated from kuberfy's own network (see deploy.ts),
+  # so a shell inside a deployed app can't reach kuberfy's dashboard/API or its Docker-socket access.
+  kuberfy-apps-network:
+    name: kuberfy-apps-network
 
 volumes:
   traefik-certs:

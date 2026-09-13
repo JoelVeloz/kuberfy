@@ -77,7 +77,7 @@ import DocsLayout from "@/layouts/DocsLayout.astro";
       <strong>Admin Email:</strong> The initial administrator email address for login.
     </li>
     <li>
-      <strong>Domain Name (Optional):</strong> Your custom domain (e.g. <code>kuberfy.yourdomain.com</code>). If left empty, the server will default to your public IP.
+      <strong>Domain Name (Optional):</strong> Your custom domain (e.g. <code>kuberfy.yourdomain.com</code>). If left empty, a free <code>sslip.io</code> hostname with a random token is used instead, with HTTPS included.
     </li>
   </ul>
 
@@ -114,7 +114,9 @@ import DocsLayout from "@/layouts/DocsLayout.astro";
           <code>KUBERFY_DOMAIN</code>
         </td>
         <td>Public domain for dashboard and Let's Encrypt certificates.</td>
-        <td>Server Public IP</td>
+        <td>
+          Auto-generated <code>sslip.io</code> hostname
+        </td>
       </tr>
       <tr>
         <td>

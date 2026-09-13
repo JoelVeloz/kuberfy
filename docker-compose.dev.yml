@@ -1,0 +1,47 @@
+# Dev stack: bind-mounts source + runs `bun run dev` with hot reload, so code changes
+# don't require rebuilding the production Dockerfile (bun compile + astro build) each time.
+# Traefik fronts both dev servers on one origin (http://localhost) so /api/* and the page share an origin,
+# just like the production image — see traefik/dev.yml for why it uses the file provider, not Docker labels.
+# Usage: docker compose -f docker-compose.dev.yml up
+services:
+  traefik:
+    image: traefik:v3.7
+    command:
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
+      - --entrypoints.web.address=:80
+    ports:
+      - "80:80"
+    volumes:
+      - ./traefik/dev.yml:/etc/traefik/dynamic/dev.yml:ro
+    depends_on:
+      - api
+      - web
+
+  api:
+    image: oven/bun:1-alpine
+    working_dir: /app
+    volumes:
+      - ./apps/api:/app
+      - api-node-modules:/app/node_modules
+      - /var/run/docker.sock:/var/run/docker.sock
+    env_file: apps/api/.env
+    command: sh -c "bun install && bun run dev"
+
+  web:
+    image: oven/bun:1-alpine
+    working_dir: /app
+    volumes:
+      - ./apps/web:/app
+      - web-node-modules:/app/node_modules
+    environment:
+      - API_URL=http://api:3000
+    ports:
+      - "4321:4321"
+    command: sh -c "bun install && bun run dev -- --host 0.0.0.0"
+    depends_on:
+      - api
+
+volumes:
+  api-node-modules:
+  web-node-modules:

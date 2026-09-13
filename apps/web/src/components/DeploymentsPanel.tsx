@@ -1,11 +1,11 @@
 import * as React from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { buttonVariants } from "@/components/ui/button";
 import { DeploymentStatusBadge } from "@/components/DeploymentStatusBadge";
-import { DeploymentLogDialog } from "@/components/DeploymentLogDialog";
 import type { ApiDeployment } from "@/lib/api";
 
 // Client island: fed real deployments fetched by the parent (ApplicationDetail), most recent first
-export function DeploymentsPanel({ deployments }: { deployments: ApiDeployment[] }) {
+export function DeploymentsPanel({ applicationId, deployments }: { applicationId: string; deployments: ApiDeployment[] }) {
   if (deployments.length === 0) return <p className="px-1 py-6 text-xs text-muted-foreground">No deployments yet.</p>;
 
   return (
@@ -36,7 +36,9 @@ export function DeploymentsPanel({ deployments }: { deployments: ApiDeployment[]
               })}
             </TableCell>
             <TableCell className="text-right">
-              <DeploymentLogDialog logs={deployment.logs} />
+              <a href={`/applications/deployment?id=${applicationId}&deploymentId=${deployment.id}`} className={buttonVariants({ size: "xs", variant: "ghost" })}>
+                View log
+              </a>
             </TableCell>
           </TableRow>
         ))}

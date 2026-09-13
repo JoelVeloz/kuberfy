@@ -1,0 +1,1 @@
+ALTER TABLE `domains` ADD `port` integer DEFAULT 3000 NOT NULL;

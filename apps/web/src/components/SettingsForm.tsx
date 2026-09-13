@@ -1,43 +1,48 @@
 import * as React from "react";
-import { CheckCircle } from "@phosphor-icons/react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Sparkle } from "@phosphor-icons/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueryProvider } from "@/components/QueryProvider";
 import { api } from "@/lib/api";
+import { toastError } from "@/lib/toast";
 
 export function SettingsForm() {
+  return (
+    <QueryProvider>
+      <SettingsFormInner />
+    </QueryProvider>
+  );
+}
+
+function SettingsFormInner() {
   const [domain, setDomain] = React.useState("");
-  const [loading, setLoading] = React.useState(true);
-  const [saving, setSaving] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const [saved, setSaved] = React.useState(false);
-
+  const queryClient = useQueryClient();
+  const query = useQuery({ queryKey: ["settings"], queryFn: api.getSettings });
   React.useEffect(() => {
-    api
-      .getSettings()
-      .then((s) => setDomain(s.kuberfyDomain ?? ""))
-      .catch(() => setError("Failed to load current settings."))
-      .finally(() => setLoading(false));
-  }, []);
+    if (query.data) setDomain(query.data.kuberfyDomain ?? "");
+  }, [query.data]);
 
-  async function handleSave() {
-    setSaving(true);
-    setError(null);
-    setSaved(false);
-    try {
-      await api.updateSettings(domain.trim());
-      setSaved(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save settings.");
-    } finally {
-      setSaving(false);
-    }
-  }
+  const suggest = useMutation({
+    mutationFn: api.suggestKuberfyDomain,
+    onSuccess: (data) => setDomain(data.host),
+    onError: (err) => toastError(err, "Failed to generate a domain."),
+  });
 
-  if (loading) {
+  const save = useMutation({
+    mutationFn: () => api.updateSettings(domain.trim()),
+    onSuccess: () => {
+      toast.success("The domain is live — kuberfy is now reachable at this address.");
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
+    onError: (err) => toastError(err, "Failed to save settings."),
+  });
+
+  if (query.isPending) {
     return (
       <Card>
         <CardContent className="flex flex-col gap-3">
@@ -53,26 +58,20 @@ export function SettingsForm() {
       <CardContent className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="kuberfy-domain">Kuberfy domain</Label>
-          <Input id="kuberfy-domain" placeholder="deploy.example.com" value={domain} onChange={(e) => setDomain(e.target.value)} className="max-w-sm" />
-          <p className="text-xs text-muted-foreground">The domain this kuberfy dashboard itself is reached at.</p>
+          <div className="flex max-w-sm gap-2">
+            <Input id="kuberfy-domain" placeholder="deploy.example.com" value={domain} onChange={(e) => setDomain(e.target.value)} className="flex-1" />
+            <Button type="button" variant="outline" size="sm" disabled={suggest.isPending} onClick={() => suggest.mutate()}>
+              <Sparkle /> {suggest.isPending ? "Generating…" : "Generate"}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            The domain this kuberfy dashboard itself is reached at. "Generate" gives you a free one with HTTPS, no DNS setup needed.
+          </p>
         </div>
 
-        {error && <p className="text-xs text-destructive">{error}</p>}
-
-        {saved && (
-          <Alert>
-            <CheckCircle />
-            <AlertTitle>Saved</AlertTitle>
-            <AlertDescription>
-              The domain was saved. It will not take effect on kuberfy's own routing until the <code>KUBERFY_DOMAIN</code> environment variable is updated
-              and the stack is restarted (e.g. re-running <code>docker compose up -d</code> or the installer).
-            </AlertDescription>
-          </Alert>
-        )}
-
         <div>
-          <Button disabled={domain.trim().length === 0 || saving} onClick={handleSave}>
-            {saving ? "Saving…" : "Save"}
+          <Button disabled={domain.trim().length === 0 || save.isPending} onClick={() => save.mutate()}>
+            {save.isPending ? "Saving…" : "Save"}
           </Button>
         </div>
       </CardContent>

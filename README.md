@@ -54,7 +54,7 @@ Kuberfy's installer targets a single Linux server. Minimum specs, verified by ru
 - **Disk**: 10 GB free, plus space for your application images
 - **Access**: root shell
 - **Software**: `curl`; Docker is installed automatically if missing
-- **Network**: ports 80, 443, and 3000 free; a domain name if you want a public hostname (Let's Encrypt requires it — an IP works for local/internal use)
+- **Network**: ports 80 and 443 free (3000 is reserved but not published by default — see [Exposed ports](#exposed-ports) below); a domain name if you want a public hostname (Let's Encrypt requires it — an IP works for local/internal use)
 
 Kuberfy itself is far lighter than the install footprint above: once running, the control plane uses **~23 MB of RAM** and Traefik **~14 MB** (measured with `docker stats`). Most of a fresh VM's memory during install goes to Docker/containerd, not to Kuberfy.
 
@@ -65,7 +65,7 @@ The command above is the whole install. When executed, it prompts interactively 
 | Variable         | Required | Description                                                                                     |
 | ---------------- | -------- | ----------------------------------------------------------------------------------------------- |
 | `ADMIN_EMAIL`    | prompt   | Email for the first admin user (prompted interactively if omitted)                              |
-| `KUBERFY_DOMAIN` | no       | Public domain routed to Kuberfy via Traefik (optional, defaults to the server's IP, no TLS)     |
+| `KUBERFY_DOMAIN` | no       | Public domain routed to Kuberfy via Traefik. Optional — when omitted, a free `sslip.io` hostname with a random token (not derived from anything guessable) is used instead, with real HTTPS (falls back further to a bare IP, no TLS, only if no public IP can be detected). Only used for this first setup — change it later from the dashboard's Settings page, no restart needed. |
 | `KUBERFY_IMAGE`  | no       | Image to pull (default: `ghcr.io/joelveloz/kuberfy:latest`, built for both `amd64` and `arm64`) |
 | `KUBERFY_REPO`   | no       | Git URL to build the image from instead of pulling — for testing unreleased changes             |
 | `ACME_EMAIL`     | no       | Email used for Let's Encrypt certificates (defaults to `ADMIN_EMAIL`)                           |
@@ -74,6 +74,12 @@ The command above is the whole install. When executed, it prompts interactively 
 Under the hood, the script installs Docker if it's missing, initializes a single-node Docker Swarm, creates an overlay network, pulls the Kuberfy image (or builds it from `KUBERFY_REPO` if set), and starts Kuberfy and Traefik as services. When it finishes, it prints the URL to open and the admin account it created. The published image is a multi-arch manifest (`amd64` + `arm64`), so the same command works on a standard x86_64 VPS or an ARM-based server (Oracle Cloud's ARM tier, AWS Graviton, Apple Silicon for local testing) without any extra flags.
 
 For local development instead of a real server, copy `.env.example` to `.env` and run `docker compose up --build` — the same image, without Swarm.
+
+## Exposed ports
+
+Only 80 and 443 (Traefik) are open by default — everything, including the dashboard itself, is reached through whatever domain is configured, with real HTTPS. The panel's own port 3000 is reserved by the installer but **not** published; it stays off unless you turn on "direct access" from the dashboard's Settings page (an emergency bypass in case Traefik itself is ever broken), and that toggle takes effect immediately, no restart needed. The same Settings page lists every port Docker currently has published on the host, read live rather than hand-maintained.
+
+Docker Swarm's own cluster-management ports (2377/tcp, 7946/tcp+udp, 4789/udp) are blocked by the installer's firewall rules — they're only needed for communication between multiple nodes, which a single-node install never has.
 
 ## Updating
 

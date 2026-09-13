@@ -11,3 +11,9 @@ export const requireAuth = createMiddleware<{ Variables: { user: Session["user"]
   c.set("user", session.user);
   await next();
 });
+
+// Run after requireAuth — the only thing a "user"-role account can't do is manage other users (see routes/users.ts).
+export const requireAdmin = createMiddleware<{ Variables: { user: Session["user"] } }>(async (c, next) => {
+  if (c.get("user")?.role !== "admin") throw new HTTPException(StatusCodes.FORBIDDEN, { message: "Admins only" });
+  await next();
+});

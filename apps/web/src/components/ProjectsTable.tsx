@@ -1,37 +1,33 @@
-import * as React from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueryProvider } from "@/components/QueryProvider";
 import { api, UnauthorizedError, type ApiProject } from "@/lib/api";
 
 interface Row extends ApiProject {
   appCount: number;
 }
 
+async function fetchRows(): Promise<Row[]> {
+  const projects = await api.listProjects();
+  const counts = await Promise.all(projects.map((p) => api.listProjectApplications(p.id).then((apps) => apps.length)));
+  return projects.map((p, i) => ({ ...p, appCount: counts[i] }));
+}
+
 // Client island: real ids/counts don't exist at build time, so the list fetches from the API on mount
 export function ProjectsTable() {
-  const [rows, setRows] = React.useState<Row[] | null>(null);
-  const [error, setError] = React.useState<"unauthorized" | "failed" | null>(null);
+  return (
+    <QueryProvider>
+      <ProjectsTableInner />
+    </QueryProvider>
+  );
+}
 
-  React.useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        const projects = await api.listProjects();
-        const counts = await Promise.all(projects.map((p) => api.listProjectApplications(p.id).then((apps) => apps.length)));
-        if (!cancelled) setRows(projects.map((p, i) => ({ ...p, appCount: counts[i] })));
-      } catch (err) {
-        if (!cancelled) setError(err instanceof UnauthorizedError ? "unauthorized" : "failed");
-      }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+function ProjectsTableInner() {
+  const { data: rows, error } = useQuery({ queryKey: ["projects"], queryFn: fetchRows });
 
-  if (error === "unauthorized") return <p className="mt-6 text-xs text-muted-foreground">Not signed in.</p>;
-  if (error === "failed") return <p className="mt-6 text-xs text-muted-foreground">Failed to load projects.</p>;
+  if (error) return <p className="mt-6 text-xs text-muted-foreground">{error instanceof UnauthorizedError ? "Not signed in." : "Failed to load projects."}</p>;
 
   return (
     <Card className="mt-6">
@@ -56,7 +52,7 @@ export function ProjectsTable() {
               {rows.map((project) => (
                 <TableRow key={project.id} className="relative cursor-pointer">
                   <TableCell>
-                    <a href={`/projects/${project.id}`} className="font-medium after:absolute after:inset-0">
+                    <a href={`/projects/view?id=${project.id}`} className="font-medium after:absolute after:inset-0">
                       {project.name}
                     </a>
                   </TableCell>

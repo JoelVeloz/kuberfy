@@ -11,6 +11,7 @@
   "devDependencies": {
     "oxlint": "^1.82.0",
     "prettier": "^3.9.6",
-    "prettier-plugin-astro": "^1.0.0"
+    "prettier-plugin-astro": "^1.0.0",
+    "yaml": "^2.9.1"
   }
 }

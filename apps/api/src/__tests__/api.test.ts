@@ -10,6 +10,7 @@ beforeAll(async () => {
   process.env.DATABASE_PATH = TEST_DB_PATH;
   process.env.BETTER_AUTH_SECRET = "test-secret-only-for-bun-test-runs";
   process.env.BETTER_AUTH_URL = "http://localhost:3000";
+  process.env.CORS_ORIGINS = "http://localhost:3000";
 
   const { db } = await import("../db");
   const { migrate } = await import("drizzle-orm/bun-sqlite/migrator");
@@ -225,15 +226,14 @@ describe("Projects", () => {
       expect(await res.json()).toEqual({ error: "Application not found" });
     });
 
-    it("PATCH /api/applications/:id sets the internal port and env vars", async () => {
+    it("PATCH /api/applications/:id sets env vars", async () => {
       const envVars = JSON.stringify({ NODE_ENV: "production" });
       const res = await app.request(
         `/api/applications/${applicationId}`,
-        authed({ method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ port: 8080, envVars }) }),
+        authed({ method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ envVars }) }),
       );
       expect(res.status).toBe(200);
       const body = await res.json();
-      expect(body.port).toBe(8080);
       expect(body.envVars).toBe(envVars);
     });
 
@@ -252,29 +252,58 @@ describe("Projects", () => {
     describe("Domains", () => {
       let domainId: string;
 
-      it("POST /api/domains creates a domain for the application", async () => {
-        const res = await app.request("/api/domains", authed(json({ applicationId, host: "api.kuberfy.test" })));
+      it("POST /api/domains creates a domain for the application, primary by default", async () => {
+        const res = await app.request("/api/domains", authed(json({ applicationId, host: "api.kuberfy.test", port: 8080 })));
         expect(res.status).toBe(201);
         const body = await res.json();
         expect(body.host).toBe("api.kuberfy.test");
+        expect(body.port).toBe(8080);
+        expect(body.isPrimary).toBe(true);
         domainId = body.id;
       });
 
       it("POST /api/domains 409s on a duplicate host", async () => {
-        const res = await app.request("/api/domains", authed(json({ applicationId, host: "api.kuberfy.test" })));
+        const res = await app.request("/api/domains", authed(json({ applicationId, host: "api.kuberfy.test", port: 8080 })));
         expect(res.status).toBe(409);
         expect(await res.json()).toEqual({ error: "Domain already in use" });
       });
 
       it("POST /api/domains rejects a host with spaces or invalid characters", async () => {
-        const res = await app.request("/api/domains", authed(json({ applicationId, host: "not a domain!!" })));
+        const res = await app.request("/api/domains", authed(json({ applicationId, host: "not a domain!!", port: 8080 })));
         expect(res.status).toBe(400);
       });
 
-      it("POST /api/domains accepts a whoami.localhost-style host", async () => {
-        const res = await app.request("/api/domains", authed(json({ applicationId, host: "whoami.localhost" })));
+      it("POST /api/domains rejects a missing port", async () => {
+        const res = await app.request("/api/domains", authed(json({ applicationId, host: "no-port.kuberfy.test" })));
+        expect(res.status).toBe(400);
+      });
+
+      it("POST /api/domains accepts a whoami.localhost-style host, not primary since one already exists", async () => {
+        const res = await app.request("/api/domains", authed(json({ applicationId, host: "whoami.localhost", port: 80 })));
         expect(res.status).toBe(201);
-        expect((await res.json()).host).toBe("whoami.localhost");
+        const body = await res.json();
+        expect(body.host).toBe("whoami.localhost");
+        expect(body.isPrimary).toBe(false);
+      });
+
+      it("PATCH /api/domains/:id/primary makes it the primary and unsets the previous one", async () => {
+        const listRes = await app.request(`/api/applications/${applicationId}`, authed());
+        const secondDomainId = (await listRes.json()).domains.find((d: { host: string }) => d.host === "whoami.localhost").id;
+
+        const res = await app.request(`/api/domains/${secondDomainId}/primary`, authed({ method: "PATCH" }));
+        expect(res.status).toBe(200);
+        expect((await res.json()).isPrimary).toBe(true);
+
+        const refreshed = await app.request(`/api/applications/${applicationId}`, authed());
+        const domains = (await refreshed.json()).domains as Array<{ id: string; isPrimary: boolean }>;
+        expect(domains.find((d) => d.id === domainId)!.isPrimary).toBe(false);
+        expect(domains.find((d) => d.id === secondDomainId)!.isPrimary).toBe(true);
+      });
+
+      it("PATCH /api/domains/:id updates its port", async () => {
+        const res = await app.request(`/api/domains/${domainId}`, authed({ ...json({ port: 9090 }), method: "PATCH" }));
+        expect(res.status).toBe(200);
+        expect((await res.json()).port).toBe(9090);
       });
 
       it("GET /api/applications/:id now lists the domain in its relations", async () => {

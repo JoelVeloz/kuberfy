@@ -1,54 +1,51 @@
-import * as React from "react";
+import { useQuery } from "@tanstack/react-query";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueryProvider } from "@/components/QueryProvider";
 import { EditProjectDialog } from "@/components/EditProjectDialog";
 import { NewApplicationDialog } from "@/components/NewApplicationDialog";
 import { DeploymentStatusBadge } from "@/components/DeploymentStatusBadge";
-import { api, UnauthorizedError, NotFoundError, type ApiApplication } from "@/lib/api";
+import { api, UnauthorizedError, NotFoundError, type ApiApplication, type ApiProject } from "@/lib/api";
+import { getQueryParam } from "@/lib/query-params";
 import type { DeploymentStatus } from "@/lib/types";
 
 interface AppRow extends ApiApplication {
   latestStatus: DeploymentStatus | null;
 }
 
-type State =
-  { status: "loading" } | { status: "unauthorized" } | { status: "not-found" } | { status: "error" } | { status: "ready"; id: string; name: string; apps: AppRow[] };
+async function fetchProject(id: string): Promise<ApiProject> {
+  const project = await api.getProject(id);
+  document.title = `${project.name} · Kuberfy`;
+  return project;
+}
+
+async function fetchApps(id: string): Promise<AppRow[]> {
+  const apps = await api.listProjectApplications(id);
+  return Promise.all(
+    apps.map(async (app) => {
+      const detail = await api.getApplication(app.id).catch(() => null);
+      return { ...app, latestStatus: detail?.deployments[0]?.status ?? null };
+    }),
+  );
+}
 
 // Client island: the real project id only exists at request time, so it's read from the URL and fetched here
 export function ProjectDetail() {
-  const [state, setState] = React.useState<State>({ status: "loading" });
+  return (
+    <QueryProvider>
+      <ProjectDetailInner />
+    </QueryProvider>
+  );
+}
 
-  React.useEffect(() => {
-    const id = window.location.pathname.split("/").filter(Boolean).pop() ?? "";
-    let cancelled = false;
-    async function load() {
-      try {
-        const project = await api.getProject(id);
-        const apps = await api.listProjectApplications(id);
-        const withStatus = await Promise.all(
-          apps.map(async (app) => {
-            const detail = await api.getApplication(app.id).catch(() => null);
-            return { ...app, latestStatus: detail?.deployments[0]?.status ?? null };
-          }),
-        );
-        if (cancelled) return;
-        document.title = `${project.name} · Kuberfy`;
-        setState({ status: "ready", id: project.id, name: project.name, apps: withStatus });
-      } catch (err) {
-        if (cancelled) return;
-        if (err instanceof UnauthorizedError) setState({ status: "unauthorized" });
-        else if (err instanceof NotFoundError) setState({ status: "not-found" });
-        else setState({ status: "error" });
-      }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+function ProjectDetailInner() {
+  const id = getQueryParam("id");
+  const project = useQuery({ queryKey: ["project", id], queryFn: () => fetchProject(id) });
+  const apps = useQuery({ queryKey: ["project", id, "apps"], queryFn: () => fetchApps(id), enabled: project.isSuccess });
 
-  if (state.status === "loading") {
+  if (project.isPending) {
     return (
       <div className="flex flex-col gap-2">
         <Skeleton className="h-6 w-48" />
@@ -57,9 +54,9 @@ export function ProjectDetail() {
     );
   }
 
-  if (state.status === "unauthorized") return <p className="text-xs text-muted-foreground">Not signed in.</p>;
+  if (project.error instanceof UnauthorizedError) return <p className="text-xs text-muted-foreground">Not signed in.</p>;
 
-  if (state.status === "not-found") {
+  if (project.error instanceof NotFoundError) {
     return (
       <div>
         <p className="text-sm text-muted-foreground">Project not found.</p>
@@ -70,7 +67,9 @@ export function ProjectDetail() {
     );
   }
 
-  if (state.status === "error") return <p className="text-xs text-muted-foreground">Failed to load project.</p>;
+  if (project.error) return <p className="text-xs text-muted-foreground">Failed to load project.</p>;
+
+  const { id: projId, name } = project.data;
 
   return (
     <>
@@ -79,23 +78,33 @@ export function ProjectDetail() {
           Projects
         </a>
         <span className="text-border">/</span>
-        <span className="text-foreground">{state.name}</span>
+        <span className="text-foreground">{name}</span>
       </div>
 
       <div className="flex items-center gap-3">
-        <h1 className="font-heading text-lg font-medium">{state.name}</h1>
-        <EditProjectDialog projectId={state.id} currentName={state.name} onRenamed={(name) => setState({ ...state, name })} />
+        <h1 className="font-heading text-lg font-medium">{name}</h1>
+        <EditProjectDialog projectId={projId} currentName={name} />
       </div>
       <p className="mt-1 text-xs text-muted-foreground">Applications deployed as part of this project.</p>
 
       <div className="mt-6 flex items-center justify-between">
         <h2 className="font-heading text-sm font-medium">Applications</h2>
-        <NewApplicationDialog projectId={state.id} />
+        <div className="flex items-center gap-2">
+          <a href={`/marketplace?project=${projId}`} className={buttonVariants({ size: "sm", variant: "outline" })}>
+            Marketplace
+          </a>
+          <NewApplicationDialog projectId={projId} />
+        </div>
       </div>
 
       <Card className="mt-3">
         <CardContent className="px-0">
-          {state.apps.length === 0 ? (
+          {apps.isPending ? (
+            <div className="flex flex-col gap-2 px-4 py-4">
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+            </div>
+          ) : apps.data.length === 0 ? (
             <p className="px-4 py-6 text-xs text-muted-foreground">This project has no applications yet.</p>
           ) : (
             <Table>
@@ -108,10 +117,10 @@ export function ProjectDetail() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {state.apps.map((app) => (
+                {apps.data.map((app) => (
                   <TableRow key={app.id} className="relative cursor-pointer">
                     <TableCell>
-                      <a href={`/applications/${app.id}`} className="font-medium after:absolute after:inset-0">
+                      <a href={`/applications/view?id=${app.id}`} className="font-medium after:absolute after:inset-0">
                         {app.name}
                       </a>
                     </TableCell>

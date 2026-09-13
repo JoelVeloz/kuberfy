@@ -1,4 +1,4 @@
-// UI-side shapes mirroring the backend schema (see PLAN.md), kept close to the API so wiring real data later is a small change
+// UI-side shapes mirroring the backend schema (see private/PLAN.md), kept close to the API so wiring real data later is a small change
 
 export interface User {
   id: string;
@@ -12,7 +12,7 @@ export interface Project {
   createdAt: string;
 }
 
-export type BuildType = "dockerfile" | "nixpacks";
+export type BuildType = "image" | "dockerfile";
 
 export interface Application {
   id: string;

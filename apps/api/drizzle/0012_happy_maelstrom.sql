@@ -1,0 +1,1 @@
+ALTER TABLE `settings` ADD `expose_panel_port` integer DEFAULT false NOT NULL;

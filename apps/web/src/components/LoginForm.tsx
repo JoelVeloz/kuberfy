@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
+import { getQueryParam } from "@/lib/query-params";
 
 export function LoginForm() {
   const [email, setEmail] = React.useState("");
@@ -20,8 +21,7 @@ export function LoginForm() {
       setError(signInError.message ?? "Invalid email or password.");
       return;
     }
-    const params = new URLSearchParams(window.location.search);
-    window.location.href = params.get("redirect") || "/";
+    window.location.href = getQueryParam("redirect") || "/";
   }
 
   return (

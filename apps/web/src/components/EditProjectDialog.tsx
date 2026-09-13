@@ -1,25 +1,25 @@
 import * as React from "react";
 import { PencilSimple } from "@phosphor-icons/react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { api } from "@/lib/api";
+import { toastError } from "@/lib/toast";
 
-export function EditProjectDialog({ projectId, currentName, onRenamed }: { projectId: string; currentName: string; onRenamed: (name: string) => void }) {
+export function EditProjectDialog({ projectId, currentName }: { projectId: string; currentName: string }) {
   const [open, setOpen] = React.useState(false);
   const [name, setName] = React.useState(currentName);
-  const [submitting, setSubmitting] = React.useState(false);
-
-  async function handleSave() {
-    setSubmitting(true);
-    try {
-      const updated = await api.updateProject(projectId, name.trim());
-      onRenamed(updated.name);
+  const queryClient = useQueryClient();
+  const { mutate, isPending } = useMutation({
+    mutationFn: () => api.updateProject(projectId, name.trim()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["project", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
       setOpen(false);
-    } finally {
-      setSubmitting(false);
-    }
-  }
+    },
+    onError: (err) => toastError(err, "Failed to rename project."),
+  });
 
   return (
     <Dialog
@@ -49,8 +49,8 @@ export function EditProjectDialog({ projectId, currentName, onRenamed }: { proje
           <DialogClose asChild>
             <Button variant="outline">Cancel</Button>
           </DialogClose>
-          <Button disabled={name.trim().length === 0 || submitting} onClick={handleSave}>
-            {submitting ? "Saving…" : "Save"}
+          <Button disabled={name.trim().length === 0 || isPending} onClick={() => mutate()}>
+            {isPending ? "Saving…" : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>

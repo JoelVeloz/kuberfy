@@ -1,0 +1,15 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { SettingsForm } from "@/components/SettingsForm";
+import { ExposedPortsCard } from "@/components/ExposedPortsCard";
+---
+
+<Layout title="Settings">
+  <h1 class="font-heading text-lg font-medium">Settings</h1>
+  <p class="mt-1 text-xs text-muted-foreground">Instance-level configuration for this kuberfy server.</p>
+
+  <div class="mt-6 flex max-w-2xl flex-col gap-6">
+    <SettingsForm client:load />
+    <ExposedPortsCard client:load />
+  </div>
+</Layout>
