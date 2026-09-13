@@ -288,6 +288,7 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ kuberfyDomain }),
     }),
+  pruneDockerResources: () => request<{ spaceReclaimed: number; imagesDeleted: number }>("/api/system/prune", { method: "POST" }),
   listExposedPorts: () => request<{ ports: ApiExposedPort[] }>("/api/settings/ports"),
   updatePanelPortExposure: (exposePanelPort: boolean) =>
     request<ApiSettings>("/api/settings", {

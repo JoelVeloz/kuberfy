@@ -127,6 +127,15 @@ function readHostProcesses(prevTicks: Map<number, number>, elapsedSeconds: numbe
   return { processes, ticks };
 }
 
+// Every unused image (not just dangling — matches `docker image prune -a`, since a self-hosted single-node
+// instance has no other consumer of an old image once its app has redeployed onto a newer tag) plus the
+// buildkit cache from Dockerfile-based deploys, the two things that actually fill the disk over time.
+system.post("/prune", async (c) => {
+  const [images, builder] = await Promise.all([docker.pruneImages({ filters: { dangling: ["false"] } }), docker.pruneBuilder({})]);
+  const spaceReclaimed = (images.SpaceReclaimed ?? 0) + (builder.SpaceReclaimed ?? 0);
+  return c.json({ spaceReclaimed, imagesDeleted: images.ImagesDeleted?.length ?? 0 });
+});
+
 system.get(
   "/processes",
   upgradeWebSocket(() => {

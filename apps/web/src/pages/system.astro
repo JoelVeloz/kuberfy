@@ -2,11 +2,17 @@
 import Layout from "@/layouts/Layout.astro";
 import { SystemPage } from "@/components/SystemPage";
 import { ProcessesTable } from "@/components/ProcessesTable";
+import { PruneDockerButton } from "@/components/PruneDockerButton";
 ---
 
 <Layout title="System">
-  <h1 class="font-heading text-lg font-medium">System</h1>
-  <p class="mt-1 text-xs text-muted-foreground">Host resource usage and a summary of every application's current footprint.</p>
+  <div class="flex items-center justify-between gap-4">
+    <div>
+      <h1 class="font-heading text-lg font-medium">System</h1>
+      <p class="mt-1 text-xs text-muted-foreground">Host resource usage and a summary of every application's current footprint.</p>
+    </div>
+    <PruneDockerButton client:load />
+  </div>
   <div class="mt-6">
     <SystemPage client:load />
   </div>
