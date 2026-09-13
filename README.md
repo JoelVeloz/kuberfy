@@ -97,6 +97,20 @@ docker service update --image ghcr.io/joelveloz/kuberfy:latest --force kuberfy
 
 Because the service uses `--update-order stop-first`, Docker Swarm stops the existing container before starting the new one with the updated image, ensuring SQLite database integrity. The new container automatically runs `./kuberfy migrate` on startup to apply any database migrations before serving requests.
 
+## Uninstalling
+
+To cleanly uninstall Kuberfy and remove all associated services, Traefik, deployed applications, overlay networks, volumes, and the host CLI wrapper, run:
+
+```bash
+curl -sSL https://kuberfy.pages.dev/uninstall.sh | sh
+```
+
+Or directly from the server host:
+
+```bash
+kuberfy uninstall
+```
+
 ## Architecture
 
 ```mermaid

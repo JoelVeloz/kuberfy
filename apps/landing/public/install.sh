@@ -179,6 +179,10 @@ cat <<'EOF' > /usr/local/bin/kuberfy
 #!/bin/sh
 set -e
 
+if [ "$1" = "uninstall" ]; then
+  exec curl -sSL https://kuberfy.pages.dev/uninstall.sh | sh
+fi
+
 container_id=$(docker ps -q -f label=com.docker.swarm.service.name=kuberfy -f status=running | head -n1)
 if [ -z "$container_id" ]; then
   echo "ERROR: kuberfy container is not running" >&2
