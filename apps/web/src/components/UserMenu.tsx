@@ -21,7 +21,11 @@ export function UserMenu() {
   }
 
   if (!session) {
-    return <span className="text-xs text-muted-foreground">Not signed in</span>;
+    return (
+      <a href="/login" className="text-xs text-muted-foreground hover:text-foreground">
+        Sign in
+      </a>
+    );
   }
 
   return (

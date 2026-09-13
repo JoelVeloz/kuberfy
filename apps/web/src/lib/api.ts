@@ -50,7 +50,10 @@ export class NotFoundError extends Error {}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, { credentials: "include", ...init });
-  if (res.status === 401) throw new UnauthorizedError();
+  if (res.status === 401) {
+    window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+    throw new UnauthorizedError();
+  }
   if (res.status === 404) throw new NotFoundError();
   if (!res.ok) throw new Error(`${path} failed with ${res.status}`);
   return res.json();

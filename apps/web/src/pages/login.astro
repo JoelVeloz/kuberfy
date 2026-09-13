@@ -1,0 +1,28 @@
+---
+import "@/styles/global.css";
+import { LoginForm } from "@/components/LoginForm";
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Sign in · Kuberfy</title>
+  </head>
+  <body>
+    <div class="grid min-h-screen bg-background lg:grid-cols-2">
+      <div class="flex items-center justify-center px-6 py-16">
+        <LoginForm client:load />
+      </div>
+      <div
+        class="relative hidden overflow-hidden border-l border-border bg-foreground lg:flex lg:flex-col lg:justify-between lg:p-10"
+        style="background-image: linear-gradient(color-mix(in srgb, var(--color-background) 8%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--color-background) 8%, transparent) 1px, transparent 1px); background-size: 32px 32px;"
+      >
+        <span class="font-heading text-sm font-medium tracking-tight text-background">Kuberfy</span>
+        <p class="max-w-xs font-heading text-2xl leading-snug text-background">Deploy applications on your own infrastructure, without the overhead.</p>
+      </div>
+    </div>
+  </body>
+</html>
