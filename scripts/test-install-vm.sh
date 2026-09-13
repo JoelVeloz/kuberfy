@@ -43,8 +43,11 @@ echo "==> Mounting repo into the VM"
 multipass mount "$REPO_ROOT" "$VM_NAME:$MOUNT_POINT"
 
 echo "==> Running install.sh as root inside the VM"
-multipass exec "$VM_NAME" -- sudo sh -c \
-  "ADMIN_EMAIL='$ADMIN_EMAIL' KUBERFY_REPO='$MOUNT_POINT' sh '$MOUNT_POINT/install.sh'"
+# `bash -c` must be the top-level command here, with `sudo` nested inside it:
+# `multipass exec <vm> -- sudo ...` unreliably reports the wrong exit code (and
+# sometimes swallows stdout) back to the host when sudo itself is top-level.
+multipass exec "$VM_NAME" -- bash -c \
+  "sudo sh -c \"ADMIN_EMAIL='$ADMIN_EMAIL' KUBERFY_REPO='$MOUNT_POINT' sh '$MOUNT_POINT/install.sh'\""
 
 vm_ip=$(multipass info "$VM_NAME" | awk '/IPv4/{print $2; exit}')
 

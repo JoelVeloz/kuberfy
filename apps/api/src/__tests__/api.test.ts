@@ -122,6 +122,24 @@ describe("Projects", () => {
     expect(await res.json()).toEqual({ error: "Project not found" });
   });
 
+  it("PATCH /api/projects/:id renames it", async () => {
+    const res = await app.request(
+      `/api/projects/${projectId}`,
+      authed({ method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "Kuberfy Renamed" }) }),
+    );
+    expect(res.status).toBe(200);
+    expect((await res.json()).name).toBe("Kuberfy Renamed");
+  });
+
+  it("PATCH /api/projects/:id 404s for an unknown id", async () => {
+    const res = await app.request(
+      `/api/projects/${crypto.randomUUID()}`,
+      authed({ method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "nope" }) }),
+    );
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "Project not found" });
+  });
+
   it("GET /api/projects/:id/applications lists an empty array before any application exists", async () => {
     const res = await app.request(`/api/projects/${projectId}/applications`, authed());
     expect(res.status).toBe(200);
@@ -204,6 +222,42 @@ describe("Projects", () => {
       );
       expect(res.status).toBe(404);
       expect(await res.json()).toEqual({ error: "Application not found" });
+    });
+
+    describe("Domains", () => {
+      let domainId: string;
+
+      it("POST /api/domains creates a domain for the application", async () => {
+        const res = await app.request("/api/domains", authed(json({ applicationId, host: "api.kuberfy.test" })));
+        expect(res.status).toBe(201);
+        const body = await res.json();
+        expect(body.host).toBe("api.kuberfy.test");
+        domainId = body.id;
+      });
+
+      it("POST /api/domains 409s on a duplicate host", async () => {
+        const res = await app.request("/api/domains", authed(json({ applicationId, host: "api.kuberfy.test" })));
+        expect(res.status).toBe(409);
+        expect(await res.json()).toEqual({ error: "Domain already in use" });
+      });
+
+      it("GET /api/applications/:id now lists the domain in its relations", async () => {
+        const res = await app.request(`/api/applications/${applicationId}`, authed());
+        const body = await res.json();
+        expect(body.domains.some((d: { id: string }) => d.id === domainId)).toBe(true);
+      });
+
+      it("DELETE /api/domains/:id removes it", async () => {
+        const res = await app.request(`/api/domains/${domainId}`, authed({ method: "DELETE" }));
+        expect(res.status).toBe(200);
+        expect((await res.json()).id).toBe(domainId);
+      });
+
+      it("DELETE /api/domains/:id 404s when already deleted", async () => {
+        const res = await app.request(`/api/domains/${domainId}`, authed({ method: "DELETE" }));
+        expect(res.status).toBe(404);
+        expect(await res.json()).toEqual({ error: "Domain not found" });
+      });
     });
   });
 });
