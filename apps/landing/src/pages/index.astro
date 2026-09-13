@@ -1,7 +1,7 @@
 ---
 import Layout from "@/layouts/Layout.astro";
 
-const installCmd = "curl -sSL raw.githubusercontent.com/JoelVeloz/kuberfy/main/install.sh | ADMIN_EMAIL=you@example.com sh";
+const installCmd = "curl -sSL https://kuberfy.pages.dev/install.sh | sh";
 
 const comparison = [
   { row: "Database", typical: "Postgres server to run and back up", kuberfy: "Embedded SQLite — no server, no backups to schedule" },

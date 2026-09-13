@@ -19,8 +19,11 @@ switch (command) {
   case "set-password":
     await import("../scripts/set-password");
     break;
+  case "update":
+    await import("../scripts/update");
+    break;
   default:
     console.error(`Unknown command: ${command}`);
-    console.error("Usage: kuberfy [server|migrate|create-user|set-password] [args...]");
+    console.error("Usage: kuberfy [server|migrate|create-user|set-password|update] [args...]");
     process.exit(1);
 }

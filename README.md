@@ -9,9 +9,8 @@
 
 Kuberfy exists because most self-hosted deployment platforms ship a Postgres server, a Redis instance, and a full Node runtime just to manage a handful of containers. Kuberfy doesn't. The whole control plane — API, dashboard, and database — compiles down to a single static binary and an embedded SQLite file, packaged in an Alpine image with no separate services to run, patch, or back up.
 
-```
-curl -sSL https://raw.githubusercontent.com/JoelVeloz/kuberfy/main/install.sh | \
-  ADMIN_EMAIL=admin@example.com sh
+```bash
+curl -sSL https://kuberfy.pages.dev/install.sh | sh
 ```
 
 ## Why it's lighter
@@ -61,14 +60,14 @@ Kuberfy itself is far lighter than the install footprint above: once running, th
 
 ## Installation
 
-The command above is the whole install. A few of its inputs are worth knowing about:
+The command above is the whole install. When executed, it prompts interactively for your admin email (and an optional domain name if you want automatic HTTPS via Let's Encrypt). For non-interactive automated installs, you can pass them as environment variables:
 
 | Variable         | Required | Description                                                                                     |
 | ---------------- | -------- | ----------------------------------------------------------------------------------------------- |
-| `ADMIN_EMAIL`    | yes      | Email for the first admin user, created automatically on install                                |
+| `ADMIN_EMAIL`    | prompt   | Email for the first admin user (prompted interactively if omitted)                              |
+| `KUBERFY_DOMAIN` | no       | Public domain routed to Kuberfy via Traefik (optional, defaults to the server's IP, no TLS)     |
 | `KUBERFY_IMAGE`  | no       | Image to pull (default: `ghcr.io/joelveloz/kuberfy:latest`, built for both `amd64` and `arm64`) |
 | `KUBERFY_REPO`   | no       | Git URL to build the image from instead of pulling — for testing unreleased changes             |
-| `KUBERFY_DOMAIN` | no       | Public domain routed to Kuberfy via Traefik (defaults to the server's IP, no TLS)               |
 | `ACME_EMAIL`     | no       | Email used for Let's Encrypt certificates (defaults to `ADMIN_EMAIL`)                           |
 | `ADVERTISE_ADDR` | no       | Override automatic IP detection for `docker swarm init`                                         |
 
@@ -81,7 +80,7 @@ For local development instead of a real server, copy `.env.example` to `.env` an
 To update an existing installation to the latest published remote image (`ghcr.io/joelveloz/kuberfy:latest`), run:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/JoelVeloz/kuberfy/main/update.sh | sh
+curl -sSL https://kuberfy.pages.dev/update.sh | sh
 ```
 
 If you are already on the server host where the CLI wrapper is installed, you can also run:
