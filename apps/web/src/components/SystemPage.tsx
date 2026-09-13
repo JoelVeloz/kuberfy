@@ -17,10 +17,19 @@ interface AppStat {
   memLimit: number;
 }
 
+interface InfraStat {
+  id: string;
+  name: string;
+  cpu: number;
+  memUsed: number;
+  memLimit: number;
+}
+
 interface StatsSample {
   t: number;
   host: { cpu: number; memUsed: number; memTotal: number; diskUsed: number; diskTotal: number };
   apps: AppStat[];
+  infra: InfraStat[];
 }
 
 // Last hour at the server's 2s tick — same "no range picker, just the last hour" rule as the per-app chart.
@@ -58,6 +67,19 @@ const formatTooltipLabel = (_value: unknown, payload: unknown) => {
   const point = (payload as Array<{ payload?: { t?: number } }> | undefined)?.[0]?.payload;
   return point?.t ? formatClock(point.t) : "";
 };
+
+// Shared by the Applications and Infrastructure tables — a CPU% cell and a memory progress bar + used/limit label.
+function MemoryCell({ memUsed, memLimit }: { memUsed: number; memLimit: number }) {
+  const percent = memLimit > 0 ? (memUsed / memLimit) * 100 : 0;
+  return (
+    <div className="flex items-center gap-2">
+      <Progress value={percent} className={`w-24 ${levelColor(percent)}`} />
+      <span className="font-mono text-xs tabular-nums text-muted-foreground">
+        {formatBytes(memUsed)} / {formatBytes(memLimit)}
+      </span>
+    </div>
+  );
+}
 
 // Green under 75%, amber up to 90%, red above — the visual answer to "did this hit its max?"
 // Targets the Progress indicator (its only child div) since the component only exposes one fixed fill color.
@@ -178,34 +200,61 @@ export function SystemPage() {
               <TableBody>
                 {[...latest.apps]
                   .sort((a, b) => b.memUsed - a.memUsed)
-                  .map((app) => {
-                    const appMemPercent = app.memLimit > 0 ? (app.memUsed / app.memLimit) * 100 : 0;
-                    return (
-                      <TableRow key={app.id}>
+                  .map((app) => (
+                    <TableRow key={app.id}>
+                      <TableCell>
+                        <a href={`/applications/view?id=${app.id}`} className="font-medium hover:underline">
+                          {app.name}
+                        </a>
+                      </TableCell>
+                      <TableCell>
+                        {app.status ? <DeploymentStatusBadge status={app.status} /> : <span className="text-xs text-muted-foreground">No deployments</span>}
+                      </TableCell>
+                      <TableCell className="font-mono tabular-nums">{app.status === "running" ? `${app.cpu.toFixed(1)}%` : "—"}</TableCell>
+                      <TableCell>
+                        {app.status === "running" ? <MemoryCell memUsed={app.memUsed} memLimit={app.memLimit} /> : <span className="text-xs text-muted-foreground">—</span>}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div>
+        <h2 className="font-heading text-sm font-medium">Infrastructure</h2>
+        <p className="mt-1 text-xs text-muted-foreground">Kuberfy's own containers, not anything deployed on it.</p>
+        <Card className="mt-3">
+          <CardContent className="px-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>CPU</TableHead>
+                  <TableHead>Memory</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {latest.infra.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-xs text-muted-foreground">
+                      No infrastructure containers found.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  [...latest.infra]
+                    .sort((a, b) => b.memUsed - a.memUsed)
+                    .map((c) => (
+                      <TableRow key={c.id}>
+                        <TableCell className="font-medium">{c.name}</TableCell>
+                        <TableCell className="font-mono tabular-nums">{c.cpu.toFixed(1)}%</TableCell>
                         <TableCell>
-                          <a href={`/applications/view?id=${app.id}`} className="font-medium hover:underline">
-                            {app.name}
-                          </a>
-                        </TableCell>
-                        <TableCell>
-                          {app.status ? <DeploymentStatusBadge status={app.status} /> : <span className="text-xs text-muted-foreground">No deployments</span>}
-                        </TableCell>
-                        <TableCell className="font-mono tabular-nums">{app.status === "running" ? `${app.cpu.toFixed(1)}%` : "—"}</TableCell>
-                        <TableCell>
-                          {app.status === "running" ? (
-                            <div className="flex items-center gap-2">
-                              <Progress value={appMemPercent} className={`w-24 ${levelColor(appMemPercent)}`} />
-                              <span className="font-mono text-xs tabular-nums text-muted-foreground">
-                                {formatBytes(app.memUsed)} / {formatBytes(app.memLimit)}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
+                          <MemoryCell memUsed={c.memUsed} memLimit={c.memLimit} />
                         </TableCell>
                       </TableRow>
-                    );
-                  })}
+                    ))
+                )}
               </TableBody>
             </Table>
           </CardContent>
