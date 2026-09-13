@@ -81,8 +81,8 @@ async function deploy(app: typeof application.$inferSelect, deploymentId: string
     await buildFromGit(app, imageTag, log);
   }
 
-  const containerName = `kuberfy-${app.id}`;
-  await removeExisting(containerName);
+  const serviceName = `kuberfy-${app.id}`;
+  await removeExisting(serviceName);
 
   const domains = await db.query.domain.findMany({ where: eq(domain.applicationId, app.id) });
   const labels: Record<string, string> = { "kuberfy.application": app.id };
@@ -110,35 +110,36 @@ async function deploy(app: typeof application.$inferSelect, deploymentId: string
 
   const env = app.envVars ? Object.entries(JSON.parse(app.envVars) as Record<string, string>).map(([k, v]) => `${k}=${v}`) : undefined;
 
-  log(`Creating container ${containerName} from ${imageTag}`);
-  const container = await docker.createContainer({
-    name: containerName,
-    Image: imageTag,
-    Tty: true,
-    Env: env,
+  log(`Creating service ${serviceName} from ${imageTag}`);
+  // A Swarm service, not a plain container — Traefik's swarm provider only ever sees labels on the service
+  // itself (never on the task's real container), so this is what makes deployed apps show up in Traefik
+  // without a second, container-level provider running alongside it.
+  const service = await docker.createService({
+    Name: serviceName,
     Labels: labels,
-    HostConfig: {
-      RestartPolicy: { Name: "unless-stopped" },
-      NetworkMode: DEPLOY_NETWORK,
-      // MemorySwap === Memory disables swap on top of the hard cap, matching how the limit reads in the UI
-      Memory: app.memoryLimitMb * 1024 * 1024,
-      MemorySwap: app.memoryLimitMb * 1024 * 1024,
+    TaskTemplate: {
+      ContainerSpec: { Image: imageTag, Env: env },
+      RestartPolicy: { Condition: "any" },
+      Resources: { Limits: { MemoryBytes: app.memoryLimitMb * 1024 * 1024 } },
+      Networks: [{ Target: DEPLOY_NETWORK }],
     },
+    Mode: { Replicated: { Replicas: 1 } },
   });
-  await container.start();
-  log(`Container started (${container.id.slice(0, 12)})`);
+  log(`Service created (${service.id.slice(0, 12)})`);
 
-  // A container can exit almost immediately (e.g. a required env var is missing) — briefly
-  // wait and check before declaring victory, instead of trusting `start()` alone.
+  // A task can crash-loop almost immediately (e.g. a required env var is missing) — briefly wait and check its
+  // real state before declaring victory, instead of trusting `createService` alone.
   await new Promise((resolve) => setTimeout(resolve, 1500));
-  const info = await container.inspect();
-  if (!info.State.Running) {
-    const crashLogs = await container.logs({ stdout: true, stderr: true, tail: 100 });
-    log(`Container exited (code ${info.State.ExitCode}):`);
-    log(crashLogs.toString("utf-8").trimEnd());
+  const tasks = await docker.listTasks({ filters: { service: [serviceName] } });
+  const task = tasks.find((t) => t.Status?.State === "running") ?? tasks[0];
+  if (task?.Status?.State !== "running") {
+    const crashContainerId = task?.Status?.ContainerStatus?.ContainerID as string | undefined;
+    const crashLogs = crashContainerId ? await docker.getContainer(crashContainerId).logs({ stdout: true, stderr: true, tail: 100 }) : undefined;
+    log(`Task did not reach running state (${task?.Status?.State ?? "unknown"}): ${task?.Status?.Err ?? task?.Status?.Message ?? ""}`);
+    if (crashLogs) log(crashLogs.toString("utf-8").trimEnd());
     await db
       .update(deployment)
-      .set({ status: "failed", imageTag, containerId: container.id, logs: logs.join("\n"), updatedAt: new Date() })
+      .set({ status: "failed", imageTag, containerId: service.id, logs: logs.join("\n"), updatedAt: new Date() })
       .where(eq(deployment.id, deploymentId));
     finishBuildLog(deploymentId);
     return;
@@ -149,17 +150,37 @@ async function deploy(app: typeof application.$inferSelect, deploymentId: string
     .set({ status: "stopped", updatedAt: new Date() })
     .where(and(eq(deployment.applicationId, app.id), eq(deployment.status, "running")));
 
+  // deployment.containerId now holds the Swarm service ID, not a container ID — resolveContainerId() below
+  // resolves the task's real container on demand, for the handful of operations (logs/stats/exec) the Docker
+  // API only exposes at the container level.
   await db
     .update(deployment)
-    .set({ status: "running", imageTag, containerId: container.id, logs: logs.join("\n"), updatedAt: new Date() })
+    .set({ status: "running", imageTag, containerId: service.id, logs: logs.join("\n"), updatedAt: new Date() })
     .where(eq(deployment.id, deploymentId));
   finishBuildLog(deploymentId);
+}
+
+// Traefik reads routing labels straight off the service, but the Docker API only exposes logs/stats/exec at the
+// container level — same gap Dokploy resolves the same way, by filtering listContainers() for the task's
+// container instead of trying to talk to the service directly.
+export async function resolveContainerId(serviceId: string): Promise<string | null> {
+  const containers = await docker.listContainers({ filters: { label: [`com.docker.swarm.service.id=${serviceId}`] } });
+  return containers[0]?.Id ?? null;
 }
 
 export async function restartDeployment(applicationId: string) {
   const dep = await latestDeployment(applicationId);
   if (!dep?.containerId) return null;
-  await docker.getContainer(dep.containerId).restart();
+  const service = docker.getService(dep.containerId);
+  const info = await service.inspect();
+  // Replicas: 1 in case a previous stop() scaled it to zero — restart should always bring it back up, not just
+  // force-recreate a task that was never going to be scheduled.
+  await service.update({
+    version: info.Version.Index,
+    ...info.Spec,
+    Mode: { Replicated: { Replicas: 1 } },
+    TaskTemplate: { ...info.Spec.TaskTemplate, ForceUpdate: (info.Spec.TaskTemplate?.ForceUpdate ?? 0) + 1 },
+  });
   await db.update(deployment).set({ status: "running", updatedAt: new Date() }).where(eq(deployment.id, dep.id));
   return dep;
 }
@@ -167,7 +188,10 @@ export async function restartDeployment(applicationId: string) {
 export async function stopDeployment(applicationId: string) {
   const dep = await latestDeployment(applicationId);
   if (!dep?.containerId) return null;
-  await docker.getContainer(dep.containerId).stop();
+  const service = docker.getService(dep.containerId);
+  const info = await service.inspect();
+  // Swarm services have no "stop" verb — scaling to zero replicas is the native equivalent.
+  await service.update({ version: info.Version.Index, ...info.Spec, Mode: { Replicated: { Replicas: 0 } } });
   await db.update(deployment).set({ status: "stopped", updatedAt: new Date() }).where(eq(deployment.id, dep.id));
   return dep;
 }
@@ -217,10 +241,9 @@ async function buildFromGit(app: typeof application.$inferSelect, imageTag: stri
 }
 
 async function removeExisting(name: string) {
-  const existing = docker.getContainer(name);
   try {
-    await existing.remove({ force: true });
+    await docker.getService(name).remove();
   } catch {
-    // no existing container with this name — nothing to remove
+    // no existing service with this name — nothing to remove
   }
 }

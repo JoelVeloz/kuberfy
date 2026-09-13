@@ -7,7 +7,7 @@ import { HTTPException } from "hono/http-exception";
 import { db } from "../db";
 import { apiCreateApplication, apiUpdateApplication, application, deployment } from "../db/schema/app";
 import { requireAuth } from "../lib/auth-middleware";
-import { activeBuildLogs, buildLogEvents, docker, parseDockerStats, restartDeployment, runDeployment, stopDeployment } from "../services/deploy";
+import { activeBuildLogs, buildLogEvents, docker, parseDockerStats, resolveContainerId, restartDeployment, runDeployment, stopDeployment } from "../services/deploy";
 
 export const applications = new Hono();
 
@@ -48,7 +48,7 @@ applications.delete("/:id", async (c) => {
   for (const dep of deployments) {
     if (!dep.containerId) continue;
     try {
-      await docker.getContainer(dep.containerId).remove({ force: true });
+      await docker.getService(dep.containerId).remove();
     } catch {}
   }
   const [deleted] = await db.delete(application).where(eq(application.id, id)).returning();
@@ -115,12 +115,13 @@ applications.get(
           where: (fields, { eq }) => eq(fields.applicationId, applicationId),
           orderBy: (fields, { desc }) => [desc(fields.createdAt)],
         });
-        if (!dep?.containerId) {
+        const containerId = dep?.containerId ? await resolveContainerId(dep.containerId) : null;
+        if (!containerId) {
           ws.send("No running container for this application yet.");
           ws.close();
           return;
         }
-        const logStream = (await docker.getContainer(dep.containerId).logs({ follow: true, stdout: true, stderr: true, tail: 200 })) as unknown as LogStream;
+        const logStream = (await docker.getContainer(containerId).logs({ follow: true, stdout: true, stderr: true, tail: 200 })) as unknown as LogStream;
         stream = logStream;
         logStream.on("data", (chunk) => ws.send(chunk.toString("utf-8")));
         logStream.on("error", () => ws.close());
@@ -142,11 +143,12 @@ applications.get(
           where: (fields, { eq }) => eq(fields.applicationId, applicationId),
           orderBy: (fields, { desc }) => [desc(fields.createdAt)],
         });
-        if (!dep?.containerId) {
+        const containerId = dep?.containerId ? await resolveContainerId(dep.containerId) : null;
+        if (!containerId) {
           ws.close();
           return;
         }
-        const statsStream = (await docker.getContainer(dep.containerId).stats({ stream: true })) as unknown as StatsStream;
+        const statsStream = (await docker.getContainer(containerId).stats({ stream: true })) as unknown as StatsStream;
         stream = statsStream;
         let buffered = "";
         statsStream.on("data", (chunk) => {
@@ -180,12 +182,13 @@ applications.get(
           where: (fields, { eq }) => eq(fields.applicationId, applicationId),
           orderBy: (fields, { desc }) => [desc(fields.createdAt)],
         });
-        if (!dep?.containerId) {
+        const containerId = dep?.containerId ? await resolveContainerId(dep.containerId) : null;
+        if (!containerId) {
           ws.send("No running container for this application yet.");
           ws.close();
           return;
         }
-        const exec = await docker.getContainer(dep.containerId).exec({ Cmd: shellCmd, AttachStdin: true, AttachStdout: true, AttachStderr: true, Tty: true });
+        const exec = await docker.getContainer(containerId).exec({ Cmd: shellCmd, AttachStdin: true, AttachStdout: true, AttachStderr: true, Tty: true });
 
         const body = JSON.stringify({ Detach: false, Tty: true });
         const request = `POST /exec/${exec.id}/start HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(body)}\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n${body}`;

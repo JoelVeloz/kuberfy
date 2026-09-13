@@ -6,7 +6,7 @@ import { upgradeWebSocket } from "hono/bun";
 import { db } from "../db";
 import { deployment } from "../db/schema/app";
 import { requireAuth } from "../lib/auth-middleware";
-import { docker, parseDockerStats, type DockerStatsSample } from "../services/deploy";
+import { docker, parseDockerStats, resolveContainerId, type DockerStatsSample } from "../services/deploy";
 
 export const system = new Hono();
 
@@ -90,10 +90,13 @@ system.get(
           const appStats = await Promise.all(
             apps.map(async (app) => {
               const dep = app.deployments[0];
-              if (!dep || dep.status !== "running" || !dep.containerId) {
+              // dep.containerId is a Swarm service ID — resolve the task's real container before reading stats,
+              // since the Docker API only exposes stats at the container level.
+              const containerId = dep?.status === "running" && dep.containerId ? await resolveContainerId(dep.containerId) : null;
+              if (!containerId) {
                 return { id: app.id, name: app.name, status: dep?.status ?? null, cpu: 0, memUsed: 0, memLimit: 0 };
               }
-              return { id: app.id, name: app.name, status: dep.status, ...(await containerStats(dep.containerId)) };
+              return { id: app.id, name: app.name, status: dep!.status, ...(await containerStats(containerId)) };
             }),
           );
 

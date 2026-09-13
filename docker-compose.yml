@@ -2,8 +2,14 @@ services:
   traefik:
     image: traefik:v3.7
     command:
+      # kuberfy itself stays a plain container in dev (see the `kuberfy:` service below), so the docker provider
+      # is what makes it visible to Traefik here. Deployed apps, on the other hand, are Swarm services even in
+      # dev (services/deploy.ts) — the swarm provider is what makes *those* visible. Production (install.sh) only
+      # needs the swarm provider, since kuberfy runs as a Swarm service there too.
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
+      - --providers.swarm=true
+      - --providers.swarm.exposedbydefault=false
       - --accesslog=true
       - --accesslog.format=json
       - --entrypoints.web.address=:80
@@ -53,9 +59,13 @@ networks:
   kuberfy-network:
     name: kuberfy-network
   # Deployed application containers live here instead — isolated from kuberfy's own network (see deploy.ts),
-  # so a shell inside a deployed app can't reach kuberfy's dashboard/API or its Docker-socket access.
+  # so a shell inside a deployed app can't reach kuberfy's dashboard/API or its Docker-socket access. Must be
+  # overlay (deployed apps are Swarm services — Swarm refuses to attach a service to a plain bridge network) and
+  # attachable (Traefik joins it too, but stays a plain compose container in dev, not a service).
   kuberfy-apps-network:
     name: kuberfy-apps-network
+    driver: overlay
+    attachable: true
 
 volumes:
   traefik-certs:

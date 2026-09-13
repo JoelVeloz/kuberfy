@@ -127,8 +127,19 @@ if [ -z "$ADMIN_EMAIL" ]; then
   fi
 fi
 
-if [ -z "$KUBERFY_DOMAIN" ]; then
+ip_only=""
+if [ -z "$KUBERFY_DOMAIN" ] && [ "${KUBERFY_IP_ONLY:-0}" != "1" ]; then
+  access_choice=""
   if [ -t 0 ]; then
+    printf "${BOLD}${YELLOW}? Reach the server by domain with HTTPS (1, default) or just its IP with no HTTPS (2)?${NC} "
+    read -r access_choice
+  elif (exec 3</dev/tty) 2>/dev/null; then
+    printf "${BOLD}${YELLOW}? Reach the server by domain with HTTPS (1, default) or just its IP with no HTTPS (2)?${NC} " > /dev/tty
+    read -r access_choice < /dev/tty
+  fi
+  if [ "$access_choice" = "2" ]; then
+    ip_only="1"
+  elif [ -t 0 ]; then
     printf "${BOLD}${YELLOW}? Domain name (optional, press Enter for a free auto-generated one with HTTPS):${NC} "
     read -r KUBERFY_DOMAIN
   elif (exec 3</dev/tty) 2>/dev/null; then
@@ -136,6 +147,7 @@ if [ -z "$KUBERFY_DOMAIN" ]; then
     read -r KUBERFY_DOMAIN < /dev/tty
   fi
 fi
+[ "${KUBERFY_IP_ONLY:-0}" = "1" ] && ip_only="1"
 
 # Step 3: Docker Installation
 step "3/6" "Checking Docker container runtime..."
@@ -185,10 +197,10 @@ advertise_addr="${ADVERTISE_ADDR:-$local_ip}"
 [ -n "$advertise_addr" ] || advertise_addr="$public_ip"
 [ -n "$advertise_addr" ] || fail "Could not detect server IP address automatically. Set ADVERTISE_ADDR manually."
 
-# No domain given? Default to a free sslip.io hostname off the server's own public IP instead of a bare IP —
-# sslip.io resolves it right back to that IP, so it needs no DNS setup and still qualifies for a real Let's
-# Encrypt certificate (an IP alone never would). Only falls back to a bare IP/address (HTTP only, no TLS) when
-# no public IP could be detected at all (e.g. a private/internal-only server).
+# No domain given, and IP-only wasn't chosen? Default to a free sslip.io hostname off the server's own public IP
+# instead of a bare IP — sslip.io resolves it right back to that IP, so it needs no DNS setup and still qualifies
+# for a real Let's Encrypt certificate (an IP alone never would). Only falls back to a bare IP/address (HTTP only,
+# no TLS) when IP-only was explicitly chosen, or no public IP could be detected at all (e.g. an internal-only server).
 #
 # The label is a random token, not "kuberfy" or anything derived from the IP: Let's Encrypt certs are published
 # forever in public Certificate Transparency logs (crt.sh, Censys), so a product name here would let anyone
@@ -199,6 +211,8 @@ server_tls=""
 if [ -n "$KUBERFY_DOMAIN" ]; then
   server_host="$KUBERFY_DOMAIN"
   server_tls="1"
+elif [ -n "$ip_only" ]; then
+  server_host="${public_ip:-$advertise_addr}"
 elif [ -n "$public_ip" ]; then
   server_host="$(openssl rand -hex 6).$(echo "$public_ip" | tr '.' '-').sslip.io"
   server_tls="1"
@@ -247,6 +261,7 @@ docker service create \
   --name kuberfy \
   --replicas 1 \
   --network kuberfy-network \
+  --limit-memory 256m \
   --group "$DOCKER_SOCK_GID" \
   --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
   --mount type=volume,source=kuberfy-data,target=/data \
@@ -270,6 +285,8 @@ docker run -d \
   --name kuberfy-traefik \
   --restart always \
   --network kuberfy-network \
+  --memory 256m \
+  --memory-swap 256m \
   -v /var/run/docker.sock:/var/run/docker.sock:ro \
   -v kuberfy-traefik-certs:/letsencrypt \
   -p 80:80 \
@@ -277,8 +294,6 @@ docker run -d \
   traefik:v3.7 \
   --providers.swarm=true \
   --providers.swarm.exposedbydefault=false \
-  --providers.docker=true \
-  --providers.docker.exposedbydefault=false \
   --accesslog=true \
   --accesslog.format=json \
   --entrypoints.web.address=:80 \
