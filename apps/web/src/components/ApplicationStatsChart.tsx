@@ -46,6 +46,15 @@ const formatTooltipLabel = (_value: unknown, payload: unknown) => {
   return point?.t ? formatClock(point.t) : "";
 };
 
+// ChartTooltipContent's `formatter` prop replaces the whole row (indicator + label + value), not just the value —
+// this rebuilds that row with a unit-suffixed value instead of the raw number it'd otherwise show.
+const tooltipRow = (label: string, formatValue: (value: unknown) => string) => (value: unknown) => (
+  <div className="flex flex-1 items-center justify-between leading-none">
+    <span className="text-muted-foreground">{label}</span>
+    <span className="font-mono font-medium text-foreground tabular-nums">{formatValue(value)}</span>
+  </div>
+);
+
 // Client island: opens a WebSocket to the API's dockerode stats stream and keeps a rolling window of
 // samples in memory (nothing persisted) — same live-socket pattern as RuntimeLogs, applied to metrics.
 export function ApplicationStatsChart({ applicationId }: { applicationId: string }) {
@@ -101,7 +110,7 @@ export function ApplicationStatsChart({ applicationId }: { applicationId: string
               <CartesianGrid vertical={false} strokeDasharray="3 3" />
               <XAxis dataKey="t" type="number" domain={timeDomain} tickFormatter={formatClock} tickLine={false} axisLine={false} minTickGap={40} />
               <YAxis width={44} tickLine={false} axisLine={false} domain={[0, (max: number) => Math.max(100, Math.ceil(max / 10) * 10)]} unit="%" />
-              <ChartTooltip labelFormatter={formatTooltipLabel} content={<ChartTooltipContent indicator="line" />} />
+              <ChartTooltip labelFormatter={formatTooltipLabel} content={<ChartTooltipContent formatter={tooltipRow("CPU", (v) => `${v}%`)} />} />
               <Area dataKey="cpu" name="cpu" type="monotone" fill="url(#fillCpu)" stroke="var(--color-cpu)" strokeWidth={2} isAnimationActive={false} />
             </AreaChart>
           </ChartContainer>
@@ -127,7 +136,7 @@ export function ApplicationStatsChart({ applicationId }: { applicationId: string
               <CartesianGrid vertical={false} strokeDasharray="3 3" />
               <XAxis dataKey="t" type="number" domain={timeDomain} tickFormatter={formatClock} tickLine={false} axisLine={false} minTickGap={40} />
               <YAxis width={48} tickLine={false} axisLine={false} tickFormatter={formatMB} />
-              <ChartTooltip labelFormatter={formatTooltipLabel} content={<ChartTooltipContent indicator="line" />} />
+              <ChartTooltip labelFormatter={formatTooltipLabel} content={<ChartTooltipContent formatter={tooltipRow("Memory", (v) => formatMB(Number(v)))} />} />
               <Area dataKey="memMB" name="mem" type="monotone" fill="url(#fillMem)" stroke="var(--color-mem)" strokeWidth={2} isAnimationActive={false} />
             </AreaChart>
           </ChartContainer>
