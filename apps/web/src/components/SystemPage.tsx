@@ -190,12 +190,12 @@ export function SystemPage() {
         <p className="mt-1 text-xs text-muted-foreground">Kuberfy's own containers, not anything deployed on it.</p>
         <Card className="mt-3">
           <CardContent className="px-0">
-            <Table>
+            <Table className="table-fixed">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>CPU</TableHead>
+                  <TableHead className="w-2/5">Name</TableHead>
+                  <TableHead className="w-28">Status</TableHead>
+                  <TableHead className="w-20">CPU</TableHead>
                   <TableHead>Memory</TableHead>
                 </TableRow>
               </TableHeader>
@@ -211,7 +211,7 @@ export function SystemPage() {
                     .sort((a, b) => b.memUsed - a.memUsed)
                     .map((c) => (
                       <TableRow key={c.id}>
-                        <TableCell className="font-medium">{c.name}</TableCell>
+                        <TableCell className="truncate font-medium">{c.name}</TableCell>
                         <TableCell>
                           <Badge variant="success">Running</Badge>
                         </TableCell>
@@ -232,12 +232,12 @@ export function SystemPage() {
         <h2 className="font-heading text-sm font-medium">Applications</h2>
         <Card className="mt-3">
           <CardContent className="px-0">
-            <Table>
+            <Table className="table-fixed">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>CPU</TableHead>
+                  <TableHead className="w-2/5">Name</TableHead>
+                  <TableHead className="w-28">Status</TableHead>
+                  <TableHead className="w-20">CPU</TableHead>
                   <TableHead>Memory</TableHead>
                 </TableRow>
               </TableHeader>
@@ -246,7 +246,7 @@ export function SystemPage() {
                   .sort((a, b) => b.memUsed - a.memUsed)
                   .map((app) => (
                     <TableRow key={app.id}>
-                      <TableCell>
+                      <TableCell className="truncate">
                         <a href={`/applications/view?id=${app.id}`} className="font-medium hover:underline">
                           {app.name}
                         </a>
