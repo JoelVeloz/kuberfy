@@ -1,0 +1,20 @@
+{
+  "name": "api",
+  "scripts": {
+    "dev": "bun run --hot src/index.ts",
+    "db:migrate": "bun run src/db/migrate.ts",
+    "user:create": "bun run scripts/create-user.ts",
+    "user:set-password": "bun run scripts/set-password.ts"
+  },
+  "dependencies": {
+    "@hono/zod-validator": "^0.9.1",
+    "better-auth": "^1.7.4",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.13.7",
+    "zod": "^4.6.4"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "drizzle-kit": "^0.31.10"
+  }
+}

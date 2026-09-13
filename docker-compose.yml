@@ -1,0 +1,38 @@
+services:
+  traefik:
+    image: traefik:v3.7
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.le.acme.httpchallenge=true
+      - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
+      - --certificatesresolvers.le.acme.email=${ACME_EMAIL:-admin@example.com}
+      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-certs:/letsencrypt
+    restart: unless-stopped
+
+  kuberfy:
+    build: .
+    environment:
+      - DATABASE_PATH=/data/kuberfy.db
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+    volumes:
+      - kuberfy-data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.kuberfy.rule=Host(`${KUBERFY_DOMAIN:-localhost}`)
+      - traefik.http.routers.kuberfy.entrypoints=web
+      - traefik.http.services.kuberfy.loadbalancer.server.port=3000
+    restart: unless-stopped
+
+volumes:
+  traefik-certs:
+  kuberfy-data:

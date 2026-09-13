@@ -1,0 +1,7 @@
+**/node_modules
+**/dist
+**/.astro
+.git
+*.db
+*.db-*
+.env
