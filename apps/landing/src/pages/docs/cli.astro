@@ -1,0 +1,88 @@
+---
+import DocsLayout from "@/layouts/DocsLayout.astro";
+---
+
+<DocsLayout title="Host CLI Reference — Kuberfy Documentation" description="Complete command reference for the Kuberfy host CLI utility.">
+  <h1>Host CLI Reference</h1>
+
+  <p>
+    When Kuberfy is installed on your server, a lightweight management wrapper is placed at <code>/usr/local/bin/kuberfy</code>. This utility allows you to control the
+    platform without directly wrestling with raw Docker Swarm commands.
+  </p>
+
+  <h2>Global Usage</h2>
+
+  <pre><code>kuberfy &lt;command&gt; [options]</code></pre>
+
+  <h2>Available Commands</h2>
+
+  <h3>1. Update Platform</h3>
+  <p>
+    Pulls the latest published production image from GitHub Container Registry (<code>ghcr.io/joelveloz/kuberfy:latest</code>) and performs a zero-downtime rolling service
+    update:
+  </p>
+  <pre><code>kuberfy update</code></pre>
+
+  <h3>2. Create an Admin or User Account</h3>
+  <p>Creates a new user in the embedded database. If no password is provided, a secure random temporary password will be generated and printed to the terminal:</p>
+  <pre><code>kuberfy create-user --email user@example.com --role admin</code></pre>
+
+  <h3>3. Reset User Password</h3>
+  <p>Resets the password for any existing account:</p>
+  <pre><code>kuberfy set-password --email user@example.com --password "NewSecurePassword123!"</code></pre>
+
+  <h3>4. View Platform Logs</h3>
+  <p>Tails the live stdout/stderr log stream of the Kuberfy control plane container:</p>
+  <pre><code>kuberfy logs
+# Or follow logs continuously:
+kuberfy logs -f</code></pre>
+
+  <h3>5. Check Platform Status</h3>
+  <p>Inspects the status of the Docker Swarm service and container tasks:</p>
+  <pre><code>kuberfy status</code></pre>
+
+  <h3>6. Restart Service</h3>
+  <p>Forces a restart of the Kuberfy service container:</p>
+  <pre><code>kuberfy restart</code></pre>
+
+  <h2>Container Entrypoint Subcommands</h2>
+
+  <p>
+    The compiled single binary inside the container (<code>/kuberfy</code>) also supports direct subcommands for automation and maintenance:
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Subcommand</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          <code>server</code>
+        </td>
+        <td>Starts the Bun + Hono HTTP server and WebSocket server.</td>
+      </tr>
+      <tr>
+        <td>
+          <code>migrate</code>
+        </td>
+        <td>Executes pending Drizzle ORM schema migrations against SQLite.</td>
+      </tr>
+      <tr>
+        <td>
+          <code>create-user</code>
+        </td>
+        <td>CLI tool for creating users via Better Auth.</td>
+      </tr>
+      <tr>
+        <td>
+          <code>set-password</code>
+        </td>
+        <td>CLI tool for updating user password hashes.</td>
+      </tr>
+    </tbody>
+  </table>
+</DocsLayout>

@@ -1,0 +1,156 @@
+---
+import DocsLayout from "@/layouts/DocsLayout.astro";
+---
+
+<DocsLayout title="Installation — Kuberfy Documentation" description="How to install Kuberfy on a Linux VPS with a single command.">
+  <h1>Installation</h1>
+
+  <p>
+    Kuberfy installs on any standard Linux VPS (Ubuntu, Debian, AlmaLinux, Arch, etc.) using a single automated shell script that configures Docker, initializes Swarm, spins
+    up Traefik, and deploys the control plane.
+  </p>
+
+  <h2>System Requirements</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Resource</th>
+        <th>Minimum</th>
+        <th>Recommended</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          <strong>CPU</strong>
+        </td>
+        <td>1 vCPU (x86_64 or arm64)</td>
+        <td>1+ vCPU</td>
+      </tr>
+      <tr>
+        <td>
+          <strong>Memory (RAM)</strong>
+        </td>
+        <td>512 MB RAM</td>
+        <td>1 GB+ RAM</td>
+      </tr>
+      <tr>
+        <td>
+          <strong>Disk Space</strong>
+        </td>
+        <td>5 GB SSD</td>
+        <td>10 GB+ SSD</td>
+      </tr>
+      <tr>
+        <td>
+          <strong>Operating System</strong>
+        </td>
+        <td>Ubuntu 22.04+ / Debian 12+</td>
+        <td>Ubuntu 24.04 LTS / Debian 12</td>
+      </tr>
+      <tr>
+        <td>
+          <strong>Open Ports</strong>
+        </td>
+        <td>
+          <code>80</code>, <code>443</code>, <code>3000</code>
+        </td>
+        <td>
+          <code>80</code> (HTTP), <code>443</code> (HTTPS), <code>3000</code> (Dashboard)
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>One-Command Installation</h2>
+
+  <p>
+    Connect to your VPS via SSH as <code>root</code> (or with <code>sudo</code> privileges) and run:
+  </p>
+
+  <pre><code>curl -sSL https://kuberfy.pages.dev/install.sh | sudo sh</code></pre>
+
+  <p>The script will prompt you for:</p>
+  <ul>
+    <li>
+      <strong>Admin Email:</strong> The initial administrator email address for login.
+    </li>
+    <li>
+      <strong>Domain Name (Optional):</strong> Your custom domain (e.g. <code>kuberfy.yourdomain.com</code>). If left empty, the server will default to your public IP.
+    </li>
+  </ul>
+
+  <h2>Non-Interactive Installation</h2>
+
+  <p>If you are provisioning a server with cloud-init or automated scripts, you can supply environment variables:</p>
+
+  <pre><code>curl -sSL https://kuberfy.pages.dev/install.sh | \
+  ADMIN_EMAIL=admin@yourdomain.com \
+  KUBERFY_DOMAIN=kuberfy.yourdomain.com sudo sh</code></pre>
+
+  <h3>Available Environment Flags</h3>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Variable</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          <code>ADMIN_EMAIL</code>
+        </td>
+        <td>Email address for initial admin user creation.</td>
+        <td>
+          <em>Interactive Prompt</em>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <code>KUBERFY_DOMAIN</code>
+        </td>
+        <td>Public domain for dashboard and Let's Encrypt certificates.</td>
+        <td>Server Public IP</td>
+      </tr>
+      <tr>
+        <td>
+          <code>ACME_EMAIL</code>
+        </td>
+        <td>Email used for Let's Encrypt certificate renewal notices.</td>
+        <td>
+          <code>$ADMIN_EMAIL</code>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Initial Login</h2>
+
+  <p>
+    Once the installer finishes, it will print your server URL and a <strong>temporary password</strong>:
+  </p>
+
+  <div class="callout-tip">
+    <p class="mb-1">
+      <strong>Example Output:</strong>
+    </p>
+    <pre class="my-0"><code>✔ Kuberfy is ready!
+➜ URL: http://your-server-ip:3000 (or https://kuberfy.yourdomain.com)
+➜ Email: admin@yourdomain.com
+➜ Temporary Password: a1b2c3d4e5...</code></pre>
+  </div>
+
+  <p>Open the URL in your browser, log in with your credentials, and change your password in the account settings.</p>
+
+  <h2>Host CLI Wrapper</h2>
+
+  <p>
+    The installer automatically creates <code>/usr/local/bin/kuberfy</code> on your host. You can manage Kuberfy directly from the server terminal:
+  </p>
+
+  <pre><code>kuberfy --help</code></pre>
+</DocsLayout>

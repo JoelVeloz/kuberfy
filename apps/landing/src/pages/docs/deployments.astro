@@ -1,0 +1,103 @@
+---
+import DocsLayout from "@/layouts/DocsLayout.astro";
+---
+
+<DocsLayout title="Deploying Applications — Kuberfy Documentation" description="How to deploy applications from Git repositories or Docker images in Kuberfy.">
+  <h1>Deploying Applications</h1>
+
+  <p>
+    Kuberfy supports two deployment strategies: pulling public or private <strong>Docker Images</strong>, or cloning a <strong>Git Repository</strong> and building its{" "}
+    <code>Dockerfile</code>.
+  </p>
+
+  <h2>1. Creating a Project</h2>
+
+  <p>
+    Applications in Kuberfy live inside <strong>Projects</strong>. To get started:
+  </p>
+  <ol>
+    <li>
+      Navigate to the <strong>Projects</strong> dashboard.
+    </li>
+    <li>
+      Click <strong>New Project</strong>, enter a name (e.g. <code>production-api</code>) and description, then click <strong>Create</strong>.
+    </li>
+  </ol>
+
+  <h2>2. Adding an Application</h2>
+
+  <p>
+    Inside your project, click <strong>New Application</strong>. Choose your deployment source:
+  </p>
+
+  <h3>Strategy A: Public or Private Docker Image</h3>
+  <ul>
+    <li>
+      <strong>Image:</strong> The full Docker registry tag (e.g. <code>nginx:alpine</code>, <code>traefik/whoami</code>, or <code>ghcr.io/username/repo:latest</code>).
+    </li>
+    <li>
+      <strong>Internal Port:</strong> The port your container listens on internally (e.g. <code>80</code>, <code>3000</code>, <code>8080</code>).
+    </li>
+  </ul>
+
+  <h3>Strategy B: Git Repository + Dockerfile</h3>
+  <ul>
+    <li>
+      <strong>Repository URL:</strong> HTTPS URL to the Git repository (e.g. <code>https://github.com/dockersamples/todo-list-app</code>).
+    </li>
+    <li>
+      <strong>Branch:</strong> The Git branch to deploy (defaults to <code>main</code>).
+    </li>
+    <li>
+      <strong>Dockerfile Path:</strong> Relative path to the Dockerfile (defaults to <code>Dockerfile</code> in root).
+    </li>
+    <li>
+      <strong>Internal Port:</strong> Port exposed by the application inside the container.
+    </li>
+  </ul>
+
+  <h2>Internal Port Routing (No Host Port Pollution)</h2>
+
+  <div class="callout-tip">
+    <p class="mb-0">
+      <strong>Zero Port Conflicts:</strong> Unlike traditional setups that bind random host ports (like <code>:8081</code>, <code>:8082</code>), Kuberfy never publishes raw
+      host ports. Traefik routes traffic internally over the <code>kuberfy-network</code> overlay network directly to the application's internal port.
+    </p>
+  </div>
+
+  <h2>Configuring Environment Variables</h2>
+
+  <p>
+    You can define key-value environment variables under the <strong>Environment</strong> tab of any application. Variables are securely injected into the container at
+    runtime.
+  </p>
+
+  <h2>Viewing Logs</h2>
+
+  <h3>Build Logs (Snapshot)</h3>
+  <p>
+    During deployment, the full build process (git clone, docker build steps, layer extraction) is captured. Click <strong>View Log</strong> on any deployment row to inspect
+    historical build logs.
+  </p>
+
+  <h3>Live Runtime Logs (WebSocket)</h3>
+  <p>
+    When an application is running, the <strong>Logs</strong> tab streams container output live to your browser using WebSockets connected directly to Docker's log streaming
+    API.
+  </p>
+
+  <h2>Application Management</h2>
+
+  <p>From the application dashboard, you can trigger:</p>
+  <ul>
+    <li>
+      <strong>Deploy:</strong> Re-pulls the latest image or re-clones the repo to start a zero-downtime rolling update.
+    </li>
+    <li>
+      <strong>Restart:</strong> Performs a graceful container restart.
+    </li>
+    <li>
+      <strong>Stop:</strong> Scales the application down to zero replicas.
+    </li>
+  </ul>
+</DocsLayout>

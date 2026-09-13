@@ -1,0 +1,122 @@
+---
+import DocsLayout from "@/layouts/DocsLayout.astro";
+---
+
+<DocsLayout
+  title="Custom Domains & Cloudflare SSL — Kuberfy Documentation"
+  description="Learn how to attach custom domains and configure Cloudflare DNS and SSL with Kuberfy."
+>
+  <h1>Custom Domains & SSL</h1>
+
+  <p>
+    Kuberfy uses <strong>Traefik</strong> as an automated reverse proxy. When you attach a domain to an application, Traefik detects the configuration in real-time, configures
+    the routing rule, and requests a free <strong>Let's Encrypt</strong> SSL certificate.
+  </p>
+
+  <h2>1. Adding a Domain in Kuberfy</h2>
+
+  <ol>
+    <li>Navigate to your application in the Kuberfy dashboard.</li>
+    <li>
+      Go to the <strong>Domains</strong> section.
+    </li>
+    <li>
+      Enter your domain or subdomain (e.g. <code>api.yourdomain.com</code> or <code>app.test.com</code>).
+    </li>
+    <li>
+      Click <strong>Add Domain</strong> and redeploy your application.
+    </li>
+  </ol>
+
+  <h2>2. Configuring DNS (Cloudflare)</h2>
+
+  <p>To point your domain or subdomain to your Kuberfy VPS using Cloudflare:</p>
+
+  <h3>Option A: Pointing a Specific Subdomain</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>IPv4 Address</th>
+        <th>Proxy Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          <code>A</code>
+        </td>
+        <td>
+          <code>api</code> <em>(or your subdomain)</em>
+        </td>
+        <td>
+          <code>YOUR_VPS_IP</code>
+        </td>
+        <td>
+          <strong>Proxied 🟧</strong> (or DNS Only ⬜)
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Option B: Wildcard Subdomains (Recommended for multi-app hosting)</h3>
+  <p>If you deploy multiple applications under the same parent domain, add a wildcard record so you never have to edit DNS records again:</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>IPv4 Address</th>
+        <th>Proxy Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          <code>A</code>
+        </td>
+        <td>
+          <code>*</code>
+        </td>
+        <td>
+          <code>YOUR_VPS_IP</code>
+        </td>
+        <td>
+          <strong>Proxied 🟧</strong>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Cloudflare SSL / TLS Encryption Modes</h2>
+
+  <p>
+    In your Cloudflare dashboard under <strong>SSL/TLS</strong> ➜ <strong>Overview</strong>:
+  </p>
+
+  <ul>
+    <li>
+      <strong>Full (Recommended):</strong> Encrypts end-to-end between the visitor, Cloudflare, and your server. Works out of the box with Traefik's certificates.
+    </li>
+    <li>
+      <strong>Flexible:</strong> Use this if you are not issuing certificates directly on your VPS and want Cloudflare to handle SSL for the browser while connecting over HTTP
+      (port 80) to your server.
+    </li>
+    <li>
+      <strong>Full (Strict):</strong> Requires a valid, non-self-signed certificate on the VPS (provided by Traefik + Let's Encrypt).
+    </li>
+  </ul>
+
+  <h2>Direct DNS (Without Cloudflare Proxy)</h2>
+
+  <p>
+    If you disable the Cloudflare proxy (<strong>DNS Only ⬜</strong>) or use another DNS provider (Namecheap, GoDaddy, Route53):
+  </p>
+  <ul>
+    <li>
+      Traffic reaches your VPS directly on ports <code>80</code> and <code>443</code>.
+    </li>
+    <li>Traefik will handle ACME HTTP-01 challenges and issue certificates automatically via Let's Encrypt.</li>
+  </ul>
+</DocsLayout>

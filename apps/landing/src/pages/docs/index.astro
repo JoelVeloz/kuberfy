@@ -1,0 +1,119 @@
+---
+import DocsLayout from "@/layouts/DocsLayout.astro";
+---
+
+<DocsLayout title="Introduction — Kuberfy Documentation" description="Learn about Kuberfy, the ultra-lightweight self-hosted PaaS alternative.">
+  <h1>Introduction</h1>
+
+  <p class="text-lg font-normal text-cream">
+    <strong>Kuberfy</strong> is an ultra-lightweight self-hosted Platform-as-a-Service (PaaS) designed to deploy and manage containerized applications with near-zero resource
+    overhead.
+  </p>
+
+  <div class="callout-info">
+    <p class="mb-0">
+      <strong>Core Philosophy:</strong> Most self-hosted deployment tools ship a full Postgres cluster, Redis queues, and bulky multi-process runtimes just to manage a handful
+      of containers. Kuberfy compiles everything into a <strong>single static binary</strong> and an <strong>embedded SQLite database</strong>.
+    </p>
+  </div>
+
+  <h2>Why Kuberfy?</h2>
+
+  <p>
+    When running on budget VPS instances (such as 512 MB or 1 GB RAM servers), traditional PaaS solutions can consume 50% to 100% of available memory before you deploy your
+    first application.
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Feature / Resource</th>
+        <th>Typical PaaS (Dokploy / Coolify)</th>
+        <th>Kuberfy</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          <strong>Idle Memory Usage</strong>
+        </td>
+        <td>~600 MB – 1.5 GB RAM</td>
+        <td>
+          <strong>~14 MB RAM</strong>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <strong>Database</strong>
+        </td>
+        <td>PostgreSQL server container</td>
+        <td>
+          <strong>Embedded SQLite (bun:sqlite)</strong>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <strong>Message Queue / Cache</strong>
+        </td>
+        <td>Redis / BullMQ container</td>
+        <td>
+          <strong>None (Zero extra daemons)</strong>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <strong>Runtime Overhead</strong>
+        </td>
+        <td>Node.js / Next.js server runtime</td>
+        <td>
+          <strong>Compiled Standalone Binary</strong>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <strong>Base Image</strong>
+        </td>
+        <td>Ubuntu / Debian (~200MB+)</td>
+        <td>
+          <strong>Alpine Linux (~5 MB)</strong>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <strong>SSL & Proxy</strong>
+        </td>
+        <td>Traefik / Nginx / Caddy</td>
+        <td>
+          <strong>Traefik (Automatic Let's Encrypt)</strong>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Key Features</h2>
+
+  <ul>
+    <li>
+      <strong>Zero-Downtime Rolling Deploys:</strong> Uses native single-node Docker Swarm orchestration for automatic health checking and rolling updates without extra
+      orchestrator overhead.
+    </li>
+    <li>
+      <strong>Deploy from Git or Images:</strong> Deploy directly from public Docker Hub / GHCR images or clone Git repositories with custom Dockerfiles.
+    </li>
+    <li>
+      <strong>Automatic HTTPS:</strong> Built-in Traefik integration provisions Let's Encrypt SSL certificates automatically when a domain is attached.
+    </li>
+    <li>
+      <strong>Live Build & Runtime Logs:</strong> Stream real-time container output via WebSockets directly to the web dashboard.
+    </li>
+    <li>
+      <strong>Secure Host CLI:</strong> Single executable <code>kuberfy</code> CLI on the host for rapid updates, password resets, and user management.
+    </li>
+  </ul>
+
+  <h2>Next Steps</h2>
+
+  <p>
+    Ready to install Kuberfy on your VPS? Continue to the <a href="/docs/installation">Installation Guide</a>.
+  </p>
+</DocsLayout>

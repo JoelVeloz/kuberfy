@@ -1,0 +1,131 @@
+---
+import DocsLayout from "@/layouts/DocsLayout.astro";
+---
+
+<DocsLayout
+  title="Architecture & Stack — Kuberfy Documentation"
+  description="Deep dive into Kuberfy's single-binary architecture, embedded SQLite database, and Traefik integration."
+>
+  <h1>Architecture & Stack</h1>
+
+  <p>Kuberfy was built from the ground up to challenge the convention that a self-hosted PaaS needs multiple server processes, separate databases, and heavy cache brokers.</p>
+
+  <h2>The Tech Stack</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Layer</th>
+        <th>Choice</th>
+        <th>Why We Chose It</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          <strong>Backend API</strong>
+        </td>
+        <td>Bun + Hono</td>
+        <td>Minimal runtime and framework footprint without Node.js overhead.</td>
+      </tr>
+      <tr>
+        <td>
+          <strong>Database</strong>
+        </td>
+        <td>
+          SQLite (<code>bun:sqlite</code>) + Drizzle ORM
+        </td>
+        <td>Embedded inside the single process. Zero database servers to manage or backup.</td>
+      </tr>
+      <tr>
+        <td>
+          <strong>Frontend</strong>
+        </td>
+        <td>Astro + React Islands (shadcn/ui)</td>
+        <td>Pure static HTML output by default; React islands only hydrate interactive components.</td>
+      </tr>
+      <tr>
+        <td>
+          <strong>Authentication</strong>
+        </td>
+        <td>Better Auth</td>
+        <td>Secure email/password authentication, admin roles, and session tokens.</td>
+      </tr>
+      <tr>
+        <td>
+          <strong>Reverse Proxy & SSL</strong>
+        </td>
+        <td>Traefik v3</td>
+        <td>Dynamic auto-discovery via Docker labels and automated Let's Encrypt certificates.</td>
+      </tr>
+      <tr>
+        <td>
+          <strong>Orchestrator</strong>
+        </td>
+        <td>Docker Swarm (Single-node)</td>
+        <td>Native zero-downtime rolling updates and service mesh with zero extra daemon weight.</td>
+      </tr>
+      <tr>
+        <td>
+          <strong>Deploy Engine</strong>
+        </td>
+        <td>
+          <code>dockerode</code> + <code>simple-git</code>
+        </td>
+        <td>Interacts with the Docker socket directly via typed APIs (no insecure shell command generation).</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Data Model</h2>
+
+  <p>The database structure is designed to be clear and extensible:</p>
+
+  <pre><code>User (Better Auth) ──▶ Project ──▶ Application ──▶ Deployment
+                                            │
+                                            └──▶ Domain</code></pre>
+
+  <ul>
+    <li>
+      <strong>Projects:</strong> Logical groups for related applications (e.g. backend, frontend, worker).
+    </li>
+    <li>
+      <strong>Applications:</strong> Service configurations including Git repository or Docker image, build strategy, environment variables, and internal port.
+    </li>
+    <li>
+      <strong>Deployments:</strong> Immutable historical records of every build and rollout with build logs and status indicators.
+    </li>
+    <li>
+      <strong>Domains:</strong> Custom hostnames mapped to applications via Traefik labels.
+    </li>
+  </ul>
+
+  <h2>Why Docker Swarm (Single Node)?</h2>
+
+  <p>
+    Kuberfy uses Docker Swarm in single-node mode. Unlike Kubernetes or Nomad which require separate control planes and significant memory, Docker Swarm is built directly into{" "}
+    <code>dockerd</code>:
+  </p>
+
+  <ul>
+    <li>
+      <strong>Zero-Downtime Rollouts:</strong> When deploying a new version, Swarm starts the new container, verifies health, and seamlessly terminates the old one.
+    </li>
+    <li>
+      <strong>Zero Additional RAM:</strong> Initializing Swarm adds 0 MB of extra daemon footprint.
+    </li>
+    <li>
+      <strong>Shared Network Mesh:</strong> All applications connect to <code>kuberfy-network</code>, allowing Traefik to route traffic internally without publishing host
+      ports.
+    </li>
+  </ul>
+
+  <h2>Security Architecture</h2>
+
+  <div class="callout-info">
+    <p class="mb-0">
+      <strong>No Shell Injection:</strong> Kuberfy never constructs or executes shell commands with user inputs to control Docker. All container operations (pulling images,
+      creating services, inspecting tasks, tailing logs) are executed through typed HTTP calls over the Docker Unix socket via <code>dockerode</code>.
+    </p>
+  </div>
+</DocsLayout>

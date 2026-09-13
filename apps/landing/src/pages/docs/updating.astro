@@ -1,0 +1,61 @@
+---
+import DocsLayout from "@/layouts/DocsLayout.astro";
+---
+
+<DocsLayout title="Updating & Maintenance — Kuberfy Documentation" description="How to update Kuberfy and manage backups with zero downtime.">
+  <h1>Updating & Maintenance</h1>
+
+  <p>
+    Kuberfy is packaged as a single multi-arch Docker image (<code>ghcr.io/joelveloz/kuberfy:latest</code>) with native support for both <code>amd64</code> (x86_64) and{" "}
+    <code>arm64</code> (Apple Silicon / AWS Graviton / Raspberry Pi).
+  </p>
+
+  <h2>One-Command Updates</h2>
+
+  <h3>Method A: Using Host CLI (Recommended)</h3>
+  <p>If you are on the server host where Kuberfy was installed:</p>
+  <pre><code>kuberfy update</code></pre>
+
+  <h3>Method B: Remote Shell Script</h3>
+  <p>You can also trigger an update from any terminal with root access to the Docker daemon:</p>
+  <pre><code>curl -sSL https://kuberfy.pages.dev/update.sh | sh</code></pre>
+
+  <h2>How Rolling Updates Work</h2>
+
+  <p>When an update is executed, the following sequence occurs automatically:</p>
+
+  <ol>
+    <li>Docker pulls the latest image tag from GitHub Container Registry.</li>
+    <li>
+      Docker Swarm executes a rolling service update with <code>--update-parallelism 1</code>.
+    </li>
+    <li>The new container boots up and connects to the existing SQLite database and Docker socket.</li>
+    <li>Traefik seamlessly switches incoming HTTP and WebSocket traffic to the newly spawned container.</li>
+    <li>The old container is safely terminated.</li>
+  </ol>
+
+  <div class="callout-tip">
+    <p class="mb-0">
+      <strong>Zero Downtime:</strong> Deployed applications and background workloads running in your server are unaffected when the Kuberfy control plane updates.
+    </p>
+  </div>
+
+  <h2>Data Persistence & Backups</h2>
+
+  <p>
+    All platform state (users, session tokens, projects, application configs, domain mappings, and deployment logs) is stored in a single SQLite database inside the{" "}
+    <code>kuberfy-data</code> Docker volume.
+  </p>
+
+  <h3>Backing Up Your Data</h3>
+  <p>Because SQLite is a single file, taking a complete backup is as simple as copying the database file:</p>
+
+  <pre><code># Backup the SQLite database to a local file
+docker run --rm -v kuberfy-data:/data -v $(pwd):/backup alpine \
+  cp /data/kuberfy.db /backup/kuberfy-backup-$(date +%Y%m%d).db</code></pre>
+
+  <h3>Restoring from Backup</h3>
+  <pre><code># Restore from a backup file
+docker run --rm -v kuberfy-data:/data -v $(pwd):/backup alpine \
+  cp /backup/kuberfy-backup.db /data/kuberfy.db</code></pre>
+</DocsLayout>
