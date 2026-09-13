@@ -25,15 +25,22 @@ export const applications = new Hono();
 
 applications.use("*", requireAuth);
 
+// registryPassword is write-only — set on create/update, never echoed back in a response
+function omitRegistryPassword<T extends { registryPassword: string | null }>({ registryPassword: _registryPassword, ...rest }: T) {
+  return rest;
+}
+
 applications.post("/", zValidator("json", apiCreateApplication), async (c) => {
   const input = c.req.valid("json");
   const [created] = await db.insert(application).values(input).returning();
-  return c.json(created, StatusCodes.CREATED);
+  return c.json(omitRegistryPassword(created!), StatusCodes.CREATED);
 });
 
 applications.get("/:id", async (c) => {
   const found = await db.query.application.findFirst({
     where: eq(application.id, c.req.param("id")),
+    // registryPassword is write-only — never included in a read response
+    columns: { registryPassword: false },
     with: {
       // only the latest — the full history is paginated separately via /:id/deployments
       deployments: { orderBy: desc(deployment.createdAt), limit: 1 },
@@ -70,7 +77,7 @@ applications.patch("/:id", zValidator("json", apiUpdateApplication), async (c) =
     .where(eq(application.id, c.req.param("id")))
     .returning();
   if (!updated) throw new HTTPException(StatusCodes.NOT_FOUND, { message: "Application not found" });
-  return c.json(updated);
+  return c.json(omitRegistryPassword(updated));
 });
 
 applications.delete("/:id", async (c) => {

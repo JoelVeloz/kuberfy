@@ -75,7 +75,14 @@ app.get("/:id/applications", zValidator("query", paginationQuery), async (c) => 
 
   const where = eq(schema.application.projectId, id);
   const [items, total] = await Promise.all([
-    db.query.application.findMany({ where, orderBy: (fields, { desc }) => [desc(fields.createdAt)], limit: pagination.pageSize, offset: paginationOffset(pagination) }),
+    db.query.application.findMany({
+      where,
+      // registryPassword is write-only — never included in a list/read response
+      columns: { registryPassword: false },
+      orderBy: (fields, { desc }) => [desc(fields.createdAt)],
+      limit: pagination.pageSize,
+      offset: paginationOffset(pagination),
+    }),
     db.$count(schema.application, where),
   ]);
   return c.json({ items, total });

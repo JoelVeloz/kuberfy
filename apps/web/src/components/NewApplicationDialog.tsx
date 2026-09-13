@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { api } from "@/lib/api";
 import { toastError } from "@/lib/toast";
@@ -16,9 +17,20 @@ export function NewApplicationDialog({ projectId }: { projectId: string }) {
   const [repoUrl, setRepoUrl] = React.useState("");
   const [branch, setBranch] = React.useState("main");
   const [buildType, setBuildType] = React.useState<BuildType>("image");
+  const [isPrivate, setIsPrivate] = React.useState(false);
+  const [registryUsername, setRegistryUsername] = React.useState("");
+  const [registryPassword, setRegistryPassword] = React.useState("");
   const queryClient = useQueryClient();
   const { mutate, isPending } = useMutation({
-    mutationFn: () => api.createApplication({ projectId, name: name.trim(), repoUrl: repoUrl.trim(), branch: branch.trim() || "main", buildType }),
+    mutationFn: () =>
+      api.createApplication({
+        projectId,
+        name: name.trim(),
+        repoUrl: repoUrl.trim(),
+        branch: branch.trim() || "main",
+        buildType,
+        ...(isPrivate && buildType === "image" ? { registryUsername: registryUsername.trim(), registryPassword } : {}),
+      }),
     onSuccess: () => {
       toast.success("Application created.");
       queryClient.invalidateQueries({ queryKey: ["project", projectId, "apps"] });
@@ -27,6 +39,9 @@ export function NewApplicationDialog({ projectId }: { projectId: string }) {
       setRepoUrl("");
       setBranch("main");
       setBuildType("image");
+      setIsPrivate(false);
+      setRegistryUsername("");
+      setRegistryPassword("");
     },
     onError: (err) => toastError(err, "Failed to create application."),
   });
@@ -73,12 +88,40 @@ export function NewApplicationDialog({ projectId }: { projectId: string }) {
               <Input id="app-branch" value={branch} onChange={(e) => setBranch(e.target.value)} />
             </div>
           )}
+          {buildType === "image" && (
+            <>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="app-private-image">Private image</Label>
+                <Switch id="app-private-image" checked={isPrivate} onCheckedChange={setIsPrivate} />
+              </div>
+              {isPrivate && (
+                <>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="app-registry-username">Username</Label>
+                    <Input id="app-registry-username" value={registryUsername} onChange={(e) => setRegistryUsername(e.target.value)} />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="app-registry-password">Password / access token</Label>
+                    <Input id="app-registry-password" type="password" value={registryPassword} onChange={(e) => setRegistryPassword(e.target.value)} />
+                  </div>
+                </>
+              )}
+            </>
+          )}
         </div>
         <DialogFooter>
           <DialogClose asChild>
             <Button variant="outline">Cancel</Button>
           </DialogClose>
-          <Button disabled={name.trim().length === 0 || repoUrl.trim().length === 0 || isPending} onClick={() => mutate()}>
+          <Button
+            disabled={
+              name.trim().length === 0 ||
+              repoUrl.trim().length === 0 ||
+              (isPrivate && buildType === "image" && (registryUsername.trim().length === 0 || registryPassword.length === 0)) ||
+              isPending
+            }
+            onClick={() => mutate()}
+          >
             {isPending ? "Creating…" : "Create"}
           </Button>
         </DialogFooter>

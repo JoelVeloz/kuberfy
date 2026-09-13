@@ -227,7 +227,16 @@ export const api = {
     request<ApiPage<ApiDeployment>>(`/api/applications/${applicationId}/deployments?page=${page}&pageSize=${pageSize}`),
   getDeployment: (applicationId: string, deploymentId: string) => request<ApiDeployment>(`/api/applications/${applicationId}/deployments/${deploymentId}`),
   listApplicationTasks: (applicationId: string) => request<{ items: ApiServiceTask[] }>(`/api/applications/${applicationId}/tasks`),
-  createApplication: (input: { projectId: string; name: string; repoUrl: string; branch: string; buildType: BuildType; envVars?: string }) =>
+  createApplication: (input: {
+    projectId: string;
+    name: string;
+    repoUrl: string;
+    branch: string;
+    buildType: BuildType;
+    envVars?: string;
+    registryUsername?: string;
+    registryPassword?: string;
+  }) =>
     request<ApiApplication>("/api/applications", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

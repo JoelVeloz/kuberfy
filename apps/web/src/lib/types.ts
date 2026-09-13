@@ -23,6 +23,7 @@ export interface Application {
   buildType: BuildType;
   dockerfilePath: string | null;
   envVars: Record<string, string>;
+  registryUsername: string | null;
 }
 
 export type DeploymentStatus = "pending" | "building" | "running" | "failed" | "stopped";
