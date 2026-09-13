@@ -52,7 +52,7 @@ Verificado funcionalmente tras el cambio: `./kuberfy migrate`, `./kuberfy create
 
 ## Techo adicional (evaluado, no aplicado)
 
-- **UPX** sobre el binario único: comprimiría otros ~30-40% adicionales, pero agrega latencia de arranque por descompresión in-memory en cada `docker run`/restart. Para un servidor long-running no justifica el trade-off frente al ahorro ya conseguido — no se aplicó.
+- **UPX** sobre el binario único: se probó y funcionaba en amd64, pero **corrompe el binario en ARM64** (Oracle Cloud Ampere A1) causando `SyntaxError: Invalid character: '\0'` al servir páginas. UPX fue **eliminado del Dockerfile** por incompatibilidad con la arquitectura de producción. La imagen sin UPX pesa ~130 MB comprimida, lo cual sigue siendo ligero (Coolify ~800 MB, Dokploy ~600 MB).
 - **Distroless/scratch** en vez de `alpine`: no viable mientras el binario dependa dinámicamente de `libstdc++`/`libgcc` (confirmado con `ldd`) y se necesite `git` en runtime.
 
 ## Cómo re-auditar en el futuro
