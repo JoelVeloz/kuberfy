@@ -1,72 +1,95 @@
 #!/bin/sh
-# One-command updater for kuberfy.
-# Pulls the latest remote image and updates the Docker Swarm service.
+# One-command updater for Kuberfy.
 #
 # Usage:
-#   curl -sSL https://raw.githubusercontent.com/JoelVeloz/kuberfy/main/update.sh | sh
-#
-# Optional env vars:
-#   KUBERFY_IMAGE   image to pull (default: ghcr.io/joelveloz/kuberfy:latest)
+#   curl -sSL https://kuberfy.pages.dev/update.sh | sudo sh
 
 set -e
+
+if [ -t 1 ] || [ -e /dev/tty ]; then
+  BOLD="\033[1m"
+  CYAN="\033[36m"
+  GREEN="\033[32m"
+  YELLOW="\033[33m"
+  RED="\033[31m"
+  NC="\033[0m"
+else
+  BOLD=""
+  CYAN=""
+  GREEN=""
+  YELLOW=""
+  RED=""
+  NC=""
+fi
 
 command_exists() {
   command -v "$1" >/dev/null 2>&1
 }
 
 fail() {
-  echo "ERROR: $1" >&2
+  printf "${RED}${BOLD}✖ ERROR:${NC} %s\n" "$1" >&2
   exit 1
 }
 
+info() {
+  printf "${CYAN}${BOLD}➜ %s${NC}\n" "$1"
+}
+
+printf "${BOLD}${CYAN}"
+printf "┌──────────────────────────────────────────────────────────┐\n"
+printf "│                                                          │\n"
+printf "│   KUBERFY — Updating Control Plane to Latest Version    │\n"
+printf "│                                                          │\n"
+printf "└──────────────────────────────────────────────────────────┘\n"
+printf "${NC}\n"
+
 if [ "$(id -u)" != "0" ]; then
-  fail "this script must be run as root"
+  fail "This script must be run as root (use: curl -sSL https://kuberfy.pages.dev/update.sh | sudo sh)"
 fi
 
 if [ "$(uname)" = "Darwin" ]; then
-  fail "this script must run on Linux, not macOS."
+  fail "This script must run on Linux, not macOS."
 fi
 
 if [ -f /.dockerenv ]; then
-  fail "this script must run on the host, not inside a container."
+  fail "This script must run on the host system, not inside a container."
 fi
 
 if ! command_exists docker; then
-  fail "docker is not installed"
+  fail "Docker is not installed."
 fi
 
 if ! docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null | grep -q 'active'; then
-  fail "docker swarm is not active on this host"
+  fail "Docker Swarm is not active on this host."
 fi
 
 if ! docker service inspect kuberfy >/dev/null 2>&1; then
-  fail "kuberfy service not found in docker swarm. Is kuberfy installed?"
+  fail "Kuberfy service not found in Docker Swarm. Is Kuberfy installed?"
 fi
 
 KUBERFY_IMAGE="${KUBERFY_IMAGE:-ghcr.io/joelveloz/kuberfy:latest}"
 
-echo "Pulling latest image: $KUBERFY_IMAGE..."
+info "Downloading latest remote image: $KUBERFY_IMAGE..."
 docker pull "$KUBERFY_IMAGE"
 
-echo "Updating kuberfy service..."
-docker service update --image "$KUBERFY_IMAGE" --force kuberfy
+info "Updating Swarm service..."
+docker service update --image "$KUBERFY_IMAGE" --force kuberfy >/dev/null
 
-echo "Waiting for kuberfy to start..."
+info "Waiting for new container to start..."
 container_id=""
 for _ in $(seq 1 30); do
   container_id=$(docker ps -q -f label=com.docker.swarm.service.name=kuberfy -f status=running | head -n1)
   [ -n "$container_id" ] && break
   sleep 2
 done
-[ -n "$container_id" ] || fail "kuberfy container did not start in time, check 'docker service logs kuberfy'"
+[ -n "$container_id" ] || fail "Kuberfy container did not start in time. Check 'docker service logs kuberfy'."
 
-# Install or refresh the host CLI wrapper
 cat <<'EOF' > /usr/local/bin/kuberfy
 #!/bin/sh
 set -e
 
 if [ "$1" = "uninstall" ]; then
-  exec curl -sSL https://kuberfy.pages.dev/uninstall.sh | sh
+  exec curl -sSL https://kuberfy.pages.dev/uninstall.sh | sudo sh
 fi
 
 container_id=$(docker ps -q -f label=com.docker.swarm.service.name=kuberfy -f status=running | head -n1)
@@ -83,6 +106,4 @@ fi
 EOF
 chmod +x /usr/local/bin/kuberfy
 
-echo ""
-echo "Kuberfy has been updated to $KUBERFY_IMAGE."
-echo "You can also run 'kuberfy update' directly on this host at any time."
+printf "\n${GREEN}${BOLD}✔ Kuberfy has been successfully updated to $KUBERFY_IMAGE!${NC}\n"

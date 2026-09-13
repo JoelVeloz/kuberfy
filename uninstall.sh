@@ -1,75 +1,97 @@
 #!/bin/sh
-# One-command uninstaller for kuberfy.
-# Removes the kuberfy service, traefik, deployed applications, networks, volumes, and host CLI.
+# One-command uninstaller for Kuberfy.
 #
 # Usage:
-#   curl -sSL https://kuberfy.pages.dev/uninstall.sh | sh
-#
-# Non-interactive:
-#   curl -sSL https://kuberfy.pages.dev/uninstall.sh | FORCE=1 sh
+#   curl -sSL https://kuberfy.pages.dev/uninstall.sh | sudo sh
 
 set -e
 
+if [ -t 1 ] || [ -e /dev/tty ]; then
+  BOLD="\033[1m"
+  CYAN="\033[36m"
+  GREEN="\033[32m"
+  YELLOW="\033[33m"
+  RED="\033[31m"
+  NC="\033[0m"
+else
+  BOLD=""
+  CYAN=""
+  GREEN=""
+  YELLOW=""
+  RED=""
+  NC=""
+fi
+
 fail() {
-  echo "ERROR: $1" >&2
+  printf "${RED}${BOLD}✖ ERROR:${NC} %s\n" "$1" >&2
   exit 1
 }
 
+info() {
+  printf "${CYAN}${BOLD}➜ %s${NC}\n" "$1"
+}
+
+printf "${BOLD}${RED}"
+printf "┌──────────────────────────────────────────────────────────┐\n"
+printf "│                                                          │\n"
+printf "│   KUBERFY — Uninstalling Control Plane & All Services    │\n"
+printf "│                                                          │\n"
+printf "└──────────────────────────────────────────────────────────┘\n"
+printf "${NC}\n"
+
 if [ "$(id -u)" != "0" ]; then
-  fail "this script must be run as root"
+  fail "This script must be run as root (use: curl -sSL https://kuberfy.pages.dev/uninstall.sh | sudo sh)"
 fi
 
 if [ "$(uname)" = "Darwin" ]; then
-  fail "this script must run on Linux, not macOS."
+  fail "This script must run on Linux, not macOS."
 fi
 
-# Confirmation prompt if interactive
 if [ "${FORCE:-0}" != "1" ]; then
   confirmed=""
   if [ -t 0 ]; then
-    printf "Are you sure you want to uninstall Kuberfy and delete all associated containers and data? [y/N]: "
+    printf "${BOLD}${YELLOW}? Are you sure you want to uninstall Kuberfy and remove all containers and data? [y/N]:${NC} "
     read -r confirmed
   elif [ -e /dev/tty ]; then
-    printf "Are you sure you want to uninstall Kuberfy and delete all associated containers and data? [y/N]: " > /dev/tty
+    printf "${BOLD}${YELLOW}? Are you sure you want to uninstall Kuberfy and remove all containers and data? [y/N]:${NC} " > /dev/tty
     read -r confirmed < /dev/tty
   else
-    fail "non-interactive execution requires FORCE=1 (e.g. FORCE=1 sh uninstall.sh)"
+    fail "Non-interactive execution requires FORCE=1 (e.g. FORCE=1 sudo sh uninstall.sh)"
   fi
 
   case "$confirmed" in
     [yY]|[yY][eE][sS])
-      echo "Proceeding with uninstall..."
+      info "Proceeding with complete uninstallation..."
       ;;
     *)
-      echo "Uninstall cancelled."
+      printf "${YELLOW}Uninstallation cancelled.${NC}\n"
       exit 0
       ;;
   esac
 fi
 
-echo "==> Stopping and removing Kuberfy service..."
+info "Removing Kuberfy Swarm service..."
 docker service rm kuberfy 2>/dev/null || true
 
-echo "==> Stopping and removing Traefik proxy..."
+info "Removing Traefik proxy..."
 docker rm -f kuberfy-traefik 2>/dev/null || true
 
-echo "==> Stopping any deployed application containers..."
+info "Removing deployed application containers..."
 app_containers=$(docker ps -aq -f label=kuberfy.application 2>/dev/null || true)
 if [ -n "$app_containers" ]; then
   echo "$app_containers" | xargs docker rm -f 2>/dev/null || true
 fi
 
-echo "==> Removing network 'kuberfy-network'..."
+info "Removing overlay network 'kuberfy-network'..."
 docker network rm kuberfy-network 2>/dev/null || true
 
-echo "==> Removing volumes..."
+info "Removing data volumes..."
 docker volume rm kuberfy-data kuberfy-traefik-certs 2>/dev/null || true
 
-echo "==> Leaving Docker Swarm..."
+info "Leaving Docker Swarm..."
 docker swarm leave --force 2>/dev/null || true
 
-echo "==> Removing host CLI wrapper (/usr/local/bin/kuberfy)..."
+info "Removing host CLI wrapper..."
 rm -f /usr/local/bin/kuberfy
 
-echo ""
-echo "Kuberfy has been completely uninstalled from this server."
+printf "\n${GREEN}${BOLD}✔ Kuberfy has been completely uninstalled from this server.${NC}\n"

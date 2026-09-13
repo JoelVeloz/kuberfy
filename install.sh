@@ -1,99 +1,139 @@
 #!/bin/sh
-# One-command installer for kuberfy on a fresh Linux server.
-# Pattern adapted from Dokploy's install.sh (dokploy.com/install.sh): guard rails,
-# Docker install, single-node Swarm init, then the app + Traefik.
+# One-command installer for Kuberfy on a fresh Linux server.
 #
 # Usage:
-#   curl -sSL https://<host>/install.sh | ADMIN_EMAIL=admin@example.com sh
-#
-# Required env vars (no interactive prompts, so they must be set up front):
-#   ADMIN_EMAIL   email for the first admin user (bootstrapped at the end)
-# Optional:
-#   KUBERFY_IMAGE   image to pull (default: ghcr.io/joelveloz/kuberfy:latest)
-#   KUBERFY_REPO    git URL to build the image from instead of pulling — for testing
-#                   unreleased changes; when set, KUBERFY_IMAGE is only the tag applied
-#                   to the local build, nothing is pulled
-#   KUBERFY_DOMAIN  domain routed to kuberfy via Traefik (defaults to the server's IP, no TLS)
-#   ACME_EMAIL      email for Let's Encrypt (defaults to admin@example.com)
-#   ADVERTISE_ADDR  override automatic IP detection for `docker swarm init`
+#   curl -sSL https://kuberfy.pages.dev/install.sh | sudo sh
 
 set -e
+
+if [ -t 1 ] || [ -e /dev/tty ]; then
+  BOLD="\033[1m"
+  CYAN="\033[36m"
+  GREEN="\033[32m"
+  YELLOW="\033[33m"
+  RED="\033[31m"
+  NC="\033[0m"
+else
+  BOLD=""
+  CYAN=""
+  GREEN=""
+  YELLOW=""
+  RED=""
+  NC=""
+fi
 
 command_exists() {
   command -v "$1" >/dev/null 2>&1
 }
 
 fail() {
-  echo "ERROR: $1" >&2
+  printf "${RED}${BOLD}✖ ERROR:${NC} %s\n" "$1" >&2
   exit 1
 }
 
+info() {
+  printf "${CYAN}${BOLD}➜ %s${NC}\n" "$1"
+}
+
+step() {
+  printf "\n${BOLD}${CYAN}[%s] %s${NC}\n" "$1" "$2"
+}
+
+success() {
+  printf "${GREEN}${BOLD}✔ %s${NC}\n" "$1"
+}
+
+warn() {
+  printf "${YELLOW}${BOLD}⚠ %s${NC}\n" "$1"
+}
+
+printf "${BOLD}${CYAN}"
+printf "┌──────────────────────────────────────────────────────────┐\n"
+printf "│                                                          │\n"
+printf "│   KUBERFY — The Lightest Self-Hosted PaaS Control Plane  │\n"
+printf "│                                                          │\n"
+printf "└──────────────────────────────────────────────────────────┘\n"
+printf "${NC}\n"
+
+# Step 1: Guard Rails
+step "1/5" "Verifying system requirements..."
+
 if [ "$(id -u)" != "0" ]; then
-  fail "this script must be run as root"
+  fail "This script must be run as root (use: curl -sSL https://kuberfy.pages.dev/install.sh | sudo sh)"
 fi
 
 if [ "$(uname)" = "Darwin" ]; then
-  fail "this script must run on Linux, not macOS. Test it inside a Linux VM (Multipass/UTM), not on the host."
+  fail "This script must run on Linux, not macOS. Test it inside a Linux VM (Multipass/UTM)."
 fi
 
 if [ -f /.dockerenv ]; then
-  fail "this script must run on the host, not inside a container."
+  fail "This script must run on the host system, not inside a Docker container."
 fi
+
+for port in 80 443 3000; do
+  if ss -tulnp | grep ":${port} " >/dev/null 2>&1; then
+    fail "Port ${port} is already in use by another process."
+  fi
+done
+
+success "System requirements verified."
+
+# Step 2: Configuration & Interactive Prompts
+step "2/5" "Configuring installation settings..."
 
 if [ -z "$ADMIN_EMAIL" ]; then
   if [ -t 0 ]; then
     while [ -z "$ADMIN_EMAIL" ]; do
-      printf "Admin email: "
+      printf "${BOLD}${YELLOW}? Admin Email:${NC} "
       read -r ADMIN_EMAIL
     done
   elif [ -e /dev/tty ]; then
     while [ -z "$ADMIN_EMAIL" ]; do
-      printf "Admin email: " > /dev/tty
+      printf "${BOLD}${YELLOW}? Admin Email:${NC} " > /dev/tty
       read -r ADMIN_EMAIL < /dev/tty
     done
   else
-    fail "set ADMIN_EMAIL to bootstrap the first admin user (e.g. ADMIN_EMAIL=admin@example.com)"
+    fail "Missing ADMIN_EMAIL environment variable for non-interactive installation."
   fi
 fi
 
 if [ -z "$KUBERFY_DOMAIN" ]; then
   if [ -t 0 ]; then
-    printf "Domain (optional, press Enter to use server IP): "
+    printf "${BOLD}${YELLOW}? Domain name (optional, press Enter for server IP):${NC} "
     read -r KUBERFY_DOMAIN
   elif [ -e /dev/tty ]; then
-    printf "Domain (optional, press Enter to use server IP): " > /dev/tty
+    printf "${BOLD}${YELLOW}? Domain name (optional, press Enter for server IP):${NC} " > /dev/tty
     read -r KUBERFY_DOMAIN < /dev/tty
   fi
 fi
 
-for port in 80 443 3000; do
-  if ss -tulnp | grep ":${port} " >/dev/null 2>&1; then
-    fail "something is already listening on port ${port}"
-  fi
-done
+# Step 3: Docker Installation
+step "3/5" "Checking Docker container runtime..."
 
 if command_exists docker; then
-  echo "Docker already installed"
+  success "Docker is already installed."
 else
-  echo "Installing Docker..."
+  info "Installing Docker..."
   if ! curl -sSL https://get.docker.com | sh; then
-    echo "get.docker.com script encountered an error, falling back to system package manager..."
+    warn "Official Docker script encountered an issue; using system package manager..."
     if command_exists apt-get; then
-      apt-get update && (apt-get install -y docker.io docker-buildx-plugin docker-compose-plugin || apt-get install -y docker.io)
+      apt-get update -qq && (apt-get install -y -qq docker.io docker-buildx-plugin docker-compose-plugin || apt-get install -y -qq docker.io)
     elif command_exists dnf; then
       dnf install -y docker
     elif command_exists yum; then
       yum install -y docker
     else
-      fail "Could not install Docker"
+      fail "Could not install Docker automatically."
     fi
   fi
   systemctl enable --now docker 2>/dev/null || service docker start 2>/dev/null || true
+  success "Docker installed successfully."
 fi
 
+# Step 4: Docker Swarm & Network
+step "4/5" "Initializing Docker Swarm & network..."
+
 get_private_ip() {
-  # first private (RFC1918) IP on a real interface — excludes docker-created
-  # interfaces (docker0/br-*/veth*), whose IPs are host-local only.
   ip -o -4 addr show scope global \
     | awk '$2 !~ /^(docker|br-|veth)/ {print $4}' \
     | cut -d/ -f1 \
@@ -108,30 +148,35 @@ get_public_ip() {
 
 advertise_addr="${ADVERTISE_ADDR:-$(get_private_ip)}"
 [ -n "$advertise_addr" ] || advertise_addr=$(get_public_ip)
-[ -n "$advertise_addr" ] || fail "could not detect the server IP, set ADVERTISE_ADDR manually"
-echo "Using advertise address: $advertise_addr"
+[ -n "$advertise_addr" ] || fail "Could not detect server IP address automatically. Set ADVERTISE_ADDR manually."
+
+info "Server IP detected: $advertise_addr"
 
 docker swarm leave --force 2>/dev/null || true
-docker swarm init --advertise-addr "$advertise_addr"
+docker swarm init --advertise-addr "$advertise_addr" >/dev/null
 
 docker network rm -f kuberfy-network 2>/dev/null || true
-docker network create --driver overlay --attachable kuberfy-network
+docker network create --driver overlay --attachable kuberfy-network >/dev/null
+
+success "Docker Swarm cluster and overlay network initialized."
+
+# Step 5: Pull & Start Services
+step "5/5" "Deploying Kuberfy control plane & Traefik proxy..."
 
 KUBERFY_IMAGE="${KUBERFY_IMAGE:-ghcr.io/joelveloz/kuberfy:latest}"
 
 if [ -n "$KUBERFY_REPO" ]; then
-  command_exists git || (apt-get update && apt-get install -y git)
+  command_exists git || (apt-get update -qq && apt-get install -y -qq git)
   if [ ! -d /opt/kuberfy/src ]; then
     git clone "$KUBERFY_REPO" /opt/kuberfy/src
   fi
+  info "Building Kuberfy image from $KUBERFY_REPO..."
   docker build -t "$KUBERFY_IMAGE" /opt/kuberfy/src
 else
-  docker pull "$KUBERFY_IMAGE"
+  info "Pulling remote image: $KUBERFY_IMAGE..."
+  docker pull "$KUBERFY_IMAGE" >/dev/null
 fi
 
-# BETTER_AUTH_SECRET goes in as a plain service env var, not a Docker secret:
-# apps/api/src/lib/env.ts reads it directly (no *_FILE support), unlike Dokploy's
-# Postgres image which supports POSTGRES_PASSWORD_FILE natively.
 AUTH_SECRET=$(openssl rand -hex 32)
 
 docker service create \
@@ -150,7 +195,7 @@ docker service create \
   --label "traefik.http.routers.kuberfy.rule=Host(\`${KUBERFY_DOMAIN:-$advertise_addr}\`)" \
   --label "traefik.http.routers.kuberfy.entrypoints=web" \
   --label "traefik.http.services.kuberfy.loadbalancer.server.port=3000" \
-  "$KUBERFY_IMAGE"
+  "$KUBERFY_IMAGE" >/dev/null
 
 docker run -d \
   --name kuberfy-traefik \
@@ -167,33 +212,27 @@ docker run -d \
   --entrypoints.websecure.address=:443 \
   --certificatesresolvers.le.acme.httpchallenge=true \
   --certificatesresolvers.le.acme.httpchallenge.entrypoint=web \
-  --certificatesresolvers.le.acme.email="${ACME_EMAIL:-admin@example.com}" \
-  --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+  --certificatesresolvers.le.acme.email="${ACME_EMAIL:-$ADMIN_EMAIL}" \
+  --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json >/dev/null
 
-echo "Waiting for kuberfy to start..."
+info "Waiting for Kuberfy container to start..."
 container_id=""
 for _ in $(seq 1 30); do
-  # label=com.docker.swarm.service.name=kuberfy (not -f name=kuberfy): name is a
-  # substring match, and "kuberfy-traefik" also contains "kuberfy" — the label
-  # Swarm attaches to task containers is the only unambiguous way to find ours.
-  # status=running: a freshly created task briefly exists as "created" before it
-  # actually starts, and `docker exec` against that pre-start container fails
-  # with "cannot exec in a stopped state".
   container_id=$(docker ps -q -f label=com.docker.swarm.service.name=kuberfy -f status=running | head -n1)
   [ -n "$container_id" ] && break
   sleep 2
 done
-[ -n "$container_id" ] || fail "kuberfy container did not start in time, check 'docker service logs kuberfy'"
+[ -n "$container_id" ] || fail "Kuberfy container did not start in time. Check 'docker service logs kuberfy'."
 
-echo "Bootstrapping admin user..."
-docker exec "$container_id" ./kuberfy create-user --email "$ADMIN_EMAIL" --role admin
+info "Bootstrapping initial admin account ($ADMIN_EMAIL)..."
+docker exec "$container_id" ./kuberfy create-user --email "$ADMIN_EMAIL" --role admin >/dev/null
 
 cat <<'EOF' > /usr/local/bin/kuberfy
 #!/bin/sh
 set -e
 
 if [ "$1" = "uninstall" ]; then
-  exec curl -sSL https://kuberfy.pages.dev/uninstall.sh | sh
+  exec curl -sSL https://kuberfy.pages.dev/uninstall.sh | sudo sh
 fi
 
 container_id=$(docker ps -q -f label=com.docker.swarm.service.name=kuberfy -f status=running | head -n1)
@@ -210,7 +249,11 @@ fi
 EOF
 chmod +x /usr/local/bin/kuberfy
 
-echo ""
-echo "Kuberfy is installed."
-echo "Visit http://${advertise_addr}:3000 and log in with the admin credentials printed above."
-echo "You can manage kuberfy via 'kuberfy' or update it anytime with 'kuberfy update'."
+target_url="http://${KUBERFY_DOMAIN:-$advertise_addr}:3000"
+
+printf "\n${GREEN}${BOLD}==========================================================${NC}\n"
+printf "${GREEN}${BOLD}  ✔ Kuberfy is successfully installed!${NC}\n"
+printf "${GREEN}${BOLD}==========================================================${NC}\n\n"
+printf "${BOLD}  ➜ Dashboard URL :${NC} ${CYAN}%s${NC}\n" "$target_url"
+printf "${BOLD}  ➜ Admin Email   :${NC} %s\n" "$ADMIN_EMAIL"
+printf "${BOLD}  ➜ Host CLI      :${NC} Run ${CYAN}'kuberfy'${NC} or ${CYAN}'kuberfy update'${NC} anywhere\n\n"
