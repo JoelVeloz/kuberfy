@@ -75,7 +75,20 @@ done
 if command_exists docker; then
   echo "Docker already installed"
 else
-  curl -sSL https://get.docker.com | sh
+  echo "Installing Docker..."
+  if ! curl -sSL https://get.docker.com | sh; then
+    echo "get.docker.com script encountered an error, falling back to system package manager..."
+    if command_exists apt-get; then
+      apt-get update && (apt-get install -y docker.io docker-buildx-plugin docker-compose-plugin || apt-get install -y docker.io)
+    elif command_exists dnf; then
+      dnf install -y docker
+    elif command_exists yum; then
+      yum install -y docker
+    else
+      fail "Could not install Docker"
+    fi
+  fi
+  systemctl enable --now docker 2>/dev/null || service docker start 2>/dev/null || true
 fi
 
 get_private_ip() {
