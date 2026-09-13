@@ -10,7 +10,7 @@
 Kuberfy exists because most self-hosted deployment platforms ship a Postgres server, a Redis instance, and a full Node runtime just to manage a handful of containers. Kuberfy doesn't. The whole control plane — API, dashboard, and database — compiles down to a single static binary and an embedded SQLite file, packaged in an Alpine image with no separate services to run, patch, or back up.
 
 ```bash
-curl -sSL https://kuberfy.pages.dev/install.sh | sh
+curl -sSL https://kuberfy.pages.dev/install.sh | sudo sh
 ```
 
 ## Why it's lighter
@@ -80,7 +80,7 @@ For local development instead of a real server, copy `.env.example` to `.env` an
 To update an existing installation to the latest published remote image (`ghcr.io/joelveloz/kuberfy:latest`), run:
 
 ```bash
-curl -sSL https://kuberfy.pages.dev/update.sh | sh
+curl -sSL https://kuberfy.pages.dev/update.sh | sudo sh
 ```
 
 If you are already on the server host where the CLI wrapper is installed, you can also run:
@@ -102,7 +102,7 @@ Because the service uses `--update-order stop-first`, Docker Swarm stops the exi
 To cleanly uninstall Kuberfy and remove all associated services, Traefik, deployed applications, overlay networks, volumes, and the host CLI wrapper, run:
 
 ```bash
-curl -sSL https://kuberfy.pages.dev/uninstall.sh | sh
+curl -sSL https://kuberfy.pages.dev/uninstall.sh | sudo sh
 ```
 
 Or directly from the server host:
