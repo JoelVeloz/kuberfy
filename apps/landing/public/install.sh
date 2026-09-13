@@ -72,7 +72,11 @@ fi
 
 for port in 80 443 3000; do
   if ss -tulnp | grep ":${port} " >/dev/null 2>&1; then
-    fail "Port ${port} is already in use by another process."
+    if command_exists docker && docker ps 2>/dev/null | grep -E "(kuberfy|traefik)" >/dev/null; then
+      fail "Kuberfy is already installed and running (Port ${port} in use). To update, run 'kuberfy update'. To uninstall first, run 'sudo kuberfy uninstall'."
+    else
+      fail "Port ${port} is already in use by another process."
+    fi
   fi
 done
 
@@ -232,7 +236,13 @@ done
 [ -n "$container_id" ] || fail "Kuberfy container did not start in time. Check 'docker service logs kuberfy'."
 
 info "Bootstrapping initial admin account ($ADMIN_EMAIL)..."
-docker exec "$container_id" ./kuberfy create-user --email "$ADMIN_EMAIL" --role admin >/dev/null
+user_out=$(docker exec "$container_id" ./kuberfy create-user --email "$ADMIN_EMAIL" --role admin 2>&1) || true
+if echo "$user_out" | grep -i "already exists" >/dev/null; then
+  info "Admin account ($ADMIN_EMAIL) already exists."
+elif echo "$user_out" | grep -i "temporary password:" >/dev/null; then
+  pwd_text=$(echo "$user_out" | grep -i "temporary password:")
+  info "$pwd_text"
+fi
 
 cat <<'EOF' > /usr/local/bin/kuberfy
 #!/bin/sh

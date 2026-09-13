@@ -28,7 +28,12 @@ try {
     `User created: ${result.user.email} — temporary password: ${password} — change it with \`bun run user:set-password -- --email ${result.user.email} --password <new-password>\``,
   );
 } catch (error) {
-  console.error("Failed to create user:", error instanceof Error ? error.message : error);
+  const message = error instanceof Error ? error.message : String(error);
+  if (message.toLowerCase().includes("already exists")) {
+    console.log(`User ${email} already exists.`);
+    process.exit(0);
+  }
+  console.error("Failed to create user:", message);
   process.exit(1);
 }
 
