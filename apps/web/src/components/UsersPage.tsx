@@ -13,8 +13,6 @@ import { api } from "@/lib/api";
 import { toastError } from "@/lib/toast";
 import { authClient } from "@/lib/auth-client";
 
-// Same 18-random-bytes-base64url shape as apps/api/scripts/create-user.ts's own generator, just done client-side
-// with Web Crypto instead of Node's randomBytes.
 function generatePassword(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(18));
   return btoa(String.fromCharCode(...bytes))

@@ -49,9 +49,7 @@ applications.delete("/:id", async (c) => {
     if (!dep.containerId) continue;
     try {
       await docker.getContainer(dep.containerId).remove({ force: true });
-    } catch {
-      // container already gone — nothing to clean up
-    }
+    } catch {}
   }
   const [deleted] = await db.delete(application).where(eq(application.id, id)).returning();
   if (!deleted) throw new HTTPException(StatusCodes.NOT_FOUND, { message: "Application not found" });
@@ -93,7 +91,6 @@ applications.get(
           buildLogEvents.on("done", onDone);
           return;
         }
-        // Build already finished (or never existed) before this client connected — replay the persisted snapshot instead of streaming.
         const dep = await db.query.deployment.findFirst({ where: eq(deployment.id, deploymentId) });
         if (dep?.logs) socket.send(dep.logs);
         socket.close();
@@ -151,7 +148,6 @@ applications.get(
         }
         const statsStream = (await docker.getContainer(dep.containerId).stats({ stream: true })) as unknown as StatsStream;
         stream = statsStream;
-        // Docker sends newline-delimited JSON objects, ~1/s, but a chunk boundary can land mid-object — buffer and split on "\n".
         let buffered = "";
         statsStream.on("data", (chunk) => {
           buffered += chunk.toString("utf-8");
@@ -175,15 +171,10 @@ applications.get(
   "/:id/exec",
   upgradeWebSocket((c) => {
     const applicationId = c.req.param("id")!;
-    // "auto" (default) picks bash if the image has it, else sh — the user can also pin one explicitly from the UI.
     const shell = c.req.query("shell");
     const shellCmd = shell === "bash" ? ["/bin/bash"] : shell === "sh" ? ["/bin/sh"] : ["/bin/sh", "-c", "command -v bash >/dev/null 2>&1 && exec bash || exec sh"];
     let dockerSocket: Bun.Socket | null = null;
     return {
-      // dockerode's exec.start({ hijack: true }) never resolves under Bun — Bun's net.Socket is missing the
-      // handle-based hijack support Node's http client relies on for the raw upgrade (bun#20397). exec create
-      // is a plain request/response and works fine through dockerode; only the attach/upgrade step is hand-rolled
-      // here, talking to the Docker socket directly with Bun.connect.
       onOpen: async (_evt, ws) => {
         const dep = await db.query.deployment.findFirst({
           where: (fields, { eq }) => eq(fields.applicationId, applicationId),
@@ -205,8 +196,6 @@ applications.get(
           unix: "/var/run/docker.sock",
           socket: {
             open: (sock) => sock.write(request),
-            // Sent as text frames (matching runtime-logs/build-logs) — a binary frame arrives client-side as a
-            // Blob, and `String(blob)` silently stringifies to the literal text "[object Blob]" instead of throwing.
             data: (_sock, chunk) => {
               if (headerDone) {
                 ws.send(chunk.toString("utf-8"));

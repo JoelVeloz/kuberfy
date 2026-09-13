@@ -36,9 +36,6 @@ export function parseDockerStats(raw: DockerStatsSample) {
   return { t: Date.now(), cpu: Math.round(cpuPercent * 10) / 10, memUsed, memLimit: raw.memory_stats.limit ?? 0 };
 }
 
-// A deployment stuck in "pending"/"building" from before this process started can only mean the previous process
-// died mid-deploy — nothing else clears that state, so a stuck row otherwise stays that way forever (the container
-// may well have started fine; the DB update for it just never landed). Run once at boot.
 export async function reconcileInterruptedDeployments() {
   await db
     .update(deployment)
@@ -94,10 +91,6 @@ async function deploy(app: typeof application.$inferSelect, deploymentId: string
     // one router+service per domain (not one shared router) — different domains of the same app can point at different ports
     for (const d of domains) {
       const routerName = `${app.id}-${d.id}`;
-      // `.localhost` never leaves the machine and Let's Encrypt won't issue for it — HTTP only regardless of the
-      // toggle. Any real host (a custom domain, or the sslip.io ones auto-generated in production) gets a TLS
-      // router too, unless the user turned sslEnabled off for it (domains.ts already refuses that combination
-      // for `.localhost`, so this only actually happens for a real host that opted out).
       const isLocalhost = d.host === "localhost" || d.host.endsWith(".localhost");
       const tlsRouter = d.sslEnabled && !isLocalhost;
       labels[`traefik.http.routers.${routerName}.rule`] = `Host(\`${d.host}\`)`;

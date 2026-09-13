@@ -1,6 +1,3 @@
-# Dev-only routing: file provider instead of the Docker provider, since Traefik's Docker provider can't reach
-# this machine's Docker Desktop daemon (see private/PLAN.md, "Gaps conocidos"). Mirrors production's single
-# origin (api under /api, everything else to web) so the browser never needs CORS between the two dev servers.
 http:
   routers:
     api:

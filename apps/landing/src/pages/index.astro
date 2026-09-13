@@ -8,9 +8,6 @@ import HomeContent from "@/components/HomeContent.astro";
 </Layout>
 
 <script>
-  // Static site — no server to inspect Accept-Language, so detection happens once, client-side, on the default
-  // (English) entry point only. A flag in localStorage means it only ever redirects a visitor's first load; picking
-  // a language manually via the switcher (or just staying on this page) is never overridden afterward.
   const KEY = "kuberfy-lang-choice";
   if (!localStorage.getItem(KEY)) {
     localStorage.setItem(KEY, "auto");

@@ -148,8 +148,6 @@ export const domain = sqliteTable("domains", {
   port: integer("port").notNull().default(3000),
   // the domain the app's "Visit" button opens; exactly one per application (enforced in the route, not the schema)
   isPrimary: integer("is_primary", { mode: "boolean" }).notNull().default(false),
-  // user-facing toggle; deploy.ts only actually adds the TLS/websecure router when this is true AND the host
-  // isn't `.localhost` (Let's Encrypt could never issue for that regardless of this flag)
   sslEnabled: integer("ssl_enabled", { mode: "boolean" }).notNull().default(true),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
@@ -214,9 +212,7 @@ export const apiUpdateJob = z.object({
 });
 
 // ---------------------------------------------------------------------------
-// requestLog — persisted tail of Traefik's access log (routes/observability.ts), so the Traffic page's
-// timeline can honestly cover a full range (1h/24h/7d/30d) instead of only "since this tab was opened".
-// Pruned opportunistically on insert (see observability.ts) — no cron/scheduled job needed for a hobby-scale log.
+// requestLog
 // ---------------------------------------------------------------------------
 
 export const requestLog = sqliteTable("request_log", {

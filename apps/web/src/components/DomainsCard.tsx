@@ -161,9 +161,6 @@ function DomainRow({
 }) {
   const [editOpen, setEditOpen] = React.useState(false);
   const [port, setPort] = React.useState(String(domain.port));
-  // Matches deploy.ts: only non-`.localhost` domains ever get a websecure/TLS router with a real Let's Encrypt
-  // cert — `.localhost` never leaves this machine, so Let's Encrypt could never issue a certificate for it, no
-  // matter what's stored. The switch reflects that reality rather than the raw stored flag for those domains.
   const isLocalhostHost = domain.host === "localhost" || domain.host.endsWith(".localhost");
 
   const [sslEnabled, setSslEnabled] = React.useState(domain.sslEnabled);

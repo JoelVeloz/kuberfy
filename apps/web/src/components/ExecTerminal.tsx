@@ -11,8 +11,6 @@ const SHELLS: Array<{ value: Shell; label: string }> = [
   { value: "sh", label: "/bin/sh" },
 ];
 
-// Client island: interactive `docker exec` shell over a WebSocket (see apps/api/src/routes/applications.ts's
-// /:id/exec route). Distinct from RuntimeLogs, which is read-only container stdout/stderr.
 export function ExecTerminal({ applicationId }: { applicationId: string }) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [connected, setConnected] = React.useState(false);

@@ -13,9 +13,6 @@ export const users = new Hono();
 
 users.use("*", requireAuth);
 
-// Visible to any signed-in user (not just admins) — the only restriction is on creating accounts, below. A plain
-// read of the table instead of auth.api.listUsers: that endpoint is gated to admin-only inside better-auth's own
-// admin plugin, which doesn't fit here — everyone can see who else has access.
 users.get("/", async (c) => {
   const list = await db
     .select({ id: usersTable.id, email: usersTable.email, name: usersTable.name, role: usersTable.role, createdAt: usersTable.createdAt })

@@ -22,8 +22,6 @@ function statusColor(status: number) {
   return "text-muted-foreground";
 }
 
-// good = 2xx/3xx, warning = 4xx, critical = 5xx — same three tokens the rest of the app already uses for status
-// (see DeploymentStatusBadge), not a new palette.
 type StatusClass = "good" | "warning" | "critical";
 function statusClass(status: number): StatusClass {
   if (status >= 500) return "critical";
@@ -39,9 +37,6 @@ const chartConfig = {
 
 const MAX_TABLE_ROWS = 200;
 
-// Mirrors apps/api/src/routes/observability.ts's TRAFFIC_RANGES exactly — each range always renders its full
-// span as fixed-size buckets (empty ones included), so "24h" is always 24 bars and "7d" always 7, whether or
-// not every slot had traffic. Backed by the persisted request_log, not just what streamed in this tab session.
 const RANGES = {
   "1h": { label: "Last hour", ms: 60 * 60_000, bucketMs: 60_000, buckets: 60 },
   "24h": { label: "Last 24 hours", ms: 24 * 60 * 60_000, bucketMs: 60 * 60_000, buckets: 24 },
@@ -71,9 +66,6 @@ function useBuckets(events: TrafficEvent[], range: Range) {
   }, [events, now, ms, bucketMs, count]);
 }
 
-// Stacked bar chart via shadcn's official chart component (Recharts under the hood) — ResponsiveContainer
-// handles real width/height, no hand-rolled viewBox scaling. One bar per bucket, bucket count/size driven by
-// the selected range (see RANGES). maxBarSize caps bar thickness per dataviz's <=24px mark spec.
 function TrafficChart({ buckets, range }: { buckets: Array<{ bucketStart: number; good: number; warning: number; critical: number }>; range: Range }) {
   const dayGranularity = RANGES[range].bucketMs >= 24 * 60 * 60_000;
   const formatLabel = (t: number) =>
@@ -85,8 +77,6 @@ function TrafficChart({ buckets, range }: { buckets: Array<{ bucketStart: number
     <ChartContainer config={chartConfig} className="aspect-auto h-72 w-full">
       <BarChart data={buckets} barCategoryGap={4}>
         <CartesianGrid vertical={false} />
-        {/* interval={0} is Recharts' own prop for "render every tick" — every bucket in the selected range gets
-            an axis label (1h → 60, 24h → 24, 7d → 7, 30d → 30), not just a subset picked by collision-avoidance. */}
         <XAxis dataKey="bucketStart" tickFormatter={formatLabel} tickLine={false} axisLine={false} tickMargin={8} interval={0} angle={-45} textAnchor="end" height={50} />
         <YAxis tickLine={false} axisLine={false} width={28} allowDecimals={false} />
         <ChartTooltip content={<ChartTooltipContent labelFormatter={(_, payload) => formatLabel(Number(payload[0]?.payload.bucketStart ?? 0))} />} />
@@ -99,8 +89,6 @@ function TrafficChart({ buckets, range }: { buckets: Array<{ bucketStart: number
   );
 }
 
-// Client island: live tail of Traefik's own JSON access log (see apps/api/src/routes/observability.ts) — one row
-// per request across every deployed app, no separate metrics stack needed.
 export function TrafficPage() {
   const [events, setEvents] = React.useState<TrafficEvent[]>([]);
   const [connected, setConnected] = React.useState(false);
@@ -110,8 +98,6 @@ export function TrafficPage() {
   const [historyLoading, setHistoryLoading] = React.useState(true);
   const [selected, setSelected] = React.useState<TrafficEvent | null>(null);
 
-  // Backfill from the persisted log whenever the range changes — live events (below) then keep appending on top,
-  // so the chart/table always cover the full selected period, not just what streamed in during this tab session.
   React.useEffect(() => {
     setHistoryLoading(true);
     fetch(apiUrl(`/api/observability/traffic/history?range=${range}`), { credentials: "include" })

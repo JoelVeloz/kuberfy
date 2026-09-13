@@ -16,8 +16,6 @@ import { system } from "./routes/system";
 import { users } from "./routes/users";
 import { reconcileInterruptedDeployments } from "./services/deploy";
 
-// If the process died mid-deploy last time it ran, any deployment still marked pending/building is orphaned —
-// nothing else would ever clear that state (see services/deploy.ts).
 await reconcileInterruptedDeployments();
 await ensureSettingsSeeded();
 
