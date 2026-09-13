@@ -266,6 +266,17 @@ describe("Projects", () => {
         expect(await res.json()).toEqual({ error: "Domain already in use" });
       });
 
+      it("POST /api/domains rejects a host with spaces or invalid characters", async () => {
+        const res = await app.request("/api/domains", authed(json({ applicationId, host: "not a domain!!" })));
+        expect(res.status).toBe(400);
+      });
+
+      it("POST /api/domains accepts a whoami.localhost-style host", async () => {
+        const res = await app.request("/api/domains", authed(json({ applicationId, host: "whoami.localhost" })));
+        expect(res.status).toBe(201);
+        expect((await res.json()).host).toBe("whoami.localhost");
+      });
+
       it("GET /api/applications/:id now lists the domain in its relations", async () => {
         const res = await app.request(`/api/applications/${applicationId}`, authed());
         const body = await res.json();

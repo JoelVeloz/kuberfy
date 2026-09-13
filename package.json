@@ -1,6 +1,7 @@
 {
   "name": "kuberfy",
   "private": true,
+  "license": "BUSL-1.1",
   "workspaces": [
     "apps/*"
   ],

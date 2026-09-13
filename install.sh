@@ -149,8 +149,47 @@ done
 [ -n "$container_id" ] || fail "kuberfy container did not start in time, check 'docker service logs kuberfy'"
 
 echo "Bootstrapping admin user..."
-docker exec "$container_id" ./create-user --email "$ADMIN_EMAIL" --role admin
+docker exec "$container_id" ./kuberfy create-user --email "$ADMIN_EMAIL" --role admin
+
+cat <<'EOF' > /usr/local/bin/kuberfy
+#!/bin/sh
+set -e
+
+KUBERFY_IMAGE="${KUBERFY_IMAGE:-ghcr.io/joelveloz/kuberfy:latest}"
+
+case "$1" in
+  update)
+    echo "Pulling latest image: $KUBERFY_IMAGE..."
+    docker pull "$KUBERFY_IMAGE"
+    echo "Updating kuberfy service..."
+    docker service update --image "$KUBERFY_IMAGE" --force kuberfy
+    echo "Waiting for kuberfy to start..."
+    container_id=""
+    for _ in $(seq 1 30); do
+      container_id=$(docker ps -q -f label=com.docker.swarm.service.name=kuberfy -f status=running | head -n1)
+      [ -n "$container_id" ] && break
+      sleep 2
+    done
+    [ -n "$container_id" ] || { echo "ERROR: kuberfy container did not start in time" >&2; exit 1; }
+    echo "Kuberfy updated successfully."
+    ;;
+  *)
+    container_id=$(docker ps -q -f label=com.docker.swarm.service.name=kuberfy -f status=running | head -n1)
+    if [ -z "$container_id" ]; then
+      echo "ERROR: kuberfy container is not running" >&2
+      exit 1
+    fi
+    if [ -t 0 ] && [ -t 1 ]; then
+      exec docker exec -it "$container_id" ./kuberfy "$@"
+    else
+      exec docker exec -i "$container_id" ./kuberfy "$@"
+    fi
+    ;;
+esac
+EOF
+chmod +x /usr/local/bin/kuberfy
 
 echo ""
 echo "Kuberfy is installed."
 echo "Visit http://${advertise_addr}:3000 and log in with the admin credentials printed above."
+echo "You can manage kuberfy via 'kuberfy' or update it anytime with 'kuberfy update'."

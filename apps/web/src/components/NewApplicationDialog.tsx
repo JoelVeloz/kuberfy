@@ -12,12 +12,14 @@ export function NewApplicationDialog({ projectId }: { projectId: string }) {
   const [repoUrl, setRepoUrl] = React.useState("");
   const [branch, setBranch] = React.useState("main");
   const [buildType, setBuildType] = React.useState<BuildType>("dockerfile");
+  const [port, setPort] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
 
   async function handleCreate() {
     setSubmitting(true);
     try {
-      await api.createApplication({ projectId, name: name.trim(), repoUrl: repoUrl.trim(), branch: branch.trim() || "main", buildType });
+      const parsedPort = port.trim().length > 0 ? Number(port) : undefined;
+      await api.createApplication({ projectId, name: name.trim(), repoUrl: repoUrl.trim(), branch: branch.trim() || "main", buildType, port: parsedPort });
       window.location.reload();
     } catch {
       setSubmitting(false);
@@ -58,6 +60,10 @@ export function NewApplicationDialog({ projectId }: { projectId: string }) {
                 <SelectItem value="nixpacks">Nixpacks</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="app-port">Port (optional)</Label>
+            <Input id="app-port" type="number" min={1} placeholder="e.g. 3000" value={port} onChange={(e) => setPort(e.target.value)} />
           </div>
         </div>
         <DialogFooter>

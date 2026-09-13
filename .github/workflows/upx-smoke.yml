@@ -1,0 +1,47 @@
+name: UPX smoke test
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "Dockerfile"
+      - ".github/workflows/upx-smoke.yml"
+
+jobs:
+  build-and-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        run: |
+          docker build -t kuberfy:ci -f Dockerfile .
+
+      - name: Run container
+        run: |
+          docker run -d --name kuberfy-ci -p 3000:3000 kuberfy:ci || exit 1
+          for i in $(seq 1 120); do
+            if curl -sS -m 2 http://localhost:3000/api/health | grep -q '"ok":true'; then
+              echo "HEALTHY: attempt=$i"
+              break
+            fi
+            echo "Waiting for health... attempt=$i"
+            sleep 1
+          done
+
+      - name: Smoke requests
+        run: |
+          curl -sS http://localhost:3000/api/health
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker stop kuberfy-ci || true
+          docker rm kuberfy-ci || true

@@ -10,20 +10,17 @@ WORKDIR /app
 COPY apps/api/package.json ./
 RUN bun install --production
 COPY apps/api .
-RUN bun build --compile --minify src/index.ts --outfile server
-RUN bun build --compile --minify src/db/migrate.ts --outfile migrate
-RUN bun build --compile --minify scripts/create-user.ts --outfile create-user
+RUN bun build --compile --minify src/cli.ts --outfile kuberfy
+RUN apk add --no-cache upx && upx --all-methods --no-lzma kuberfy
 
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates libstdc++ libgcc git
 WORKDIR /app
-COPY --from=api-build /app/server ./server
-COPY --from=api-build /app/migrate ./migrate
-COPY --from=api-build /app/create-user ./create-user
+COPY --from=api-build /app/kuberfy ./kuberfy
 COPY apps/api/drizzle ./drizzle
 COPY --from=web-build /web/dist ./public
 
 ENV DATABASE_PATH=/data/kuberfy.db
 VOLUME /data
 EXPOSE 3000
-CMD ["sh", "-c", "./migrate && ./server"]
+CMD ["sh", "-c", "./kuberfy migrate && ./kuberfy server"]

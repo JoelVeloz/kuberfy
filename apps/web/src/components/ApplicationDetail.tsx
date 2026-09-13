@@ -16,6 +16,9 @@ type State =
 export function ApplicationDetail() {
   const [state, setState] = React.useState<State>({ status: "loading" });
   const [deploying, setDeploying] = React.useState(false);
+  const [port, setPort] = React.useState("");
+  const [savingPort, setSavingPort] = React.useState(false);
+  const [portError, setPortError] = React.useState<string | null>(null);
   const id = React.useMemo(() => (typeof window === "undefined" ? "" : (window.location.pathname.split("/").filter(Boolean).pop() ?? "")), []);
 
   const refresh = React.useCallback(async () => {

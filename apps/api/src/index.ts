@@ -6,6 +6,7 @@ import { auth } from "./auth";
 import projects from "./routes/projects";
 import { applications } from "./routes/applications";
 import { domains } from "./routes/domains";
+import { settings } from "./routes/settings";
 
 const app = new Hono();
 
@@ -14,6 +15,7 @@ app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 app.route("/api/projects", projects);
 app.route("/api/applications", applications);
 app.route("/api/domains", domains);
+app.route("/api/settings", settings);
 
 // Dynamic project/application ids only exist at request time, not at Astro's build time — fall back to the one
 // prebuilt shell (see PLAN.md) which reads the real id from the URL and fetches data client-side.

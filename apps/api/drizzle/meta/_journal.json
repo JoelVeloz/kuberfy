@@ -29,6 +29,13 @@
       "when": 1789271474008,
       "tag": "0003_flimsy_moira_mactaggert",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1789272438789,
+      "tag": "0004_furry_otto_octavius",
+      "breakpoints": true
     }
   ]
 }

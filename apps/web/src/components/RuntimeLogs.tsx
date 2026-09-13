@@ -1,4 +1,5 @@
 import * as React from "react";
+import { AnsiLog } from "@/components/AnsiLog";
 
 // Client island: opens a WebSocket to the API's dockerode-backed log stream — real container output, not a poll.
 export function RuntimeLogs({ applicationId }: { applicationId: string }) {
@@ -31,9 +32,7 @@ export function RuntimeLogs({ applicationId }: { applicationId: string }) {
           <p className="text-xs text-muted-foreground">{connected ? "Waiting for output…" : "No running container to stream from."}</p>
         </div>
       ) : (
-        <pre ref={preRef} className="max-h-80 overflow-auto border border-border bg-muted/30 p-3 font-mono text-xs whitespace-pre-wrap">
-          {lines.join("")}
-        </pre>
+        <AnsiLog ref={preRef} text={lines.join("")} className="max-h-80" />
       )}
     </div>
   );

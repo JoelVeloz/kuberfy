@@ -17,6 +17,7 @@ export interface ApiApplication {
   branch: string;
   buildType: BuildType;
   dockerfilePath: string | null;
+  port: number | null;
   envVars: string | null;
   createdAt: string;
   updatedAt: string;
@@ -43,6 +44,11 @@ export interface ApiDomain {
 export interface ApiApplicationDetail extends ApiApplication {
   deployments: ApiDeployment[];
   domains: ApiDomain[];
+}
+
+export interface ApiSettings {
+  id: string | null;
+  kuberfyDomain: string | null;
 }
 
 export class UnauthorizedError extends Error {}
@@ -79,11 +85,17 @@ export const api = {
     }),
   listProjectApplications: (id: string) => request<ApiApplication[]>(`/api/projects/${id}/applications`),
   getApplication: (id: string) => request<ApiApplicationDetail>(`/api/applications/${id}`),
-  createApplication: (input: { projectId: string; name: string; repoUrl: string; branch: string; buildType: BuildType }) =>
+  createApplication: (input: { projectId: string; name: string; repoUrl: string; branch: string; buildType: BuildType; port?: number }) =>
     request<ApiApplication>("/api/applications", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
+    }),
+  updateApplicationPort: (id: string, port: number) =>
+    request<ApiApplication>(`/api/applications/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ port }),
     }),
   createDomain: (applicationId: string, host: string) =>
     request<ApiDomain>("/api/domains", {
@@ -93,4 +105,11 @@ export const api = {
     }),
   deleteDomain: (id: string) => request<ApiDomain>(`/api/domains/${id}`, { method: "DELETE" }),
   deploy: (applicationId: string) => request<ApiDeployment>(`/api/applications/${applicationId}/deploy`, { method: "POST" }),
+  getSettings: () => request<ApiSettings>("/api/settings"),
+  updateSettings: (kuberfyDomain: string) =>
+    request<ApiSettings>("/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kuberfyDomain }),
+    }),
 };

@@ -52,16 +52,34 @@ async function deploy(app: typeof application.$inferSelect, deploymentId: string
     log(`Routing ${domains.map((d) => d.host).join(", ")} → internal port ${app.port} via Traefik`);
   }
 
+  const env = app.envVars ? Object.entries(JSON.parse(app.envVars) as Record<string, string>).map(([k, v]) => `${k}=${v}`) : undefined;
+
   log(`Creating container ${containerName} from ${imageTag}`);
   const container = await docker.createContainer({
     name: containerName,
     Image: imageTag,
     Tty: true,
+    Env: env,
     Labels: labels,
     HostConfig: { RestartPolicy: { Name: "unless-stopped" }, NetworkMode: DEPLOY_NETWORK },
   });
   await container.start();
   log(`Started container ${container.id} on network ${DEPLOY_NETWORK} — no ports published to the host`);
+
+  // A container can exit almost immediately (e.g. a required env var is missing) — briefly
+  // wait and check before declaring victory, instead of trusting `start()` alone.
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+  const info = await container.inspect();
+  if (!info.State.Running) {
+    const crashLogs = await container.logs({ stdout: true, stderr: true, tail: 100 });
+    log(`Container exited (code ${info.State.ExitCode}):`);
+    log(crashLogs.toString("utf-8").trimEnd());
+    await db
+      .update(deployment)
+      .set({ status: "failed", imageTag, containerId: container.id, logs: logs.join("\n"), updatedAt: new Date() })
+      .where(eq(deployment.id, deploymentId));
+    return;
+  }
 
   await db
     .update(deployment)

@@ -1,5 +1,8 @@
 # Kuberfy
 
+[![Publish image](https://github.com/JoelVeloz/kuberfy/actions/workflows/publish.yml/badge.svg)](https://github.com/JoelVeloz/kuberfy/actions/workflows/publish.yml)
+[![License: BUSL 1.1](https://img.shields.io/badge/license-BUSL--1.1-blue.svg)](LICENSE)
+
 [kuberfy.pages.dev](https://kuberfy.pages.dev)
 
 **The lightest self-hosted PaaS.** Deploy applications from a Git repository or a Docker image, get automatic HTTPS, and manage everything from a single web dashboard — running on a footprint small enough for a $5/month VPS.
@@ -22,7 +25,15 @@ curl -sSL https://raw.githubusercontent.com/JoelVeloz/kuberfy/main/install.sh | 
 | Networking / TLS | Manual or bundled proxy  | [Traefik](https://traefik.io) with automatic Let's Encrypt |
 | Orchestration    | Custom agent             | Docker Swarm (built into Docker itself)                    |
 
-Fewer moving parts means fewer things to monitor, fewer things to update, and less RAM sitting idle on a server whose only job is running your apps.
+Fewer moving parts means fewer things to monitor, fewer things to update, and less RAM sitting idle on a server whose only job is running your apps. Concretely, next to the other self-hosted platforms in this space:
+
+|                            | [Dokploy](https://docs.dokploy.com/docs/core/installation) | [Coolify](https://coolify.io/docs/get-started/installation) | [CapRover](https://caprover.com/docs/get-started.html) | Kuberfy                |
+| -------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------ | ---------------------- |
+| Stated minimum RAM         | 2 GB                                                       | 2 GB                                                        | ~1 GB (per their docs)                                 | 1 GB                   |
+| Control-plane dependencies | Bundled PostgreSQL + Traefik                               | Bundled PostgreSQL + Redis + Soketi                         | None (local volumes) + Nginx + Certbot                 | None — one SQLite file |
+| Orchestration              | Docker Swarm                                               | Docker + Compose                                            | Docker Swarm                                           | Docker Swarm           |
+
+Kuberfy is the only one of the four with no bundled database server and no cache — the numbers above are each project's own published minimums, not benchmarks we ran on their software.
 
 ## Features
 
@@ -65,6 +76,28 @@ Under the hood, the script installs Docker if it's missing, initializes a single
 
 For local development instead of a real server, copy `.env.example` to `.env` and run `docker compose up --build` — the same image, without Swarm.
 
+## Updating
+
+To update an existing installation to the latest published remote image (`ghcr.io/joelveloz/kuberfy:latest`), run:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/JoelVeloz/kuberfy/main/update.sh | sh
+```
+
+If you are already on the server host where the CLI wrapper is installed, you can also run:
+
+```bash
+kuberfy update
+```
+
+Or update the Swarm service directly via Docker:
+
+```bash
+docker service update --image ghcr.io/joelveloz/kuberfy:latest --force kuberfy
+```
+
+Because the service uses `--update-order stop-first`, Docker Swarm stops the existing container before starting the new one with the updated image, ensuring SQLite database integrity. The new container automatically runs `./kuberfy migrate` on startup to apply any database migrations before serving requests.
+
 ## Architecture
 
 ```mermaid
@@ -94,6 +127,10 @@ Requires [Bun](https://bun.sh) and Docker. Install dependencies once from the re
 ## Status
 
 Kuberfy is under active development. The core deployment flow (projects, applications, Git/image-based deploys, domains, HTTPS) is functional; database provisioning, one-click templates, and multi-node management are on the roadmap.
+
+## License
+
+Kuberfy is source-available under the [Business Source License 1.1](LICENSE): the code is public, you can read it, self-host it, modify it, and run it in production — including inside a product or service you build on top of it. The one thing it rules out is standing up a competing hosted "Kuberfy Cloud" without a commercial agreement. Each release converts to Apache 2.0 four years after it ships (this version: September 13, 2030).
 
 ## Contributing
 

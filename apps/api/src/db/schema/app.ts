@@ -155,9 +155,12 @@ export const domainRelations = relations(domain, ({ one }) => ({
   }),
 }));
 
+// RFC-1123-style hostname: lowercase alphanumeric labels (no leading/trailing hyphen), dot-separated; bare "localhost" allowed too
+const HOSTNAME_REGEX = /^(?:localhost|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)$/;
+
 export const apiCreateDomain = z.object({
   applicationId: z.string().min(1),
-  host: z.string().min(1),
+  host: z.string().min(1).regex(HOSTNAME_REGEX, "Must be a valid hostname"),
 });
 
 // ---------------------------------------------------------------------------
@@ -194,4 +197,20 @@ export const apiCreateJob = z.object({
 export const apiUpdateJob = z.object({
   status: z.enum(jobStatuses).optional(),
   payload: z.string().optional(),
+});
+
+// ---------------------------------------------------------------------------
+// setting — single row holding kuberfy's own instance-level settings
+// ---------------------------------------------------------------------------
+
+export const setting = sqliteTable("settings", {
+  id: id(),
+  // the domain kuberfy's own dashboard is reached at — persisted here for reference, does NOT
+  // live-update Traefik's Host() label on the kuberfy service (needs KUBERFY_DOMAIN env + restart)
+  kuberfyDomain: text("kuberfy_domain"),
+  ...timestamps,
+});
+
+export const apiUpdateSetting = z.object({
+  kuberfyDomain: z.string().min(1),
 });

@@ -6,3 +6,4 @@ apps/api/public
 *.db-*
 .env
 private/
+*.vsix
