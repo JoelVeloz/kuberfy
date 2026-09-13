@@ -60,9 +60,9 @@ app.delete("/:id", async (c) => {
     for (const dep of deployments) {
       if (!dep.containerId) continue;
       try {
-        await docker.getContainer(dep.containerId).remove({ force: true });
+        await docker.getService(dep.containerId).remove();
       } catch {
-        // container already gone — nothing to clean up
+        // service already gone — nothing to clean up
       }
     }
   }
