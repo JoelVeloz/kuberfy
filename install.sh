@@ -277,6 +277,8 @@ docker run -d \
   traefik:v3.7 \
   --providers.swarm=true \
   --providers.swarm.exposedbydefault=false \
+  --providers.docker=true \
+  --providers.docker.exposedbydefault=false \
   --accesslog=true \
   --accesslog.format=json \
   --entrypoints.web.address=:80 \
