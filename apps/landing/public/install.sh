@@ -55,8 +55,8 @@ printf "│                                                          │\n"
 printf "└──────────────────────────────────────────────────────────┘\n"
 printf "${NC}\n"
 
-# Step 1: Guard Rails
-step "1/5" "Verifying system requirements..."
+# Step 1: Guard Rails & Host Firewall
+step "1/5" "Verifying system requirements & host firewall..."
 
 if [ "$(id -u)" != "0" ]; then
   fail "This script must be run as root (use: curl -sSL https://kuberfy.pages.dev/install.sh | sudo sh)"
@@ -70,6 +70,18 @@ if [ -f /.dockerenv ]; then
   fail "This script must run on the host system, not inside a Docker container."
 fi
 
+# Automatically open firewall ports in iptables/ufw if present
+if command_exists iptables; then
+  iptables -I INPUT -p tcp --dport 80 -j ACCEPT 2>/dev/null || true
+  iptables -I INPUT -p tcp --dport 443 -j ACCEPT 2>/dev/null || true
+  iptables -I INPUT -p tcp --dport 3000 -j ACCEPT 2>/dev/null || true
+fi
+if command_exists ufw && ufw status 2>/dev/null | grep -q "Status: active"; then
+  ufw allow 80/tcp >/dev/null 2>&1 || true
+  ufw allow 443/tcp >/dev/null 2>&1 || true
+  ufw allow 3000/tcp >/dev/null 2>&1 || true
+fi
+
 for port in 80 443 3000; do
   if ss -tulnp | grep ":${port} " >/dev/null 2>&1; then
     if command_exists docker && docker ps 2>/dev/null | grep -E "(kuberfy|traefik)" >/dev/null; then
@@ -80,7 +92,7 @@ for port in 80 443 3000; do
   fi
 done
 
-success "System requirements verified."
+success "System requirements & host firewall configured."
 
 # Step 2: Configuration & Interactive Prompts
 step "2/5" "Configuring installation settings..."
