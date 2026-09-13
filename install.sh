@@ -139,12 +139,28 @@ if [ -z "$KUBERFY_DOMAIN" ] && [ "${KUBERFY_IP_ONLY:-0}" != "1" ]; then
   fi
   if [ "$access_choice" = "2" ]; then
     ip_only="1"
-  elif [ -t 0 ]; then
-    printf "${BOLD}${YELLOW}? Domain name (optional, press Enter for a free auto-generated one with HTTPS):${NC} "
-    read -r KUBERFY_DOMAIN
-  elif (exec 3</dev/tty) 2>/dev/null; then
-    printf "${BOLD}${YELLOW}? Domain name (optional, press Enter for a free auto-generated one with HTTPS):${NC} " > /dev/tty
-    read -r KUBERFY_DOMAIN < /dev/tty
+  else
+    auto_domain_choice=""
+    if [ -t 0 ]; then
+      printf "${BOLD}${YELLOW}? Use a free auto-generated domain (Y/n)?${NC} "
+      read -r auto_domain_choice
+    elif (exec 3</dev/tty) 2>/dev/null; then
+      printf "${BOLD}${YELLOW}? Use a free auto-generated domain (Y/n)?${NC} " > /dev/tty
+      read -r auto_domain_choice < /dev/tty
+    fi
+    if [ "$auto_domain_choice" = "n" ] || [ "$auto_domain_choice" = "N" ]; then
+      if [ -t 0 ]; then
+        while [ -z "$KUBERFY_DOMAIN" ]; do
+          printf "${BOLD}${YELLOW}? Domain name:${NC} "
+          read -r KUBERFY_DOMAIN
+        done
+      elif (exec 3</dev/tty) 2>/dev/null; then
+        while [ -z "$KUBERFY_DOMAIN" ]; do
+          printf "${BOLD}${YELLOW}? Domain name:${NC} " > /dev/tty
+          read -r KUBERFY_DOMAIN < /dev/tty
+        done
+      fi
+    fi
   fi
 fi
 [ "${KUBERFY_IP_ONLY:-0}" = "1" ] && ip_only="1"
