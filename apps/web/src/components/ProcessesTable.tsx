@@ -1,4 +1,6 @@
 import * as React from "react";
+import { CaretDown, CaretUp, CaretUpDown } from "@phosphor-icons/react";
+import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, useReactTable, type SortingState } from "@tanstack/react-table";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { apiWsUrl } from "@/lib/api-url";
@@ -21,13 +23,23 @@ function formatBytes(bytes: number) {
   return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb.toFixed(0)} MB`;
 }
 
-type SortKey = "pid" | "command" | "cpu" | "memUsed";
-
-const columns: Array<{ key: SortKey; label: string; className: string }> = [
-  { key: "pid", label: "PID", className: "w-16" },
-  { key: "command", label: "Command", className: "" },
-  { key: "cpu", label: "CPU", className: "w-20" },
-  { key: "memUsed", label: "Memory", className: "w-24" },
+const columnHelper = createColumnHelper<ProcessSample>();
+const columns = [
+  columnHelper.accessor("pid", { header: "PID", size: 64, cell: (info) => <span className="font-mono tabular-nums text-muted-foreground">{info.getValue()}</span> }),
+  columnHelper.accessor("command", {
+    header: "Command",
+    cell: (info) => (
+      <span className="block truncate font-mono text-xs" title={info.getValue()}>
+        {info.getValue()}
+      </span>
+    ),
+  }),
+  columnHelper.accessor("cpu", { header: "CPU", size: 80, cell: (info) => <span className="font-mono tabular-nums">{info.getValue().toFixed(1)}%</span> }),
+  columnHelper.accessor("memUsed", {
+    header: "Memory",
+    size: 96,
+    cell: (info) => <span className="font-mono tabular-nums text-muted-foreground">{formatBytes(info.getValue())}</span>,
+  }),
 ];
 
 // Client island, kept separate from SystemPage: it needs its own live-WebSocket tick (same pattern as
@@ -36,8 +48,7 @@ const columns: Array<{ key: SortKey; label: string; className: string }> = [
 export function ProcessesTable() {
   const [message, setMessage] = React.useState<ProcessesMessage | null>(null);
   const [connected, setConnected] = React.useState(false);
-  const [sortKey, setSortKey] = React.useState<SortKey>("cpu");
-  const [sortDir, setSortDir] = React.useState<"asc" | "desc">("desc");
+  const [sorting, setSorting] = React.useState<SortingState>([{ id: "cpu", desc: true }]);
 
   React.useEffect(() => {
     const ws = new WebSocket(apiWsUrl("/api/system/processes"));
@@ -47,13 +58,14 @@ export function ProcessesTable() {
     return () => ws.close();
   }, []);
 
-  function toggleSort(key: SortKey) {
-    if (key === sortKey) setSortDir((d) => (d === "desc" ? "asc" : "desc"));
-    else {
-      setSortKey(key);
-      setSortDir("desc");
-    }
-  }
+  const table = useReactTable({
+    data: message?.processes ?? [],
+    columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
 
   if (!message) {
     return (
@@ -65,43 +77,52 @@ export function ProcessesTable() {
     );
   }
 
-  const sorted = [...message.processes].sort((a, b) => {
-    const cmp = sortKey === "command" ? a.command.localeCompare(b.command) : a[sortKey] - b[sortKey];
-    return sortDir === "asc" ? cmp : -cmp;
-  });
+  const rows = table.getRowModel().rows;
 
   return (
     <Card>
       <CardContent className="max-h-[32rem] overflow-y-auto px-0">
         <Table className="table-fixed">
           <TableHeader>
-            <TableRow className="[&_th]:sticky [&_th]:top-0 [&_th]:bg-card">
-              {columns.map((col) => (
-                <TableHead key={col.key} className={col.className}>
-                  <button type="button" onClick={() => toggleSort(col.key)} className="flex items-center gap-1 hover:text-foreground">
-                    {col.label}
-                    {sortKey === col.key && <span className="text-[10px]">{sortDir === "desc" ? "▼" : "▲"}</span>}
-                  </button>
-                </TableHead>
-              ))}
-            </TableRow>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id} className="[&_th]:sticky [&_th]:top-0 [&_th]:bg-card">
+                {headerGroup.headers.map((header) => {
+                  const sortDir = header.column.getIsSorted();
+                  return (
+                    <TableHead key={header.id} style={{ width: header.getSize() }}>
+                      <button
+                        type="button"
+                        onClick={header.column.getToggleSortingHandler()}
+                        className={`flex cursor-pointer items-center gap-1 hover:text-foreground ${sortDir ? "text-foreground" : ""}`}
+                      >
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {sortDir === "desc" ? (
+                          <CaretDown weight="bold" />
+                        ) : sortDir === "asc" ? (
+                          <CaretUp weight="bold" />
+                        ) : (
+                          <CaretUpDown className="text-muted-foreground/50" />
+                        )}
+                      </button>
+                    </TableHead>
+                  );
+                })}
+              </TableRow>
+            ))}
           </TableHeader>
           <TableBody>
-            {sorted.length === 0 ? (
+            {rows.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={columns.length} className="text-xs text-muted-foreground">
                   No process data — is /host/proc mounted?
                 </TableCell>
               </TableRow>
             ) : (
-              sorted.map((p) => (
-                <TableRow key={p.pid}>
-                  <TableCell className="font-mono tabular-nums text-muted-foreground">{p.pid}</TableCell>
-                  <TableCell className="truncate font-mono text-xs" title={p.command}>
-                    {p.command}
-                  </TableCell>
-                  <TableCell className="font-mono tabular-nums">{p.cpu.toFixed(1)}%</TableCell>
-                  <TableCell className="font-mono tabular-nums text-muted-foreground">{formatBytes(p.memUsed)}</TableCell>
+              rows.map((row) => (
+                <TableRow key={row.id}>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                  ))}
                 </TableRow>
               ))
             )}
