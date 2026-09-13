@@ -5,15 +5,17 @@ import { ClientRouter } from "astro:transitions";
 interface Props {
   title?: string;
   description?: string;
+  lang?: string;
 }
 
 const {
   title = "Kuberfy — the lightest self-hosted PaaS",
   description = "Deploy applications from Git or a Docker image, get automatic HTTPS, and run it all from a single binary and an embedded database. No Postgres, no Redis, no extra services.",
+  lang = "en",
 } = Astro.props;
 ---
 
-<html lang="en">
+<html lang={lang}>
   <head>
     <meta charset="utf-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />

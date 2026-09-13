@@ -1,0 +1,17 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import HomeContent from "@/components/HomeContent.astro";
+---
+
+<Layout
+  lang="pt-BR"
+  title="Kuberfy — o PaaS auto-hospedado mais leve"
+  description="Implante aplicações via Git ou uma imagem Docker, tenha HTTPS automático, e rode tudo a partir de um único binário e um banco de dados embutido. Sem Postgres, sem Redis, sem serviços extras."
+>
+  <HomeContent lang="pt-BR" />
+</Layout>
+
+<script>
+  const KEY = "kuberfy-lang-choice";
+  localStorage.setItem(KEY, "pt-BR");
+</script>

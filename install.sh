@@ -240,15 +240,17 @@ fi
 
 AUTH_SECRET=$(openssl rand -hex 32)
 
-# kuberfy's image runs as a non-root user by default (see Dockerfile); --group-add puts it in the host's real
-# docker.sock group so it keeps Docker-socket access without running as root inside the container.
+# kuberfy's image runs as a non-root user by default (see Dockerfile); --group puts it in the host's real
+# docker.sock group so it keeps Docker-socket access without running as root inside the container. Note: this
+# is `--group`, not `--group-add` — the latter is a `docker run`/`docker create` flag and doesn't exist on
+# `docker service create` (Swarm), which fails the whole install with "unknown flag: --group-add" if used here.
 DOCKER_SOCK_GID=$(stat -c '%g' /var/run/docker.sock)
 
 docker service create \
   --name kuberfy \
   --replicas 1 \
   --network kuberfy-network \
-  --group-add "$DOCKER_SOCK_GID" \
+  --group "$DOCKER_SOCK_GID" \
   --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
   --mount type=volume,source=kuberfy-data,target=/data \
   --update-parallelism 1 \
