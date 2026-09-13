@@ -248,9 +248,46 @@ cat <<'EOF' > /usr/local/bin/kuberfy
 #!/bin/sh
 set -e
 
-if [ "$1" = "uninstall" ]; then
-  exec curl -sSL https://kuberfy.pages.dev/uninstall.sh | sudo sh
+CYAN="\033[36m"
+BOLD="\033[1m"
+NC="\033[0m"
+
+if [ $# -eq 0 ]; then
+  printf "${BOLD}${CYAN}Kuberfy${NC} — The Lightest Self-Hosted PaaS Control Plane\n\n"
+  printf "${BOLD}Usage:${NC}\n"
+  printf "  kuberfy <command> [options]\n\n"
+  printf "${BOLD}Commands:${NC}\n"
+  printf "  update              Pull latest image and restart the service\n"
+  printf "  uninstall           Remove Kuberfy and all data from this server\n"
+  printf "  create-user         Create a new user account\n"
+  printf "  set-password        Change a user's password\n"
+  printf "  logs                Show Kuberfy service logs\n"
+  printf "  status              Show running containers\n\n"
+  printf "${BOLD}Examples:${NC}\n"
+  printf "  kuberfy status\n"
+  printf "  kuberfy update\n"
+  printf "  kuberfy create-user --email user@example.com\n"
+  printf "  kuberfy set-password --email user@example.com --password newpass\n"
+  exit 0
 fi
+
+case "$1" in
+  uninstall)
+    exec curl -sSL https://kuberfy.pages.dev/uninstall.sh | sudo sh
+    ;;
+  update)
+    exec curl -sSL https://kuberfy.pages.dev/update.sh | sudo sh
+    ;;
+  logs)
+    exec docker service logs kuberfy --tail 100 -f
+    ;;
+  status)
+    docker service ls -f name=kuberfy
+    docker ps -f label=com.docker.swarm.service.name=kuberfy
+    docker ps -f name=kuberfy-traefik
+    exit 0
+    ;;
+esac
 
 container_id=$(docker ps -q -f label=com.docker.swarm.service.name=kuberfy -f status=running | head -n1)
 if [ -z "$container_id" ]; then
