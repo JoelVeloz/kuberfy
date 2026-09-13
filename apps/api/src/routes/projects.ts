@@ -1,11 +1,12 @@
 import { zValidator } from "@hono/zod-validator";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { StatusCodes } from "http-status-codes";
 import { requireAuth } from "../lib/auth-middleware";
 import { db, schema } from "../db";
 import { apiCreateProject, apiUpdateProject } from "../db/schema/app";
+import { docker } from "../services/deploy";
 
 const app = new Hono<{ Variables: { user: { id: string } } }>();
 
@@ -47,9 +48,28 @@ app.patch("/:id", zValidator("json", apiUpdateProject), async (c) => {
 });
 
 app.delete("/:id", async (c) => {
+  const id = c.req.param("id");
+  const apps = await db.query.application.findMany({ where: eq(schema.application.projectId, id) });
+  if (apps.length > 0) {
+    const deployments = await db.query.deployment.findMany({
+      where: inArray(
+        schema.deployment.applicationId,
+        apps.map((a) => a.id),
+      ),
+    });
+    for (const dep of deployments) {
+      if (!dep.containerId) continue;
+      try {
+        await docker.getContainer(dep.containerId).remove({ force: true });
+      } catch {
+        // container already gone — nothing to clean up
+      }
+    }
+  }
+
   const [deleted] = await db
     .delete(schema.project)
-    .where(and(eq(schema.project.id, c.req.param("id")), eq(schema.project.ownerId, c.get("user").id)))
+    .where(and(eq(schema.project.id, id), eq(schema.project.ownerId, c.get("user").id)))
     .returning();
   if (!deleted) throw new HTTPException(StatusCodes.NOT_FOUND, { message: "Project not found" });
   return c.json(deleted);
