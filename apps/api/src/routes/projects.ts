@@ -2,29 +2,26 @@ import { zValidator } from "@hono/zod-validator";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
+import { requireAuth } from "../lib/auth-middleware";
 import { db, schema } from "../db";
 import { apiCreateProject } from "../db/schema/app";
 
-const app = new Hono();
+const app = new Hono<{ Variables: { user: { id: string } } }>();
+
+app.use("*", requireAuth);
 
 app.get("/", async (c) => {
-  // TODO: filter by session user once auth middleware is mounted — returns all projects for now
-  const projects = await db.query.project.findMany();
+  const projects = await db.query.project.findMany({
+    where: eq(schema.project.ownerId, c.get("user").id),
+  });
   return c.json(projects);
 });
 
 app.post("/", zValidator("json", apiCreateProject), async (c) => {
   const data = c.req.valid("json");
-
-  // TODO: use session user id once auth middleware is mounted; falls back to the first admin user until then
-  const owner = await db.query.users.findFirst();
-  if (!owner) {
-    throw new HTTPException(400, { message: "no user found — create an admin first" });
-  }
-
   const [created] = await db
     .insert(schema.project)
-    .values({ ...data, ownerId: owner.id })
+    .values({ ...data, ownerId: c.get("user").id })
     .returning();
   return c.json(created, 201);
 });

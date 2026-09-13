@@ -2,14 +2,7 @@
 import Layout from "@/layouts/Layout.astro";
 import { NewProjectDialog } from "@/components/NewProjectDialog";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { projects, getApplicationsByProject } from "@/lib/mock-data";
 ---
 
@@ -17,9 +10,7 @@ import { projects, getApplicationsByProject } from "@/lib/mock-data";
   <div class="flex items-center justify-between gap-4">
     <div>
       <h1 class="font-heading text-lg font-medium">Projects</h1>
-      <p class="mt-1 text-xs text-muted-foreground">
-        Applications on this server are grouped into projects.
-      </p>
+      <p class="mt-1 text-xs text-muted-foreground">Applications on this server are grouped into projects.</p>
     </div>
     <NewProjectDialog client:load />
   </div>
@@ -35,33 +26,26 @@ import { projects, getApplicationsByProject } from "@/lib/mock-data";
           </TableRow>
         </TableHeader>
         <TableBody>
-          {
-            projects.map((project) => {
-              const appCount = getApplicationsByProject(project.id).length;
-              return (
-                <TableRow>
-                  <TableCell>
-                    <a
-                      href={`/projects/${project.id}`}
-                      class="font-medium hover:underline"
-                    >
-                      {project.name}
-                    </a>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {appCount} {appCount === 1 ? "application" : "applications"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {new Date(project.createdAt).toLocaleDateString(undefined, {
-                      year: "numeric",
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </TableCell>
-                </TableRow>
-              );
-            })
-          }
+          {projects.map((project) => {
+            const appCount = getApplicationsByProject(project.id).length;
+            return (
+              <TableRow>
+                <TableCell>
+                  <a href={`/projects/${project.id}`} class="font-medium hover:underline">
+                    {project.name}
+                  </a>
+                </TableCell>
+                <TableCell className="text-muted-foreground">{`${appCount} ${appCount === 1 ? "application" : "applications"}`}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  {new Date(project.createdAt).toLocaleDateString(undefined, {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </CardContent>

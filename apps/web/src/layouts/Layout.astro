@@ -24,19 +24,14 @@ const { title, back } = Astro.props;
           <a href="/" class="font-heading text-sm font-medium tracking-tight">
             Kuberfy
           </a>
-          {
-            back && (
-              <>
-                <span class="text-border">/</span>
-                <a
-                  href={back.href}
-                  class="text-xs text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  {back.label}
-                </a>
-              </>
-            )
-          }
+          {back && (
+            <>
+              <span class="text-border">/</span>
+              <a href={back.href} class="text-xs text-muted-foreground transition-colors hover:text-foreground">
+                {back.label}
+              </a>
+            </>
+          )}
         </div>
       </header>
       <main class="mx-auto max-w-5xl px-4 py-8">

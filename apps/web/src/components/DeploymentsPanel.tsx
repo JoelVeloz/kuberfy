@@ -43,12 +43,13 @@ export function DeploymentsPanel({ deployments }: { deployments: Deployment[] })
                 </TableCell>
                 <TableCell className="font-mono text-muted-foreground">{deployment.commitSha}</TableCell>
                 <TableCell className="text-muted-foreground">
-                  {new Date(deployment.createdAt).toLocaleString(undefined, {
+                  {new Date(deployment.createdAt).toLocaleString("en-US", {
                     year: "numeric",
                     month: "short",
                     day: "numeric",
                     hour: "2-digit",
                     minute: "2-digit",
+                    timeZone: "UTC",
                   })}
                 </TableCell>
               </TableRow>

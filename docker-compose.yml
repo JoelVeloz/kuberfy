@@ -20,6 +20,8 @@ services:
 
   kuberfy:
     build: .
+    ports:
+      - "3000:3000"
     environment:
       - DATABASE_PATH=/data/kuberfy.db
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}

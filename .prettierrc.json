@@ -1,3 +1,5 @@
 {
-  "printWidth": 175
+  "printWidth": 175,
+  "plugins": ["prettier-plugin-astro"],
+  "overrides": [{ "files": "*.astro", "options": { "parser": "astro" } }]
 }

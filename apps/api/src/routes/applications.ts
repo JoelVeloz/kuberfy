@@ -4,8 +4,11 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { db } from "../db";
 import { apiCreateApplication, apiUpdateApplication, application, deployment } from "../db/schema/app";
+import { requireAuth } from "../lib/auth-middleware";
 
 export const applications = new Hono();
+
+applications.use("*", requireAuth);
 
 applications.post("/", zValidator("json", apiCreateApplication), async (c) => {
   const input = c.req.valid("json");
