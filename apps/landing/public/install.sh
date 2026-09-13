@@ -127,6 +127,9 @@ else
     fi
   fi
   systemctl enable --now docker 2>/dev/null || service docker start 2>/dev/null || true
+  if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
+    usermod -aG docker "$SUDO_USER" 2>/dev/null || true
+  fi
   success "Docker installed successfully."
 fi
 
