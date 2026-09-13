@@ -5,5 +5,4 @@ apps/api/public
 *.db
 *.db-*
 .env
-PLAN.md
-scripts/connect-oracle-vm.sh
+private/
