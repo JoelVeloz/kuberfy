@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DeploymentStatusBadge } from "@/components/DeploymentStatusBadge";
 import type { DeploymentStatus } from "@/lib/types";
 import { apiWsUrl } from "@/lib/api-url";
+import { SHORT_WINDOW_MS, computeTimeDomain, formatClock, formatTooltipLabel } from "@/lib/chart-time";
 
 interface AppStat {
   id: string;
@@ -50,24 +51,6 @@ function formatBytes(bytes: number) {
 function formatMB(mb: number) {
   return mb >= 1024 ? `${(mb / 1024).toFixed(1)}GB` : `${Math.round(mb)}MB`;
 }
-
-const MIN_WINDOW_MS = 60 * 1000;
-const formatClock = (t: number) => new Date(t).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
-// Grows from the oldest sample actually held (never further back than a real timestamp) up to `now`, so a chart
-// with only a few seconds of data shows a tight, honest window instead of empty space reserved for a full hour.
-// Once the buffer fills (WINDOW_SIZE, ~1h of samples) the oldest end naturally slides forward tick by tick.
-function computeTimeDomain(data: Array<{ t: number }>): [number, number] {
-  const domainMax = data.at(-1)?.t ?? Date.now();
-  const domainMin = Math.min(data[0]?.t ?? domainMax, domainMax - MIN_WINDOW_MS);
-  return [domainMin, domainMax];
-}
-// ChartTooltipContent resolves its header label by looking up `config[dataKey]` and only calls labelFormatter with
-// that (a string, or undefined when the key doesn't match, e.g. dataKey "memMB" vs config key "mem") — never the
-// raw x-value. Reading the timestamp straight off the hovered point's payload sidesteps that lookup entirely.
-const formatTooltipLabel = (_value: unknown, payload: unknown) => {
-  const point = (payload as Array<{ payload?: { t?: number } }> | undefined)?.[0]?.payload;
-  return point?.t ? formatClock(point.t) : "";
-};
 
 // ChartTooltipContent's `formatter` prop replaces the whole row (indicator + label + value), not just the value —
 // this rebuilds that row with a unit-suffixed value instead of the raw number it'd otherwise show.
@@ -135,6 +118,7 @@ export function SystemPage() {
   }));
 
   const timeDomain = computeTimeDomain(chartData);
+  const formatAxisTick = (t: number) => formatClock(t, timeDomain[1] - timeDomain[0] <= SHORT_WINDOW_MS);
   const memPercent = latest.host.memTotal > 0 ? (latest.host.memUsed / latest.host.memTotal) * 100 : 0;
   const diskPercent = latest.host.diskTotal > 0 ? (latest.host.diskUsed / latest.host.diskTotal) * 100 : 0;
 
@@ -161,7 +145,7 @@ export function SystemPage() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                <XAxis dataKey="t" type="number" domain={timeDomain} tickFormatter={formatClock} tickLine={false} axisLine={false} minTickGap={40} />
+                <XAxis dataKey="t" type="number" domain={timeDomain} tickFormatter={formatAxisTick} tickLine={false} axisLine={false} minTickGap={40} />
                 <YAxis width={44} tickLine={false} axisLine={false} domain={[0, (max: number) => Math.max(100, Math.ceil(max / 10) * 10)]} unit="%" />
                 <ChartTooltip labelFormatter={formatTooltipLabel} content={<ChartTooltipContent formatter={tooltipRow("CPU", (v) => `${v}%`)} />} />
                 <Area dataKey="cpu" name="cpu" type="monotone" fill="url(#fillHostCpu)" stroke="var(--color-cpu)" strokeWidth={2} isAnimationActive={false} />
@@ -184,7 +168,7 @@ export function SystemPage() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                <XAxis dataKey="t" type="number" domain={timeDomain} tickFormatter={formatClock} tickLine={false} axisLine={false} minTickGap={40} />
+                <XAxis dataKey="t" type="number" domain={timeDomain} tickFormatter={formatAxisTick} tickLine={false} axisLine={false} minTickGap={40} />
                 <YAxis width={48} tickLine={false} axisLine={false} tickFormatter={formatMB} />
                 <ChartTooltip labelFormatter={formatTooltipLabel} content={<ChartTooltipContent formatter={tooltipRow("Memory", (v) => formatMB(Number(v)))} />} />
                 <Area dataKey="memMB" name="mem" type="monotone" fill="url(#fillHostMem)" stroke="var(--color-mem)" strokeWidth={2} isAnimationActive={false} />
