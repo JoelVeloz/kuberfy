@@ -12,14 +12,14 @@ export const system = new Hono();
 
 system.use("*", requireAuth);
 
+// Aggregate ticks straight from /proc/stat's "cpu " line, not os.cpus() — Node drops iowait entirely from what
+// it exposes on Linux, so a disk-bound host (heavy image pulls, a slow volume) reads as near-100% "CPU" here
+// even with zero real compute work, since that missing iowait time vanishes from both idle and total instead
+// of counting as idle-like the way `top`/vmstat treat it.
 function cpuSnapshot() {
-  let idle = 0;
-  let total = 0;
-  for (const cpu of os.cpus()) {
-    idle += cpu.times.idle;
-    total += cpu.times.user + cpu.times.nice + cpu.times.sys + cpu.times.idle + cpu.times.irq;
-  }
-  return { idle, total };
+  const fields = fs.readFileSync("/proc/stat", "utf-8").split("\n")[0]!.trim().split(/\s+/).slice(1).map(Number);
+  const [user, nice, system, idle, iowait, irq, softirq, steal] = fields;
+  return { idle: idle! + iowait!, total: user! + nice! + system! + idle! + iowait! + irq! + softirq! + (steal ?? 0) };
 }
 
 function hostCpuPercent(prev: { idle: number; total: number }, next: { idle: number; total: number }) {
