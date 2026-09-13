@@ -2,12 +2,13 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Docker from "dockerode";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import simpleGit from "simple-git";
 import { db } from "../db";
-import { application, deployment } from "../db/schema/app";
+import { application, deployment, domain } from "../db/schema/app";
 
-const docker = new Docker();
+export const docker = new Docker();
+const DEPLOY_NETWORK = "kuberfy-network";
 
 export async function runDeployment(applicationId: string) {
   const app = await db.query.application.findFirst({ where: eq(application.id, applicationId) });
@@ -40,20 +41,60 @@ async function deploy(app: typeof application.$inferSelect, deploymentId: string
   const containerName = `kuberfy-${app.id}`;
   await removeExisting(containerName);
 
+  const domains = await db.query.domain.findMany({ where: eq(domain.applicationId, app.id) });
+  const labels: Record<string, string> = { "kuberfy.application": app.id };
+  if (domains.length > 0 && app.port) {
+    const rule = domains.map((d) => `Host(\`${d.host}\`)`).join(" || ");
+    labels["traefik.enable"] = "true";
+    labels[`traefik.http.routers.${app.id}.rule`] = rule;
+    labels[`traefik.http.routers.${app.id}.entrypoints`] = "web";
+    labels[`traefik.http.services.${app.id}.loadbalancer.server.port`] = String(app.port);
+    log(`Routing ${domains.map((d) => d.host).join(", ")} → internal port ${app.port} via Traefik`);
+  }
+
   log(`Creating container ${containerName} from ${imageTag}`);
   const container = await docker.createContainer({
     name: containerName,
     Image: imageTag,
-    Labels: { "kuberfy.application": app.id },
-    HostConfig: { RestartPolicy: { Name: "unless-stopped" } },
+    Tty: true,
+    Labels: labels,
+    HostConfig: { RestartPolicy: { Name: "unless-stopped" }, NetworkMode: DEPLOY_NETWORK },
   });
   await container.start();
-  log(`Started container ${container.id}`);
+  log(`Started container ${container.id} on network ${DEPLOY_NETWORK} — no ports published to the host`);
+
+  await db
+    .update(deployment)
+    .set({ status: "stopped", updatedAt: new Date() })
+    .where(and(eq(deployment.applicationId, app.id), eq(deployment.status, "running")));
 
   await db
     .update(deployment)
     .set({ status: "running", imageTag, containerId: container.id, logs: logs.join("\n"), updatedAt: new Date() })
     .where(eq(deployment.id, deploymentId));
+}
+
+export async function restartDeployment(applicationId: string) {
+  const dep = await latestDeployment(applicationId);
+  if (!dep?.containerId) return null;
+  await docker.getContainer(dep.containerId).restart();
+  await db.update(deployment).set({ status: "running", updatedAt: new Date() }).where(eq(deployment.id, dep.id));
+  return dep;
+}
+
+export async function stopDeployment(applicationId: string) {
+  const dep = await latestDeployment(applicationId);
+  if (!dep?.containerId) return null;
+  await docker.getContainer(dep.containerId).stop();
+  await db.update(deployment).set({ status: "stopped", updatedAt: new Date() }).where(eq(deployment.id, dep.id));
+  return dep;
+}
+
+export function latestDeployment(applicationId: string) {
+  return db.query.deployment.findFirst({
+    where: (fields, { eq }) => eq(fields.applicationId, applicationId),
+    orderBy: (fields, { desc }) => [desc(fields.createdAt)],
+  });
 }
 
 async function pullImage(image: string, log: (line: string) => void) {

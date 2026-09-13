@@ -108,6 +108,7 @@ docker service create \
   --update-order stop-first \
   --constraint 'node.role == manager' \
   -e BETTER_AUTH_SECRET="$AUTH_SECRET" \
+  -e BETTER_AUTH_URL="http://${KUBERFY_DOMAIN:-$advertise_addr}:3000" \
   --label "traefik.enable=true" \
   --label "traefik.http.routers.kuberfy.rule=Host(\`${KUBERFY_DOMAIN:-$advertise_addr}\`)" \
   --label "traefik.http.routers.kuberfy.entrypoints=web" \

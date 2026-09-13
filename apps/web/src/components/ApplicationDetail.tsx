@@ -1,10 +1,13 @@
 import * as React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DeploymentsPanel } from "@/components/DeploymentsPanel";
 import { DomainsCard } from "@/components/DomainsCard";
+import { RuntimeLogs } from "@/components/RuntimeLogs";
 import { api, UnauthorizedError, NotFoundError, type ApiApplicationDetail } from "@/lib/api";
+import { isDeploymentInProgress } from "@/lib/deployment-status";
 
 type State =
   { status: "loading" } | { status: "unauthorized" } | { status: "not-found" } | { status: "error" } | { status: "ready"; app: ApiApplicationDetail; projectName: string };
@@ -12,29 +15,49 @@ type State =
 // Client island: the real application id only exists at request time, so it's read from the URL and fetched here
 export function ApplicationDetail() {
   const [state, setState] = React.useState<State>({ status: "loading" });
+  const [deploying, setDeploying] = React.useState(false);
+  const id = React.useMemo(() => (typeof window === "undefined" ? "" : (window.location.pathname.split("/").filter(Boolean).pop() ?? "")), []);
+
+  const refresh = React.useCallback(async () => {
+    try {
+      const app = await api.getApplication(id);
+      const project = await api.getProject(app.projectId).catch(() => null);
+      document.title = `${app.name} · Kuberfy`;
+      setState({ status: "ready", app, projectName: project?.name ?? "Project" });
+      return app;
+    } catch (err) {
+      if (err instanceof UnauthorizedError) setState({ status: "unauthorized" });
+      else if (err instanceof NotFoundError) setState({ status: "not-found" });
+      else setState({ status: "error" });
+      return null;
+    }
+  }, [id]);
 
   React.useEffect(() => {
-    const id = window.location.pathname.split("/").filter(Boolean).pop() ?? "";
     let cancelled = false;
-    async function load() {
-      try {
-        const app = await api.getApplication(id);
-        const project = await api.getProject(app.projectId).catch(() => null);
-        if (cancelled) return;
-        document.title = `${app.name} · Kuberfy`;
-        setState({ status: "ready", app, projectName: project?.name ?? "Project" });
-      } catch (err) {
-        if (cancelled) return;
-        if (err instanceof UnauthorizedError) setState({ status: "unauthorized" });
-        else if (err instanceof NotFoundError) setState({ status: "not-found" });
-        else setState({ status: "error" });
-      }
-    }
-    load();
+    (async () => {
+      const app = await refresh();
+      if (!cancelled && app?.deployments[0] && isDeploymentInProgress(app.deployments[0].status)) setDeploying(true);
+    })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refresh]);
+
+  React.useEffect(() => {
+    if (!deploying) return;
+    const interval = setInterval(async () => {
+      const app = await refresh();
+      if (app && !(app.deployments[0] && isDeploymentInProgress(app.deployments[0].status))) setDeploying(false);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [deploying, refresh]);
+
+  async function handleDeploy() {
+    setDeploying(true);
+    await api.deploy(id);
+    await refresh();
+  }
 
   if (state.status === "loading") {
     return (
@@ -76,6 +99,9 @@ export function ApplicationDetail() {
       <div className="flex flex-wrap items-baseline gap-3">
         <h1 className="font-heading text-lg font-medium">{app.name}</h1>
         <Badge variant="outline">{app.buildType}</Badge>
+        <Button size="sm" className="ml-auto" disabled={deploying} onClick={handleDeploy}>
+          {deploying ? "Deploying…" : "Deploy"}
+        </Button>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">
         {app.repoUrl} <span className="text-border">·</span> <span className="font-mono">{app.branch}</span>
@@ -91,11 +117,9 @@ export function ApplicationDetail() {
             </CardContent>
           </Card>
 
-          <h2 className="mt-8 font-heading text-sm font-medium">Live logs</h2>
-          <p className="mt-1 text-xs text-muted-foreground">Streamed output from the current build or running container.</p>
-          <div className="mt-3 flex h-40 items-center justify-center border border-dashed border-border bg-muted/30">
-            <p className="text-xs text-muted-foreground">Live log streaming is not available yet.</p>
-          </div>
+          <h2 className="mt-8 font-heading text-sm font-medium">Runtime logs</h2>
+          <p className="mt-1 text-xs text-muted-foreground">Live output streamed from the running container.</p>
+          <RuntimeLogs applicationId={app.id} />
         </div>
 
         <div className="flex flex-col gap-6">

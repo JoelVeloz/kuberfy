@@ -6,6 +6,7 @@ import { env } from "../lib/env";
 
 export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
+  baseURL: env.BETTER_AUTH_URL,
   database: drizzleAdapter(db, { provider: "sqlite", usePlural: true }),
   emailAndPassword: { enabled: true },
   plugins: [admin()],

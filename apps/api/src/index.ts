@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { serveStatic } from "hono/bun";
+import { serveStatic, websocket } from "hono/bun";
 import { HTTPException } from "hono/http-exception";
 import { StatusCodes } from "http-status-codes";
 import { auth } from "./auth";
@@ -38,4 +38,5 @@ app.onError((err, c) => {
 });
 
 export type AppType = typeof app;
-export default app;
+export { app };
+export default { fetch: app.fetch, websocket };

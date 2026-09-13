@@ -1,0 +1,262 @@
+---
+import Layout from "@/layouts/Layout.astro";
+
+const installCmd = "curl -sSL raw.githubusercontent.com/JoelVeloz/kuberfy/main/install.sh | ADMIN_EMAIL=you@example.com sh";
+
+const comparison = [
+  { row: "Database", typical: "Postgres server to run and back up", kuberfy: "Embedded SQLite — no server, no backups to schedule" },
+  { row: "Runtime", typical: "Node.js interpreting your app on every boot", kuberfy: "Compiled binary — starts instantly, nothing to interpret" },
+  { row: "Base image", typical: "A few hundred MB of OS and runtime", kuberfy: "Alpine, ~5 MB before your app" },
+  { row: "Extra services", typical: "Redis, queue workers, cron runners", kuberfy: "None — one process does it all" },
+  { row: "TLS certificates", typical: "Manual renewal or a bundled proxy to babysit", kuberfy: "Traefik + Let's Encrypt, renewed automatically" },
+];
+
+const features = [
+  {
+    title: "Deploy from Git or an image",
+    body: "Point Kuberfy at a repository and Dockerfile, or an existing image. It builds or pulls, then runs it.",
+  },
+  {
+    title: "Automatic HTTPS",
+    body: "Every application gets a routed domain and a signed certificate the moment it's attached — no manual config.",
+  },
+  {
+    title: "Projects & applications",
+    body: "Group related services under a project, each with its own applications, domains, and deploy history.",
+  },
+  {
+    title: "Full deploy history",
+    body: "Every build and run is recorded with its status and complete output, so a failure is never a mystery.",
+  },
+  {
+    title: "Role-based access",
+    body: "Email and password auth with an admin role, so you can hand out access without handing out root.",
+  },
+  {
+    title: "One-command install",
+    body: "A single script provisions Docker, Swarm, Traefik, and Kuberfy itself on a bare server.",
+  },
+];
+---
+
+<Layout>
+  <div class="relative overflow-hidden">
+    <div
+      class="pointer-events-none absolute -top-40 left-1/2 h-140 w-225 -translate-x-1/2 rounded-full opacity-40 blur-3xl"
+      style="background: radial-gradient(closest-side, color-mix(in oklab, var(--color-ember) 35%, transparent), transparent);"
+    ></div>
+
+    <header class="relative mx-auto flex max-w-6xl items-center justify-between px-6 py-6 md:px-10">
+      <a href="/" class="font-display text-sm font-medium tracking-tight text-cream">
+        kuberfy<span class="text-ember">.</span>
+      </a>
+      <nav class="flex items-center gap-6 text-sm text-smoke">
+        <a href="#lighter" class="hidden transition-colors hover:text-cream sm:inline">
+          Why it's lighter
+        </a>
+        <a href="#features" class="hidden transition-colors hover:text-cream sm:inline">
+          Features
+        </a>
+        <a href="#architecture" class="hidden transition-colors hover:text-cream md:inline">
+          Architecture
+        </a>
+        <a href="https://github.com/JoelVeloz/kuberfy" class="rounded-md border border-line px-3 py-1.5 text-cream transition-colors hover:border-ember hover:text-ember">
+          GitHub
+        </a>
+      </nav>
+    </header>
+
+    <section class="relative mx-auto max-w-6xl px-6 pt-16 pb-24 md:px-10 md:pt-24 md:pb-32">
+      <p class="mb-6 inline-flex items-center gap-2 rounded-full border border-line bg-panel px-3 py-1 text-xs tracking-wide text-smoke uppercase">
+        <span class="h-1.5 w-1.5 rounded-full bg-signal"></span>
+        Self-hosted PaaS
+      </p>
+
+      <h1 class="max-w-3xl text-balance font-display text-4xl leading-[1.1] font-medium tracking-tight text-cream sm:text-5xl md:text-6xl">
+        Deploy anything. <br />
+        Run almost <span class="text-ember">nothing</span>.
+      </h1>
+
+      <p class="mt-6 max-w-xl text-balance text-lg text-smoke">
+        Kuberfy is the lightest self-hosted platform for shipping applications from your own servers — a single compiled binary, an embedded database, and Traefik for HTTPS.
+        No Postgres to babysit, no Redis to justify.
+      </p>
+
+      <div class="mt-10 flex w-full max-w-xl items-start justify-between gap-3 rounded-lg border border-line bg-panel py-3 pr-2 pl-4">
+        <code id="install-cmd" class="font-display text-xs leading-6 break-all whitespace-pre-wrap text-smoke sm:text-sm">
+          <span class="text-ember-bright">$</span> {installCmd}
+        </code>
+        <button
+          id="copy-btn"
+          type="button"
+          aria-label="Copy install command"
+          class="mt-0.5 shrink-0 rounded-md border border-line bg-ink px-2.5 py-1.5 text-xs text-smoke transition-colors hover:border-ember hover:text-ember"
+        >
+          Copy
+        </button>
+      </div>
+      <p class="mt-3 text-xs text-smoke-dim">One command, one Linux server, root access. That's the whole install.</p>
+    </section>
+  </div>
+
+  <section id="lighter" class="border-y border-line bg-panel/40">
+    <div class="mx-auto max-w-6xl px-6 py-20 md:px-10">
+      <h2 class="font-display text-2xl font-medium tracking-tight text-cream sm:text-3xl">Why it's lighter</h2>
+      <p class="mt-3 max-w-2xl text-smoke">
+        Most self-hosted platforms bundle a database server, a cache, and a full interpreted runtime just to manage a handful of containers. Kuberfy's control plane is a
+        single compiled process reading a single SQLite file.
+      </p>
+
+      <div class="mt-10 overflow-x-auto rounded-xl border border-line">
+        <div class="min-w-160">
+          <div class="grid grid-cols-[1fr_1.4fr_1.4fr] bg-panel-2 text-xs tracking-wide text-smoke-dim uppercase">
+            <div class="px-5 py-3"></div>
+            <div class="border-l border-line px-5 py-3">Typical self-hosted PaaS</div>
+            <div class="border-l border-line px-5 py-3 text-ember">Kuberfy</div>
+          </div>
+          {comparison.map((row) => (
+            <div class="grid grid-cols-[1fr_1.4fr_1.4fr] border-t border-line text-sm">
+              <div class="px-5 py-4 font-medium text-cream">{row.row}</div>
+              <div class="border-l border-line px-5 py-4 text-smoke">{row.typical}</div>
+              <div class="border-l border-line bg-ember-dim/20 px-5 py-4 text-cream">{row.kuberfy}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="features" class="mx-auto max-w-6xl px-6 py-20 md:px-10">
+    <h2 class="font-display text-2xl font-medium tracking-tight text-cream sm:text-3xl">Everything you need, nothing you don't</h2>
+    <p class="mt-3 max-w-2xl text-smoke">The core deploy loop, done well — not a platform trying to be everything at once.</p>
+
+    <div class="mt-10 grid gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-2 lg:grid-cols-3">
+      {features.map((f) => (
+        <div class="bg-ink px-6 py-6">
+          <h3 class="font-display text-sm font-medium text-cream">{f.title}</h3>
+          <p class="mt-2 text-sm text-smoke">{f.body}</p>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <section id="architecture" class="border-y border-line bg-panel/40">
+    <div class="mx-auto max-w-6xl px-6 py-20 md:px-10">
+      <h2 class="font-display text-2xl font-medium tracking-tight text-cream sm:text-3xl">One process, three moving parts</h2>
+      <p class="mt-3 max-w-2xl text-smoke">
+        Traefik terminates TLS at the edge. Kuberfy holds the state and talks to the Docker socket. Docker runs your containers. That's the entire runtime footprint.
+      </p>
+
+      <div class="mt-12 overflow-x-auto">
+        <svg
+          viewBox="0 0 920 300"
+          class="mx-auto min-w-180"
+          role="img"
+          aria-label="Traffic flows from the internet through Traefik to Kuberfy, which drives Docker to run your applications"
+        >
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="var(--color-smoke-dim)"></path>
+            </marker>
+          </defs>
+
+          <line x1="70" y1="150" x2="230" y2="150" stroke="var(--color-smoke-dim)" stroke-width="1.5" marker-end="url(#arrow)"></line>
+          <line x1="370" y1="150" x2="530" y2="150" stroke="var(--color-smoke-dim)" stroke-width="1.5" marker-end="url(#arrow)"></line>
+          <line x1="670" y1="150" x2="790" y2="90" stroke="var(--color-smoke-dim)" stroke-width="1.5" marker-end="url(#arrow)"></line>
+          <line x1="670" y1="150" x2="790" y2="150" stroke="var(--color-smoke-dim)" stroke-width="1.5" marker-end="url(#arrow)"></line>
+          <line x1="670" y1="150" x2="790" y2="210" stroke="var(--color-smoke-dim)" stroke-width="1.5" marker-end="url(#arrow)"></line>
+
+          <g>
+            <circle cx="35" cy="150" r="26" fill="none" stroke="var(--color-line)" stroke-width="1.5"></circle>
+            <text x="35" y="155" text-anchor="middle" fill="var(--color-smoke)" font-size="20" font-family="var(--font-display)">
+              ↑
+            </text>
+            <text x="35" y="196" text-anchor="middle" fill="var(--color-smoke)" font-size="12" font-family="var(--font-body)">
+              Internet
+            </text>
+          </g>
+
+          <g>
+            <rect x="230" y="115" width="140" height="70" rx="10" fill="var(--color-panel)" stroke="var(--color-ember)" stroke-width="1.5"></rect>
+            <text x="300" y="145" text-anchor="middle" fill="var(--color-cream)" font-size="14" font-family="var(--font-display)">
+              Traefik
+            </text>
+            <text x="300" y="163" text-anchor="middle" fill="var(--color-smoke)" font-size="11" font-family="var(--font-body)">
+              :80 / :443, ACME
+            </text>
+          </g>
+
+          <g>
+            <rect x="530" y="105" width="140" height="90" rx="10" fill="var(--color-panel)" stroke="var(--color-line)" stroke-width="1.5"></rect>
+            <text x="600" y="140" text-anchor="middle" fill="var(--color-cream)" font-size="14" font-family="var(--font-display)">
+              Kuberfy
+            </text>
+            <text x="600" y="158" text-anchor="middle" fill="var(--color-smoke)" font-size="11" font-family="var(--font-body)">
+              API + dashboard
+            </text>
+            <text x="600" y="174" text-anchor="middle" fill="var(--color-smoke-dim)" font-size="11" font-family="var(--font-body)">
+              SQLite, one file
+            </text>
+          </g>
+
+          <g>
+            <rect x="790" y="60" width="110" height="50" rx="8" fill="var(--color-panel)" stroke="var(--color-line)" stroke-width="1.5"></rect>
+            <text x="845" y="90" text-anchor="middle" fill="var(--color-smoke)" font-size="11" font-family="var(--font-body)">
+              Your app A
+            </text>
+
+            <rect x="790" y="125" width="110" height="50" rx="8" fill="var(--color-panel)" stroke="var(--color-line)" stroke-width="1.5"></rect>
+            <text x="845" y="155" text-anchor="middle" fill="var(--color-smoke)" font-size="11" font-family="var(--font-body)">
+              Your app B
+            </text>
+
+            <rect x="790" y="190" width="110" height="50" rx="8" fill="var(--color-panel)" stroke="var(--color-line)" stroke-width="1.5"></rect>
+            <text x="845" y="220" text-anchor="middle" fill="var(--color-smoke)" font-size="11" font-family="var(--font-body)">
+              Your app C
+            </text>
+          </g>
+
+          <path d="M 600 195 C 600 250, 845 250, 845 240" fill="none" stroke="var(--color-ember)" stroke-width="1.5" stroke-dasharray="3 4" marker-end="url(#arrow)"></path>
+          <text x="720" y="272" text-anchor="middle" fill="var(--color-ember)" font-size="11" font-family="var(--font-body)">
+            builds & runs via the Docker socket
+          </text>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <footer class="mx-auto max-w-6xl px-6 py-16 md:px-10">
+    <div class="flex flex-col items-start justify-between gap-6 border-t border-line pt-10 sm:flex-row sm:items-center">
+      <div>
+        <p class="font-display text-sm text-cream">kuberfy</p>
+        <p class="mt-1 text-sm text-smoke-dim">Self-hosted. Open source. Actively developed.</p>
+      </div>
+      <div class="flex gap-6 text-sm text-smoke">
+        <a href="https://github.com/JoelVeloz/kuberfy" class="transition-colors hover:text-ember">
+          GitHub
+        </a>
+        <a href="https://github.com/JoelVeloz/kuberfy#readme" class="transition-colors hover:text-ember">
+          Documentation
+        </a>
+        <a href="https://github.com/JoelVeloz/kuberfy/issues" class="transition-colors hover:text-ember">
+          Issues
+        </a>
+      </div>
+    </div>
+  </footer>
+</Layout>
+
+<script>
+  const btn = document.getElementById("copy-btn");
+  const code = document.getElementById("install-cmd");
+
+  btn?.addEventListener("click", async () => {
+    const text = code?.textContent?.replace(/^\s*\$\s*/, "").trim() ?? "";
+    await navigator.clipboard.writeText(text);
+    const original = btn.textContent;
+    btn.textContent = "Copied";
+    setTimeout(() => {
+      btn.textContent = original;
+    }, 1500);
+  });
+</script>

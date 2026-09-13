@@ -25,6 +25,7 @@ services:
     environment:
       - DATABASE_PATH=/data/kuberfy.db
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - BETTER_AUTH_URL=http://${KUBERFY_DOMAIN:-localhost}:3000
     volumes:
       - kuberfy-data:/data
       - /var/run/docker.sock:/var/run/docker.sock
@@ -34,6 +35,10 @@ services:
       - traefik.http.routers.kuberfy.entrypoints=web
       - traefik.http.services.kuberfy.loadbalancer.server.port=3000
     restart: unless-stopped
+
+networks:
+  default:
+    name: kuberfy-network
 
 volumes:
   traefik-certs:

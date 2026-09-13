@@ -9,13 +9,14 @@ let app: Hono;
 beforeAll(async () => {
   process.env.DATABASE_PATH = TEST_DB_PATH;
   process.env.BETTER_AUTH_SECRET = "test-secret-only-for-bun-test-runs";
+  process.env.BETTER_AUTH_URL = "http://localhost:3000";
 
   const { db } = await import("../db");
   const { migrate } = await import("drizzle-orm/bun-sqlite/migrator");
   migrate(db, { migrationsFolder: "./drizzle" });
 
   const mod = await import("../index");
-  app = mod.default;
+  app = mod.app;
 });
 
 afterAll(() => {
@@ -222,6 +223,30 @@ describe("Projects", () => {
       );
       expect(res.status).toBe(404);
       expect(await res.json()).toEqual({ error: "Application not found" });
+    });
+
+    it("PATCH /api/applications/:id sets the internal port and env vars", async () => {
+      const envVars = JSON.stringify({ NODE_ENV: "production" });
+      const res = await app.request(
+        `/api/applications/${applicationId}`,
+        authed({ method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ port: 8080, envVars }) }),
+      );
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.port).toBe(8080);
+      expect(body.envVars).toBe(envVars);
+    });
+
+    it("POST /api/applications/:id/restart 404s when there's no deployment yet", async () => {
+      const res = await app.request(`/api/applications/${applicationId}/restart`, authed({ method: "POST" }));
+      expect(res.status).toBe(404);
+      expect(await res.json()).toEqual({ error: "No deployment to restart" });
+    });
+
+    it("POST /api/applications/:id/stop 404s when there's no deployment yet", async () => {
+      const res = await app.request(`/api/applications/${applicationId}/stop`, authed({ method: "POST" }));
+      expect(res.status).toBe(404);
+      expect(await res.json()).toEqual({ error: "No deployment to stop" });
     });
 
     describe("Domains", () => {

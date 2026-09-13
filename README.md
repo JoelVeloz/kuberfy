@@ -1,5 +1,7 @@
 # Kuberfy
 
+[kuberfy.pages.dev](https://kuberfy.pages.dev)
+
 **The lightest self-hosted PaaS.** Deploy applications from a Git repository or a Docker image, get automatic HTTPS, and manage everything from a single web dashboard — running on a footprint small enough for a $5/month VPS.
 
 Kuberfy exists because most self-hosted deployment platforms ship a Postgres server, a Redis instance, and a full Node runtime just to manage a handful of containers. Kuberfy doesn't. The whole control plane — API, dashboard, and database — compiles down to a single static binary and an embedded SQLite file, packaged in an Alpine image with no separate services to run, patch, or back up.
@@ -48,14 +50,14 @@ Kuberfy's installer targets a single Linux server. Minimum specs:
 
 The command above is the whole install. A few of its inputs are worth knowing about:
 
-| Variable         | Required | Description                                                                                                    |
-| ---------------- | -------- | ---------------------------------------------------------------------------------------------------------------- |
-| `ADMIN_EMAIL`    | yes      | Email for the first admin user, created automatically on install                                                  |
-| `KUBERFY_IMAGE`  | no       | Image to pull (default: `ghcr.io/joelveloz/kuberfy:latest`, built for both `amd64` and `arm64`)                   |
-| `KUBERFY_REPO`   | no       | Git URL to build the image from instead of pulling — for testing unreleased changes                               |
-| `KUBERFY_DOMAIN` | no       | Public domain routed to Kuberfy via Traefik (defaults to the server's IP, no TLS)                                 |
-| `ACME_EMAIL`     | no       | Email used for Let's Encrypt certificates (defaults to `ADMIN_EMAIL`)                                             |
-| `ADVERTISE_ADDR` | no       | Override automatic IP detection for `docker swarm init`                                                           |
+| Variable         | Required | Description                                                                                     |
+| ---------------- | -------- | ----------------------------------------------------------------------------------------------- |
+| `ADMIN_EMAIL`    | yes      | Email for the first admin user, created automatically on install                                |
+| `KUBERFY_IMAGE`  | no       | Image to pull (default: `ghcr.io/joelveloz/kuberfy:latest`, built for both `amd64` and `arm64`) |
+| `KUBERFY_REPO`   | no       | Git URL to build the image from instead of pulling — for testing unreleased changes             |
+| `KUBERFY_DOMAIN` | no       | Public domain routed to Kuberfy via Traefik (defaults to the server's IP, no TLS)               |
+| `ACME_EMAIL`     | no       | Email used for Let's Encrypt certificates (defaults to `ADMIN_EMAIL`)                           |
+| `ADVERTISE_ADDR` | no       | Override automatic IP detection for `docker swarm init`                                         |
 
 Under the hood, the script installs Docker if it's missing, initializes a single-node Docker Swarm, creates an overlay network, pulls the Kuberfy image (or builds it from `KUBERFY_REPO` if set), and starts Kuberfy and Traefik as services. When it finishes, it prints the URL to open and the admin account it created. The published image is a multi-arch manifest (`amd64` + `arm64`), so the same command works on a standard x86_64 VPS or an ARM-based server (Oracle Cloud's ARM tier, AWS Graviton, Apple Silicon for local testing) without any extra flags.
 

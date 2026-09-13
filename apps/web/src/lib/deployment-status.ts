@@ -9,12 +9,14 @@ export const deploymentStatusLabel: Record<DeploymentStatus, string> = {
   stopped: "Stopped",
 };
 
-export const deploymentStatusVariant: Record<DeploymentStatus, "default" | "secondary" | "destructive" | "outline"> = {
+export const deploymentStatusVariant: Record<DeploymentStatus, "secondary" | "success" | "destructive" | "outline"> = {
   pending: "outline",
   building: "secondary",
-  running: "default",
+  running: "success",
   failed: "destructive",
   stopped: "outline",
 };
 
-export const allDeploymentStatuses: DeploymentStatus[] = ["pending", "building", "running", "failed", "stopped"];
+// Shared "still deploying" signal — starting/building, before a deployment lands on running/failed/stopped
+const inProgressStatuses = new Set<DeploymentStatus>(["pending", "building"]);
+export const isDeploymentInProgress = (status: DeploymentStatus) => inProgressStatuses.has(status);

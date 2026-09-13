@@ -1,12 +1,11 @@
 import * as React from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EditProjectDialog } from "@/components/EditProjectDialog";
 import { NewApplicationDialog } from "@/components/NewApplicationDialog";
+import { DeploymentStatusBadge } from "@/components/DeploymentStatusBadge";
 import { api, UnauthorizedError, NotFoundError, type ApiApplication } from "@/lib/api";
-import { deploymentStatusLabel, deploymentStatusVariant } from "@/lib/deployment-status";
 import type { DeploymentStatus } from "@/lib/types";
 
 interface AppRow extends ApiApplication {
@@ -119,11 +118,7 @@ export function ProjectDetail() {
                     <TableCell className="text-muted-foreground">{app.repoUrl}</TableCell>
                     <TableCell className="font-mono text-muted-foreground">{app.branch}</TableCell>
                     <TableCell>
-                      {app.latestStatus ? (
-                        <Badge variant={deploymentStatusVariant[app.latestStatus]}>{deploymentStatusLabel[app.latestStatus]}</Badge>
-                      ) : (
-                        <span className="text-muted-foreground">No deployments</span>
-                      )}
+                      {app.latestStatus ? <DeploymentStatusBadge status={app.latestStatus} /> : <span className="text-muted-foreground">No deployments</span>}
                     </TableCell>
                   </TableRow>
                 ))}

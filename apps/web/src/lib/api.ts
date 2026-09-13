@@ -92,4 +92,5 @@ export const api = {
       body: JSON.stringify({ applicationId, host }),
     }),
   deleteDomain: (id: string) => request<ApiDomain>(`/api/domains/${id}`, { method: "DELETE" }),
+  deploy: (applicationId: string) => request<ApiDeployment>(`/api/applications/${applicationId}/deploy`, { method: "POST" }),
 };

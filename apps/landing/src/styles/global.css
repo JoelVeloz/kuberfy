@@ -1,0 +1,43 @@
+@import "tailwindcss";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/jetbrains-mono";
+
+@theme {
+  --font-display: "JetBrains Mono Variable", ui-monospace, "SF Mono", monospace;
+  --font-body: "Geist Variable", system-ui, sans-serif;
+
+  --color-ink: #0b0a09;
+  --color-panel: #131110;
+  --color-panel-2: #18140f;
+  --color-line: #262220;
+  --color-cream: #f3efea;
+  --color-smoke: #a39c94;
+  --color-smoke-dim: #6f6a63;
+  --color-ember: #f2731d;
+  --color-ember-bright: #ff8a3d;
+  --color-ember-dim: #3a2416;
+  --color-signal: #6fcf97;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-line);
+  }
+  html {
+    font-family: var(--font-body);
+    background: var(--color-ink);
+    color: var(--color-cream);
+    color-scheme: dark;
+  }
+  body {
+    background: var(--color-ink);
+  }
+  ::selection {
+    background: var(--color-ember);
+    color: var(--color-ink);
+  }
+}
+
+@utility text-balance {
+  text-wrap: balance;
+}

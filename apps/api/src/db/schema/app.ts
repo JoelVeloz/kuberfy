@@ -62,6 +62,8 @@ export const application = sqliteTable("applications", {
   buildType: text("build_type", { enum: buildTypes }).notNull(),
   // only used when buildType === "dockerfile"
   dockerfilePath: text("dockerfile_path"),
+  // port the app listens on inside the container; Traefik routes to it directly over the docker network (never published to the host)
+  port: integer("port"),
   // TODO: encrypt before the deploy pipeline writes to this (plain JSON for now)
   envVars: text("env_vars"),
   ...timestamps,
@@ -84,6 +86,7 @@ export const apiCreateApplication = z.object({
   buildType: z.enum(buildTypes),
   dockerfilePath: z.string().min(1).optional(),
   envVars: z.string().optional(),
+  port: z.number().int().positive().optional(),
 });
 
 export const apiUpdateApplication = apiCreateApplication.omit({ projectId: true }).partial();
