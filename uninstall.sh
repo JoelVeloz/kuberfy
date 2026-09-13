@@ -73,20 +73,33 @@ fi
 info "Removing Kuberfy Swarm service..."
 docker service rm kuberfy 2>/dev/null || true
 
+info "Waiting for service containers to stop..."
+for _ in $(seq 1 15); do
+  containers=$(docker ps -aq -f label=com.docker.swarm.service.name=kuberfy 2>/dev/null || true)
+  [ -z "$containers" ] && break
+  docker rm -f $containers 2>/dev/null || true
+  sleep 1
+done
+
 info "Removing Traefik proxy..."
 docker rm -f kuberfy-traefik 2>/dev/null || true
 
 info "Removing deployed application containers..."
 app_containers=$(docker ps -aq -f label=kuberfy.application 2>/dev/null || true)
 if [ -n "$app_containers" ]; then
-  echo "$app_containers" | xargs docker rm -f 2>/dev/null || true
+  docker rm -f $app_containers 2>/dev/null || true
 fi
 
 info "Removing overlay network 'kuberfy-network'..."
 docker network rm kuberfy-network 2>/dev/null || true
 
 info "Removing data volumes..."
-docker volume rm kuberfy-data kuberfy-traefik-certs 2>/dev/null || true
+for _ in $(seq 1 10); do
+  if docker volume rm kuberfy-data kuberfy-traefik-certs 2>/dev/null; then
+    break
+  fi
+  sleep 1
+done
 
 info "Leaving Docker Swarm..."
 docker swarm leave --force 2>/dev/null || true
