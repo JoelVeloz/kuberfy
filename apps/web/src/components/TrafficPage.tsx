@@ -13,6 +13,7 @@ interface TrafficEvent {
   status: number;
   durationMs: number;
   service: string | null;
+  clientIp: string | null;
 }
 
 function statusColor(status: number) {
@@ -184,6 +185,7 @@ export function TrafficPage() {
                 <TableHead>Path</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Duration</TableHead>
+                <TableHead>Client IP</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -195,6 +197,7 @@ export function TrafficPage() {
                   <TableCell className="max-w-64 truncate font-mono">{e.path}</TableCell>
                   <TableCell className={`font-mono ${statusColor(e.status)}`}>{e.status}</TableCell>
                   <TableCell className="text-muted-foreground">{e.durationMs}ms</TableCell>
+                  <TableCell className="font-mono text-muted-foreground">{e.clientIp ?? "—"}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -217,6 +220,7 @@ export function TrafficPage() {
                     ["Status", String(selected.status)],
                     ["Duration", `${selected.durationMs}ms`],
                     ["Service", selected.service ?? "—"],
+                    ["Client IP", selected.clientIp ?? "—"],
                   ] as const
                 ).map(([label, value]) => (
                   <div key={label} className="flex items-start justify-between gap-3 border-b border-border px-3 py-1.5 last:border-b-0">

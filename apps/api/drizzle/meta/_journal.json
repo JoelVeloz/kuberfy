@@ -92,6 +92,13 @@
       "when": 1789324645116,
       "tag": "0012_happy_maelstrom",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1789330420601,
+      "tag": "0013_add_client_ip_to_request_log",
+      "breakpoints": true
     }
   ]
 }

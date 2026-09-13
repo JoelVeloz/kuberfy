@@ -29,6 +29,7 @@ interface TrafficEvent {
   status: number;
   durationMs: number;
   service: string | null;
+  clientIp: string | null;
 }
 
 function parseAccessLogLine(line: string): TrafficEvent | null {
@@ -43,6 +44,7 @@ function parseAccessLogLine(line: string): TrafficEvent | null {
       status: typeof raw.DownstreamStatus === "number" ? raw.DownstreamStatus : 0,
       durationMs: typeof raw.Duration === "number" ? Math.round(raw.Duration / 1e6) : 0,
       service: typeof raw.ServiceName === "string" ? raw.ServiceName : null,
+      clientIp: typeof raw.ClientHost === "string" ? raw.ClientHost : null,
     };
   } catch {
     return null;
@@ -83,9 +85,21 @@ observability.get(
             if (!event) continue;
             ws.send(JSON.stringify(event));
             db.insert(requestLog)
-              .values({ time: new Date(event.time), method: event.method, host: event.host, path: event.path, status: event.status, durationMs: event.durationMs, service: event.service })
+              .values({
+                time: new Date(event.time),
+                method: event.method,
+                host: event.host,
+                path: event.path,
+                status: event.status,
+                durationMs: event.durationMs,
+                service: event.service,
+                clientIp: event.clientIp,
+              })
               .catch(() => {});
-            if (Math.random() < 0.01) db.delete(requestLog).where(lt(requestLog.time, new Date(Date.now() - RETENTION_MS))).catch(() => {});
+            if (Math.random() < 0.01)
+              db.delete(requestLog)
+                .where(lt(requestLog.time, new Date(Date.now() - RETENTION_MS)))
+                .catch(() => {});
           }
         });
       },
@@ -111,6 +125,7 @@ observability.get("/traffic/history", async (c) => {
     status: r.status,
     durationMs: r.durationMs,
     service: r.service,
+    clientIp: r.clientIp,
   }));
   return c.json({ range, buckets: config.buckets, bucketMs: config.bucketMs, events });
 });

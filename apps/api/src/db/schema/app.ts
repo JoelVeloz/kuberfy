@@ -224,6 +224,7 @@ export const requestLog = sqliteTable("request_log", {
   status: integer("status").notNull(),
   durationMs: integer("duration_ms").notNull(),
   service: text("service"),
+  clientIp: text("client_ip"),
 });
 
 // ---------------------------------------------------------------------------

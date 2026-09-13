@@ -1,0 +1,1 @@
+ALTER TABLE `request_log` ADD `client_ip` text;
