@@ -127,15 +127,43 @@ if [ -z "$ADMIN_EMAIL" ]; then
   fi
 fi
 
-if [ -z "$KUBERFY_DOMAIN" ]; then
+ip_only=""
+if [ -z "$KUBERFY_DOMAIN" ] && [ "${KUBERFY_IP_ONLY:-0}" != "1" ]; then
+  access_choice=""
   if [ -t 0 ]; then
-    printf "${BOLD}${YELLOW}? Domain name (optional, press Enter for a free auto-generated one with HTTPS):${NC} "
-    read -r KUBERFY_DOMAIN
+    printf "${BOLD}${YELLOW}? Reach the server by domain with HTTPS (1, default) or just its IP with no HTTPS (2)?${NC} "
+    read -r access_choice
   elif (exec 3</dev/tty) 2>/dev/null; then
-    printf "${BOLD}${YELLOW}? Domain name (optional, press Enter for a free auto-generated one with HTTPS):${NC} " > /dev/tty
-    read -r KUBERFY_DOMAIN < /dev/tty
+    printf "${BOLD}${YELLOW}? Reach the server by domain with HTTPS (1, default) or just its IP with no HTTPS (2)?${NC} " > /dev/tty
+    read -r access_choice < /dev/tty
+  fi
+  if [ "$access_choice" = "2" ]; then
+    ip_only="1"
+  else
+    auto_domain_choice=""
+    if [ -t 0 ]; then
+      printf "${BOLD}${YELLOW}? Use a free auto-generated domain (Y/n)?${NC} "
+      read -r auto_domain_choice
+    elif (exec 3</dev/tty) 2>/dev/null; then
+      printf "${BOLD}${YELLOW}? Use a free auto-generated domain (Y/n)?${NC} " > /dev/tty
+      read -r auto_domain_choice < /dev/tty
+    fi
+    if [ "$auto_domain_choice" = "n" ] || [ "$auto_domain_choice" = "N" ]; then
+      if [ -t 0 ]; then
+        while [ -z "$KUBERFY_DOMAIN" ]; do
+          printf "${BOLD}${YELLOW}? Domain name:${NC} "
+          read -r KUBERFY_DOMAIN
+        done
+      elif (exec 3</dev/tty) 2>/dev/null; then
+        while [ -z "$KUBERFY_DOMAIN" ]; do
+          printf "${BOLD}${YELLOW}? Domain name:${NC} " > /dev/tty
+          read -r KUBERFY_DOMAIN < /dev/tty
+        done
+      fi
+    fi
   fi
 fi
+[ "${KUBERFY_IP_ONLY:-0}" = "1" ] && ip_only="1"
 
 # Step 3: Docker Installation
 step "3/6" "Checking Docker container runtime..."
@@ -185,10 +213,10 @@ advertise_addr="${ADVERTISE_ADDR:-$local_ip}"
 [ -n "$advertise_addr" ] || advertise_addr="$public_ip"
 [ -n "$advertise_addr" ] || fail "Could not detect server IP address automatically. Set ADVERTISE_ADDR manually."
 
-# No domain given? Default to a free sslip.io hostname off the server's own public IP instead of a bare IP —
-# sslip.io resolves it right back to that IP, so it needs no DNS setup and still qualifies for a real Let's
-# Encrypt certificate (an IP alone never would). Only falls back to a bare IP/address (HTTP only, no TLS) when
-# no public IP could be detected at all (e.g. a private/internal-only server).
+# No domain given, and IP-only wasn't chosen? Default to a free sslip.io hostname off the server's own public IP
+# instead of a bare IP — sslip.io resolves it right back to that IP, so it needs no DNS setup and still qualifies
+# for a real Let's Encrypt certificate (an IP alone never would). Only falls back to a bare IP/address (HTTP only,
+# no TLS) when IP-only was explicitly chosen, or no public IP could be detected at all (e.g. an internal-only server).
 #
 # The label is a random token, not "kuberfy" or anything derived from the IP: Let's Encrypt certs are published
 # forever in public Certificate Transparency logs (crt.sh, Censys), so a product name here would let anyone
@@ -199,6 +227,8 @@ server_tls=""
 if [ -n "$KUBERFY_DOMAIN" ]; then
   server_host="$KUBERFY_DOMAIN"
   server_tls="1"
+elif [ -n "$ip_only" ]; then
+  server_host="${public_ip:-$advertise_addr}"
 elif [ -n "$public_ip" ]; then
   server_host="$(openssl rand -hex 6).$(echo "$public_ip" | tr '.' '-').sslip.io"
   server_tls="1"
@@ -240,17 +270,18 @@ fi
 
 AUTH_SECRET=$(openssl rand -hex 32)
 
-# kuberfy's image runs as a non-root user by default (see Dockerfile); --group-add puts it in the host's real
-# docker.sock group so it keeps Docker-socket access without running as root inside the container.
+# --group, not --group-add (that's docker run's flag name; docker service create has no --group-add)
 DOCKER_SOCK_GID=$(stat -c '%g' /var/run/docker.sock)
 
 docker service create \
   --name kuberfy \
   --replicas 1 \
   --network kuberfy-network \
-  --group-add "$DOCKER_SOCK_GID" \
+  --limit-memory 256m \
+  --group "$DOCKER_SOCK_GID" \
   --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
   --mount type=volume,source=kuberfy-data,target=/data \
+  --mount type=bind,source=/proc,target=/host/proc,readonly \
   --update-parallelism 1 \
   --update-order stop-first \
   --constraint 'node.role == manager' \
@@ -271,6 +302,8 @@ docker run -d \
   --name kuberfy-traefik \
   --restart always \
   --network kuberfy-network \
+  --memory 256m \
+  --memory-swap 256m \
   -v /var/run/docker.sock:/var/run/docker.sock:ro \
   -v kuberfy-traefik-certs:/letsencrypt \
   -p 80:80 \
@@ -280,6 +313,7 @@ docker run -d \
   --providers.swarm.exposedbydefault=false \
   --accesslog=true \
   --accesslog.format=json \
+  --accesslog.fields.headers.names.User-Agent=keep \
   --entrypoints.web.address=:80 \
   --entrypoints.websecure.address=:443 \
   --certificatesresolvers.le.acme.httpchallenge=true \
