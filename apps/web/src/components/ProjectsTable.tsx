@@ -6,19 +6,14 @@ import { DataTable } from "@/components/ui/data-table";
 import { TablePagination } from "@/components/ui/table-pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryProvider } from "@/components/QueryProvider";
-import { api, UnauthorizedError, type ApiProject } from "@/lib/api";
+import { api, UnauthorizedError, type ApiProjectWithCount } from "@/lib/api";
 
 const PAGE_SIZE = 20;
 
-interface Row extends ApiProject {
-  appCount: number;
-}
+type Row = ApiProjectWithCount;
 
 async function fetchRows(page: number): Promise<{ items: Row[]; total: number }> {
-  const projects = await api.listProjects(page, PAGE_SIZE);
-  // pageSize: 1 — only .total is used here, so there's no reason to fetch a full page of applications per project
-  const counts = await Promise.all(projects.items.map((p) => api.listProjectApplications(p.id, 1, 1).then((apps) => apps.total)));
-  return { items: projects.items.map((p, i) => ({ ...p, appCount: counts[i]! })), total: projects.total };
+  return api.listProjects(page, PAGE_SIZE);
 }
 
 const columnHelper = createColumnHelper<Row>();
@@ -31,7 +26,7 @@ const columns = [
       </a>
     ),
   }),
-  columnHelper.accessor("appCount", {
+  columnHelper.accessor("applicationCount", {
     header: "Applications",
     cell: (info) => <span className="text-muted-foreground">{`${info.getValue()} ${info.getValue() === 1 ? "application" : "applications"}`}</span>,
   }),

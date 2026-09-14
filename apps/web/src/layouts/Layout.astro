@@ -75,7 +75,7 @@ const isSettingsActive = Astro.url.pathname.startsWith("/settings");
           </a>
         </nav>
         <div class="md:border-t md:border-border md:p-3">
-          <UserMenu client:load />
+          <UserMenu client:load transition:persist />
         </div>
       </aside>
       <main class="flex-1 px-4 py-8 md:ml-60 md:px-8">

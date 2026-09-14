@@ -8,13 +8,10 @@ import { QueryProvider } from "@/components/QueryProvider";
 import { EditProjectDialog } from "@/components/EditProjectDialog";
 import { NewApplicationDialog } from "@/components/NewApplicationDialog";
 import { DeploymentStatusBadge } from "@/components/DeploymentStatusBadge";
-import { api, UnauthorizedError, NotFoundError, type ApiApplication, type ApiProject } from "@/lib/api";
+import { api, UnauthorizedError, NotFoundError, type ApiApplicationWithStatus, type ApiProject } from "@/lib/api";
 import { getQueryParam } from "@/lib/query-params";
-import type { DeploymentStatus } from "@/lib/types";
 
-interface AppRow extends ApiApplication {
-  latestStatus: DeploymentStatus | null;
-}
+type AppRow = ApiApplicationWithStatus;
 
 const columnHelper = createColumnHelper<AppRow>();
 const columns = [
@@ -42,12 +39,7 @@ async function fetchProject(id: string): Promise<ApiProject> {
 
 async function fetchApps(id: string): Promise<AppRow[]> {
   const { items } = await api.listProjectApplications(id);
-  return Promise.all(
-    items.map(async (app) => {
-      const detail = await api.getApplication(app.id).catch(() => null);
-      return { ...app, latestStatus: detail?.deployments[0]?.status ?? null };
-    }),
-  );
+  return items;
 }
 
 // Client island: the real project id only exists at request time, so it's read from the URL and fetched here
@@ -62,7 +54,7 @@ export function ProjectDetail() {
 function ProjectDetailInner() {
   const id = getQueryParam("id");
   const project = useQuery({ queryKey: ["project", id], queryFn: () => fetchProject(id) });
-  const apps = useQuery({ queryKey: ["project", id, "apps"], queryFn: () => fetchApps(id), enabled: project.isSuccess });
+  const apps = useQuery({ queryKey: ["project", id, "apps"], queryFn: () => fetchApps(id) });
 
   if (project.isPending) {
     return (

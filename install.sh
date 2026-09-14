@@ -127,44 +127,6 @@ if [ -z "$ADMIN_EMAIL" ]; then
   fi
 fi
 
-ip_only=""
-if [ -z "$KUBERFY_DOMAIN" ] && [ "${KUBERFY_IP_ONLY:-0}" != "1" ]; then
-  access_choice=""
-  if [ -t 0 ]; then
-    printf "${BOLD}${YELLOW}? Reach the server by domain with HTTPS (1, default) or just its IP with no HTTPS (2)?${NC} "
-    read -r access_choice
-  elif (exec 3</dev/tty) 2>/dev/null; then
-    printf "${BOLD}${YELLOW}? Reach the server by domain with HTTPS (1, default) or just its IP with no HTTPS (2)?${NC} " > /dev/tty
-    read -r access_choice < /dev/tty
-  fi
-  if [ "$access_choice" = "2" ]; then
-    ip_only="1"
-  else
-    auto_domain_choice=""
-    if [ -t 0 ]; then
-      printf "${BOLD}${YELLOW}? Use a free auto-generated domain (Y/n)?${NC} "
-      read -r auto_domain_choice
-    elif (exec 3</dev/tty) 2>/dev/null; then
-      printf "${BOLD}${YELLOW}? Use a free auto-generated domain (Y/n)?${NC} " > /dev/tty
-      read -r auto_domain_choice < /dev/tty
-    fi
-    if [ "$auto_domain_choice" = "n" ] || [ "$auto_domain_choice" = "N" ]; then
-      if [ -t 0 ]; then
-        while [ -z "$KUBERFY_DOMAIN" ]; do
-          printf "${BOLD}${YELLOW}? Domain name:${NC} "
-          read -r KUBERFY_DOMAIN
-        done
-      elif (exec 3</dev/tty) 2>/dev/null; then
-        while [ -z "$KUBERFY_DOMAIN" ]; do
-          printf "${BOLD}${YELLOW}? Domain name:${NC} " > /dev/tty
-          read -r KUBERFY_DOMAIN < /dev/tty
-        done
-      fi
-    fi
-  fi
-fi
-[ "${KUBERFY_IP_ONLY:-0}" = "1" ] && ip_only="1"
-
 # Step 3: Docker Installation
 step "3/6" "Checking Docker container runtime..."
 
@@ -213,28 +175,7 @@ advertise_addr="${ADVERTISE_ADDR:-$local_ip}"
 [ -n "$advertise_addr" ] || advertise_addr="$public_ip"
 [ -n "$advertise_addr" ] || fail "Could not detect server IP address automatically. Set ADVERTISE_ADDR manually."
 
-# No domain given, and IP-only wasn't chosen? Default to a free sslip.io hostname off the server's own public IP
-# instead of a bare IP — sslip.io resolves it right back to that IP, so it needs no DNS setup and still qualifies
-# for a real Let's Encrypt certificate (an IP alone never would). Only falls back to a bare IP/address (HTTP only,
-# no TLS) when IP-only was explicitly chosen, or no public IP could be detected at all (e.g. an internal-only server).
-#
-# The label is a random token, not "kuberfy" or anything derived from the IP: Let's Encrypt certs are published
-# forever in public Certificate Transparency logs (crt.sh, Censys), so a product name here would let anyone
-# search those logs and build a list of every exposed kuberfy instance on the internet — and hashing the IP
-# wouldn't help either, since all ~4 billion IPv4 addresses can be hashed and matched back in seconds. A random
-# token from /dev/urandom has neither problem.
-server_tls=""
-if [ -n "$KUBERFY_DOMAIN" ]; then
-  server_host="$KUBERFY_DOMAIN"
-  server_tls="1"
-elif [ -n "$ip_only" ]; then
-  server_host="${public_ip:-$advertise_addr}"
-elif [ -n "$public_ip" ]; then
-  server_host="$(openssl rand -hex 6).$(echo "$public_ip" | tr '.' '-').sslip.io"
-  server_tls="1"
-else
-  server_host="$advertise_addr"
-fi
+server_host="${public_ip:-$advertise_addr}"
 
 info "Public IP: ${public_ip:-None} | Local IP: ${local_ip:-None}"
 
@@ -286,16 +227,11 @@ docker service create \
   --update-order stop-first \
   --constraint 'node.role == manager' \
   -e BETTER_AUTH_SECRET="$AUTH_SECRET" \
-  -e KUBERFY_DOMAIN="$server_host" \
   ${public_ip:+-e SERVER_PUBLIC_IP="$public_ip"} \
   --label "traefik.enable=true" \
   --label "traefik.http.routers.kuberfy.rule=Host(\`${server_host}\`)" \
   --label "traefik.http.routers.kuberfy.entrypoints=web" \
   --label "traefik.http.services.kuberfy.loadbalancer.server.port=3000" \
-  ${server_tls:+--label "traefik.http.routers.kuberfy-tls.rule=Host(\`${server_host}\`)"} \
-  ${server_tls:+--label "traefik.http.routers.kuberfy-tls.entrypoints=websecure"} \
-  ${server_tls:+--label "traefik.http.routers.kuberfy-tls.service=kuberfy"} \
-  ${server_tls:+--label "traefik.http.routers.kuberfy-tls.tls.certresolver=le"} \
   "$KUBERFY_IMAGE" >/dev/null
 
 docker run -d \
@@ -407,11 +343,7 @@ success "Host CLI installed to /usr/local/bin/kuberfy."
 
 # Traefik (not the panel's own :3000, which is no longer published by default — see the firewall step above and
 # the Settings page's "Exposed ports" toggle) fronts the panel on 80/443 either way.
-if [ -n "$server_tls" ]; then
-  target_url="https://${server_host}"
-else
-  target_url="http://${server_host}"
-fi
+target_url="http://${server_host}"
 
 if [ -t 1 ] || [ -e /dev/tty ]; then
   clickable_url=$(printf "\033]8;;%s\033\\%s\033]8;;\033\\" "$target_url" "$target_url")

@@ -10,6 +10,10 @@ export interface ApiProject {
   updatedAt: string;
 }
 
+export interface ApiProjectWithCount extends ApiProject {
+  applicationCount: number;
+}
+
 export interface ApiApplication {
   id: string;
   projectId: string;
@@ -53,6 +57,10 @@ export interface ApiVolume {
   mountPath: string;
   volumeName: string;
   createdAt: string;
+}
+
+export interface ApiApplicationWithStatus extends ApiApplication {
+  latestStatus: DeploymentStatus | null;
 }
 
 export interface ApiApplicationDetail extends ApiApplication {
@@ -218,7 +226,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  listProjects: (page = 1, pageSize = 20) => request<ApiPage<ApiProject>>(`/api/projects?page=${page}&pageSize=${pageSize}`),
+  listProjects: (page = 1, pageSize = 20) => request<ApiPage<ApiProjectWithCount>>(`/api/projects?page=${page}&pageSize=${pageSize}`),
   createProject: (name: string) =>
     request<ApiProject>("/api/projects", {
       method: "POST",
@@ -232,7 +240,8 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name }),
     }),
-  listProjectApplications: (id: string, page = 1, pageSize = 20) => request<ApiPage<ApiApplication>>(`/api/projects/${id}/applications?page=${page}&pageSize=${pageSize}`),
+  listProjectApplications: (id: string, page = 1, pageSize = 20) =>
+    request<ApiPage<ApiApplicationWithStatus>>(`/api/projects/${id}/applications?page=${page}&pageSize=${pageSize}`),
   getApplication: (id: string) => request<ApiApplicationDetail>(`/api/applications/${id}`),
   listDeployments: (applicationId: string, page = 1, pageSize = 20) =>
     request<ApiPage<ApiDeployment>>(`/api/applications/${applicationId}/deployments?page=${page}&pageSize=${pageSize}`),

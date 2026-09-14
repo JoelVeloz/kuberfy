@@ -6,18 +6,16 @@ import { apiUpdateSetting, setting } from "../db/schema/app";
 import { env } from "../lib/env";
 import { suggestKuberfyDomainHost } from "../lib/auto-domain";
 import { requireAuth } from "../lib/auth-middleware";
+import { setCachedKuberfyDomain } from "../lib/settings-cache";
 import { applyKuberfyDomain, applyKuberfyPanelPortExposure } from "../services/proxy";
 import { docker } from "../services/deploy";
 
 export const settings = new Hono();
 
-// The `settings` row is the source of truth for kuberfy's own domain from boot onward — install.sh only uses
-// KUBERFY_DOMAIN to give that first row a starting value (Traefik's initial label is already set to the same
-// value at `docker service create` time), so this never overwrites a row that already exists.
 export async function ensureSettingsSeeded() {
   const existing = await db.query.setting.findFirst();
   if (existing) return;
-  await db.insert(setting).values({ kuberfyDomain: env.KUBERFY_DOMAIN ?? "localhost" });
+  await db.insert(setting).values({});
 }
 
 // Pre-auth: the login page needs this to decide whether to show the "Sign in with passkey" button at all.
@@ -76,6 +74,7 @@ settings.patch("/", zValidator("json", apiUpdateSetting), async (c) => {
           .returning()
       )[0]
     : (await db.insert(setting).values(input).returning())[0];
+  setCachedKuberfyDomain(updated.kuberfyDomain);
 
   // Not running under Docker Swarm (e.g. local dev via docker-compose, which runs kuberfy as a plain container
   // rather than a Swarm service) — the DB is still updated, only the live route isn't. Reported back rather than

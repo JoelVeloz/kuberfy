@@ -4,18 +4,15 @@ import { admin } from "better-auth/plugins";
 import { passkey } from "@better-auth/passkey";
 import { db } from "../db";
 import { env } from "../lib/env";
+import { getCachedKuberfyDomain } from "../lib/settings-cache";
 
 export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
   database: drizzleAdapter(db, { provider: "sqlite", usePlural: true }),
   emailAndPassword: { enabled: true },
-  // Resolved fresh on every request instead of a fixed array baked in at boot, so changing the domain from the
-  // Settings page (routes/settings.ts) takes effect immediately — no restart. CORS_ORIGINS stays as a small
-  // static supplement for local dev (e.g. apps/web's Vite dev server, whose own port stays the browser's Origin
-  // header even though requests are proxied server-side).
   trustedOrigins: async () => {
-    const row = await db.query.setting.findFirst();
-    const domainOrigins = row?.kuberfyDomain ? [`http://${row.kuberfyDomain}`, `https://${row.kuberfyDomain}`] : [];
+    const domain = await getCachedKuberfyDomain();
+    const domainOrigins = domain ? [`http://${domain}`, `https://${domain}`] : [];
     return [...domainOrigins, ...(env.CORS_ORIGINS ?? [])];
   },
   // No rpID/origin set: the plugin falls back to the current request's derived baseURL/Origin header, so it

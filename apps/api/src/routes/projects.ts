@@ -1,5 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { StatusCodes } from "http-status-codes";
@@ -17,7 +17,22 @@ app.get("/", zValidator("query", paginationQuery), async (c) => {
   const pagination = c.req.valid("query");
   const where = eq(schema.project.ownerId, c.get("user").id);
   const [items, total] = await Promise.all([
-    db.query.project.findMany({ where, orderBy: (fields, { desc }) => [desc(fields.createdAt)], limit: pagination.pageSize, offset: paginationOffset(pagination) }),
+    db
+      .select({
+        id: schema.project.id,
+        name: schema.project.name,
+        ownerId: schema.project.ownerId,
+        createdAt: schema.project.createdAt,
+        updatedAt: schema.project.updatedAt,
+        applicationCount: sql<number>`count(${schema.application.id})`.mapWith(Number),
+      })
+      .from(schema.project)
+      .leftJoin(schema.application, eq(schema.application.projectId, schema.project.id))
+      .where(where)
+      .groupBy(schema.project.id)
+      .orderBy(desc(schema.project.createdAt))
+      .limit(pagination.pageSize)
+      .offset(paginationOffset(pagination)),
     db.$count(schema.project, where),
   ]);
   return c.json({ items, total });
@@ -85,7 +100,22 @@ app.get("/:id/applications", zValidator("query", paginationQuery), async (c) => 
     }),
     db.$count(schema.application, where),
   ]);
-  return c.json({ items, total });
+
+  const applicationIds = items.map((a) => a.id);
+  const deployments = applicationIds.length
+    ? await db
+        .select({ applicationId: schema.deployment.applicationId, status: schema.deployment.status })
+        .from(schema.deployment)
+        .where(inArray(schema.deployment.applicationId, applicationIds))
+        .orderBy(desc(schema.deployment.createdAt))
+    : [];
+  const latestStatusByApplicationId = new Map<string, (typeof deployments)[number]["status"]>();
+  for (const d of deployments) if (!latestStatusByApplicationId.has(d.applicationId)) latestStatusByApplicationId.set(d.applicationId, d.status);
+
+  return c.json({
+    items: items.map((a) => ({ ...a, latestStatus: latestStatusByApplicationId.get(a.id) ?? null })),
+    total,
+  });
 });
 
 export default app;

@@ -76,18 +76,19 @@ import DocsLayout from "@/layouts/DocsLayout.astro";
     <li>
       <strong>Admin Email:</strong> The initial administrator email address for login.
     </li>
-    <li>
-      <strong>Domain Name (Optional):</strong> Your custom domain (e.g. <code>kuberfy.yourdomain.com</code>). If left empty, a free <code>sslip.io</code> hostname with a random token is used instead, with HTTPS included.
-    </li>
   </ul>
+
+  <p>
+    The dashboard is reachable over your server's bare IP right after install. Add a real domain with HTTPS anytime afterward from the dashboard's Settings page — no restart
+    needed.
+  </p>
 
   <h2>Non-Interactive Installation</h2>
 
   <p>If you are provisioning a server with cloud-init or automated scripts, you can supply environment variables:</p>
 
   <pre><code>curl -sSL https://kuberfy.pages.dev/install.sh | \
-  ADMIN_EMAIL=admin@yourdomain.com \
-  KUBERFY_DOMAIN=kuberfy.yourdomain.com sudo sh</code></pre>
+  ADMIN_EMAIL=admin@yourdomain.com sudo sh</code></pre>
 
   <h3>Available Environment Flags</h3>
 
@@ -107,15 +108,6 @@ import DocsLayout from "@/layouts/DocsLayout.astro";
         <td>Email address for initial admin user creation.</td>
         <td>
           <em>Interactive Prompt</em>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <code>KUBERFY_DOMAIN</code>
-        </td>
-        <td>Public domain for dashboard and Let's Encrypt certificates.</td>
-        <td>
-          Auto-generated <code>sslip.io</code> hostname
         </td>
       </tr>
       <tr>
@@ -141,7 +133,7 @@ import DocsLayout from "@/layouts/DocsLayout.astro";
       <strong>Example Output:</strong>
     </p>
     <pre class="my-0"><code>✔ Kuberfy is ready!
-➜ URL: http://your-server-ip:3000 (or https://kuberfy.yourdomain.com)
+➜ URL: http://your-server-ip
 ➜ Email: admin@yourdomain.com
 ➜ Temporary Password: a1b2c3d4e5...</code></pre>
   </div>

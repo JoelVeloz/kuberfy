@@ -3,9 +3,6 @@ import { z } from "zod";
 const schema = z.object({
   DATABASE_PATH: z.string(),
   BETTER_AUTH_SECRET: z.string(),
-  // seeds the `settings` table on first boot only (see routes/settings.ts) — after that, the domain kuberfy is
-  // reached at lives in the DB and is changed from the Settings page, never from this env var again.
-  KUBERFY_DOMAIN: z.string().optional(),
   // comma-separated list of extra origins Better Auth must trust beyond the current kuberfyDomain (which it
   // trusts dynamically — see auth/index.ts) — e.g. the Astro dev server's own port during local development.
   CORS_ORIGINS: z
