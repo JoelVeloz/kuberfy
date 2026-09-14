@@ -2,6 +2,17 @@ import * as React from "react";
 import { ArrowClockwise, ArrowSquareOut, RocketLaunch, Stop as StopIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -211,9 +222,31 @@ function ApplicationShellInner() {
           <Button size="sm" variant="outline" disabled={!canStop || restart.isPending || stop.isPending} onClick={() => stop.mutate()}>
             <StopIcon /> {stop.isPending ? "Stopping…" : "Stop"}
           </Button>
-          <Button size="sm" disabled={deploying} onClick={() => deploy.mutate()}>
-            <RocketLaunch /> {deploying ? "Deploying…" : "Deploy"}
-          </Button>
+          {latestStatus === "running" ? (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button size="sm" disabled={deploying}>
+                  <RocketLaunch /> {deploying ? "Deploying…" : "Deploy"}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Redeploy running application?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    <span className="font-mono">{app.name}</span> is currently running. Deploying now replaces its container immediately — any in-flight requests are dropped.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => deploy.mutate()}>Redeploy</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          ) : (
+            <Button size="sm" disabled={deploying} onClick={() => deploy.mutate()}>
+              <RocketLaunch /> {deploying ? "Deploying…" : "Deploy"}
+            </Button>
+          )}
           <DeleteApplicationDialog applicationId={app.id} applicationName={app.name} projectId={app.projectId} />
         </div>
       </div>
