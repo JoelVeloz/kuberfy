@@ -21,7 +21,5 @@
   },
   "menuColor": "default",
   "menuAccent": "subtle",
-  "registries": {
-    "@magicui": "https://magicui.design/r/{name}"
-  }
+  "registries": {}
 }
