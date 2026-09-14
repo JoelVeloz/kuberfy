@@ -9,6 +9,7 @@ import { toast } from "sonner";
 
 export function ResourcesContent({ app }: { app: ApiApplicationDetail }) {
   const [memoryLimitMb, setMemoryLimitMb] = React.useState(String(app.memoryLimitMb));
+  const [repoUrl, setRepoUrl] = React.useState(app.repoUrl);
   const queryClient = useQueryClient();
   const save = useMutation({
     mutationFn: (mb: number) => api.updateApplicationMemoryLimit(app.id, mb),
@@ -18,13 +19,47 @@ export function ResourcesContent({ app }: { app: ApiApplicationDetail }) {
     },
     onError: (err) => toastError(err, "Failed to save memory limit."),
   });
+  const saveImage = useMutation({
+    mutationFn: (nextRepoUrl: string) => api.updateApplicationImage(app.id, nextRepoUrl),
+    onSuccess: () => {
+      toast.success("Image saved.");
+      queryClient.invalidateQueries({ queryKey: ["application", app.id] });
+    },
+    onError: (err) => toastError(err, "Failed to save image."),
+  });
 
   const parsed = Number(memoryLimitMb);
   const isValid = Number.isInteger(parsed) && parsed > 0;
+  const trimmedRepoUrl = repoUrl.trim();
 
   return (
     <>
-      <h2 className="font-heading text-sm font-medium">Resources</h2>
+      {app.buildType === "image" && (
+        <>
+          <h2 className="font-heading text-sm font-medium">Image</h2>
+          <Card className="mt-3">
+            <CardContent>
+              <div className="flex flex-col gap-1.5 sm:max-w-xs">
+                <label htmlFor="app-image" className="text-xs font-medium">
+                  Image
+                </label>
+                <Input id="app-image" value={repoUrl} onChange={(e) => setRepoUrl(e.target.value)} placeholder="e.g. mariadb:11" />
+                <p className="text-xs text-muted-foreground">Change the tag to switch versions. Applied on next deploy or restart.</p>
+              </div>
+              <Button
+                className="mt-3"
+                size="sm"
+                disabled={trimmedRepoUrl.length === 0 || trimmedRepoUrl === app.repoUrl || saveImage.isPending}
+                onClick={() => saveImage.mutate(trimmedRepoUrl)}
+              >
+                {saveImage.isPending ? "Saving…" : "Save"}
+              </Button>
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      <h2 className="mt-6 font-heading text-sm font-medium">Resources</h2>
       <Card className="mt-3">
         <CardContent>
           <div className="flex flex-col gap-1.5 sm:max-w-xs">

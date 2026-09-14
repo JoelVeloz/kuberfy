@@ -38,6 +38,7 @@ function TemplateCard({ template, onSelect }: { template: ApiMarketplaceTemplate
 
 function ConfigureTemplate({ template, projId, onBack }: { template: ApiMarketplaceTemplate; projId: string; onBack: () => void }) {
   const [name, setName] = React.useState(template.id);
+  const [image, setImage] = React.useState(template.image);
   const [envValues, setEnvValues] = React.useState<Record<string, string>>(() =>
     Object.fromEntries(template.envVars.map((v) => [v.key, v.secret ? generateSecret() : (v.default ?? "")])),
   );
@@ -48,7 +49,7 @@ function ConfigureTemplate({ template, projId, onBack }: { template: ApiMarketpl
       const app = await api.createApplication({
         projectId: projId,
         name: name.trim(),
-        repoUrl: template.image,
+        repoUrl: image.trim(),
         branch: "main",
         buildType: "image",
         port: template.port ?? undefined,
@@ -72,7 +73,7 @@ function ConfigureTemplate({ template, projId, onBack }: { template: ApiMarketpl
       <div>
         <h1 className="font-heading text-lg font-medium">{template.name}</h1>
         <p className="mt-1 text-xs text-muted-foreground">
-          Deploying <span className="font-mono text-foreground">{template.image}</span>
+          Deploying <span className="font-mono text-foreground">{image.trim() || template.image}</span>
           {template.port && (
             <>
               {" "}
@@ -88,6 +89,11 @@ function ConfigureTemplate({ template, projId, onBack }: { template: ApiMarketpl
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="tpl-name">Application name</Label>
             <Input id="tpl-name" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="tpl-image">Image</Label>
+            <Input id="tpl-image" className="font-mono" value={image} onChange={(e) => setImage(e.target.value)} placeholder="e.g. mariadb:11" />
+            <p className="text-xs text-muted-foreground">Change the tag to deploy a different version.</p>
           </div>
           {template.envVars.length > 0 && (
             <div className="flex flex-col gap-3">
@@ -133,7 +139,7 @@ function ConfigureTemplate({ template, projId, onBack }: { template: ApiMarketpl
             </div>
           )}
           <div className="flex items-center gap-2">
-            <Button disabled={name.trim().length === 0 || isPending} onClick={() => mutate()}>
+            <Button disabled={name.trim().length === 0 || image.trim().length === 0 || isPending} onClick={() => mutate()}>
               {isPending ? "Deploying…" : "Deploy"}
             </Button>
             <Button variant="outline" onClick={onBack}>

@@ -275,6 +275,12 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ memoryLimitMb }),
     }),
+  updateApplicationImage: (id: string, repoUrl: string) =>
+    request<ApiApplication>(`/api/applications/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ repoUrl }),
+    }),
   deleteApplication: (id: string) => request<ApiApplication>(`/api/applications/${id}`, { method: "DELETE" }),
   createDomain: (applicationId: string, host: string, port: number) =>
     request<ApiDomain>("/api/domains", {

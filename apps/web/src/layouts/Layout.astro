@@ -1,6 +1,7 @@
 ---
 import "@/styles/global.css";
 import { ClientRouter } from "astro:transitions";
+import { ChartLineUp, Cpu, FolderSimple, Gear, Users as UsersIcon } from "@phosphor-icons/react/ssr";
 import { UserMenu } from "@/components/UserMenu";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -35,42 +36,47 @@ const isSettingsActive = Astro.url.pathname.startsWith("/settings");
         <nav class="flex items-center gap-1 md:flex-1 md:flex-col md:items-stretch md:gap-0.5 md:px-2 md:py-4">
           <a
             href="/"
-            class={`px-3 py-1.5 text-xs font-medium transition-colors ${
+            class={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-colors ${
               isProjectsActive ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
             }`}
           >
+            <FolderSimple size={16} />
             Projects
           </a>
           <a
             href="/traffic"
-            class={`px-3 py-1.5 text-xs font-medium transition-colors ${
+            class={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-colors ${
               isTrafficActive ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
             }`}
           >
+            <ChartLineUp size={16} />
             Traffic
           </a>
           <a
             href="/system"
-            class={`px-3 py-1.5 text-xs font-medium transition-colors ${
+            class={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-colors ${
               isSystemActive ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
             }`}
           >
+            <Cpu size={16} />
             System
           </a>
           <a
             href="/users"
-            class={`px-3 py-1.5 text-xs font-medium transition-colors ${
+            class={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-colors ${
               isUsersActive ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
             }`}
           >
+            <UsersIcon size={16} />
             Users
           </a>
           <a
             href="/settings"
-            class={`px-3 py-1.5 text-xs font-medium transition-colors ${
+            class={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-colors ${
               isSettingsActive ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
             }`}
           >
+            <Gear size={16} />
             Settings
           </a>
         </nav>

@@ -200,7 +200,12 @@ function resolveCountry(ip: string): string | null {
   const cached = countryCache.get(ip);
   if (cached !== undefined) return cached;
   if (countryCache.size >= COUNTRY_CACHE_LIMIT) countryCache.clear();
-  const country = geoip.lookup(ip)?.country ?? null;
+  let country: string | null = null;
+  try {
+    country = geoip.lookup(ip)?.country ?? null;
+  } catch {
+    country = null;
+  }
   countryCache.set(ip, country);
   return country;
 }
