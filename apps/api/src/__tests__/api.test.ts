@@ -103,7 +103,7 @@ describe("Projects", () => {
     projectId = body.id;
   });
 
-  it("GET /api/projects lists only this user's projects", async () => {
+  it("GET /api/projects lists it", async () => {
     const res = await app.request("/api/projects", authed());
     expect(res.status).toBe(200);
     const body = await res.json();

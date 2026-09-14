@@ -1,5 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { desc, eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { StatusCodes } from "http-status-codes";
@@ -15,7 +15,6 @@ app.use("*", requireAuth);
 
 app.get("/", zValidator("query", paginationQuery), async (c) => {
   const pagination = c.req.valid("query");
-  const where = eq(schema.project.ownerId, c.get("user").id);
   const [items, total] = await Promise.all([
     db
       .select({
@@ -28,12 +27,11 @@ app.get("/", zValidator("query", paginationQuery), async (c) => {
       })
       .from(schema.project)
       .leftJoin(schema.application, eq(schema.application.projectId, schema.project.id))
-      .where(where)
       .groupBy(schema.project.id)
       .orderBy(desc(schema.project.createdAt))
       .limit(pagination.pageSize)
       .offset(paginationOffset(pagination)),
-    db.$count(schema.project, where),
+    db.$count(schema.project),
   ]);
   return c.json({ items, total });
 });
@@ -49,7 +47,7 @@ app.post("/", zValidator("json", apiCreateProject), async (c) => {
 
 app.get("/:id", async (c) => {
   const project = await db.query.project.findFirst({
-    where: and(eq(schema.project.id, c.req.param("id")), eq(schema.project.ownerId, c.get("user").id)),
+    where: eq(schema.project.id, c.req.param("id")),
   });
   if (!project) throw new HTTPException(StatusCodes.NOT_FOUND, { message: "Project not found" });
   return c.json(project);
@@ -60,7 +58,7 @@ app.patch("/:id", zValidator("json", apiUpdateProject), async (c) => {
   const [updated] = await db
     .update(schema.project)
     .set({ ...data, updatedAt: new Date() })
-    .where(and(eq(schema.project.id, c.req.param("id")), eq(schema.project.ownerId, c.get("user").id)))
+    .where(eq(schema.project.id, c.req.param("id")))
     .returning();
   if (!updated) throw new HTTPException(StatusCodes.NOT_FOUND, { message: "Project not found" });
   return c.json(updated);
@@ -69,13 +67,9 @@ app.patch("/:id", zValidator("json", apiUpdateProject), async (c) => {
 app.delete("/:id", async (c) => {
   const id = c.req.param("id");
   const apps = await db.query.application.findMany({ where: eq(schema.application.projectId, id) });
-  // By deterministic name, not deployment.containerId — see the same note in applications.ts's delete route.
   await Promise.all(apps.map((a) => removeExisting(`kuberfy-${a.id}`)));
 
-  const [deleted] = await db
-    .delete(schema.project)
-    .where(and(eq(schema.project.id, id), eq(schema.project.ownerId, c.get("user").id)))
-    .returning();
+  const [deleted] = await db.delete(schema.project).where(eq(schema.project.id, id)).returning();
   if (!deleted) throw new HTTPException(StatusCodes.NOT_FOUND, { message: "Project not found" });
   return c.json(deleted);
 });
@@ -83,9 +77,7 @@ app.delete("/:id", async (c) => {
 app.get("/:id/applications", zValidator("query", paginationQuery), async (c) => {
   const id = c.req.param("id");
   const pagination = c.req.valid("query");
-  const project = await db.query.project.findFirst({
-    where: and(eq(schema.project.id, id), eq(schema.project.ownerId, c.get("user").id)),
-  });
+  const project = await db.query.project.findFirst({ where: eq(schema.project.id, id) });
   if (!project) throw new HTTPException(StatusCodes.NOT_FOUND, { message: "Project not found" });
 
   const where = eq(schema.application.projectId, id);
