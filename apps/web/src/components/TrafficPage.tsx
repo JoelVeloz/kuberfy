@@ -18,6 +18,12 @@ function statusColor(status: number) {
   return "text-muted-foreground";
 }
 
+function countryFlag(code: string | null) {
+  if (!code) return "—";
+  const points = [...code.toUpperCase()].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65);
+  return `${String.fromCodePoint(...points)} ${code}`;
+}
+
 function formatSize(bytes: number | null) {
   if (bytes === null) return "—";
   if (bytes < 1024) return `${bytes} B`;
@@ -43,6 +49,7 @@ const eventColumns = [
 const ipColumnHelper = createColumnHelper<ApiTrafficIp>();
 const ipColumns = [
   ipColumnHelper.accessor("clientIp", { header: "Client IP", meta: { className: "font-mono" } }),
+  ipColumnHelper.accessor("country", { header: "Country", meta: { className: "whitespace-nowrap" }, cell: (info) => countryFlag(info.getValue()) }),
   ipColumnHelper.accessor("count", { header: "Requests" }),
   ipColumnHelper.accessor("good", { header: "2xx/3xx", meta: { className: "text-success" } }),
   ipColumnHelper.accessor("warning", {
@@ -76,6 +83,16 @@ const RANGES = {
 } as const;
 type Range = keyof typeof RANGES;
 
+function StatusTotal({ label, value, dotClassName }: { label: string; value: number; dotClassName: string }) {
+  return (
+    <span className="flex items-center gap-1.5 text-xs">
+      <span className={`size-1.5 rounded-full ${dotClassName}`} />
+      <span className="font-mono tabular-nums text-foreground">{value.toLocaleString()}</span>
+      <span className="text-muted-foreground">{label}</span>
+    </span>
+  );
+}
+
 function TrafficChart({ counts, range }: { counts: Array<{ bucketStart: number; good: number; warning: number; critical: number }>; range: Range }) {
   const dayGranularity = range === "7d" || range === "30d";
   const formatLabel = (t: number) =>
@@ -87,13 +104,23 @@ function TrafficChart({ counts, range }: { counts: Array<{ bucketStart: number; 
     <ChartContainer config={chartConfig} className="aspect-auto h-72 w-full">
       <BarChart data={counts} barCategoryGap={4}>
         <CartesianGrid vertical={false} />
-        <XAxis dataKey="bucketStart" tickFormatter={formatLabel} tickLine={false} axisLine={false} tickMargin={8} interval={0} angle={-45} textAnchor="end" height={50} />
-        <YAxis tickLine={false} axisLine={false} width={28} allowDecimals={false} />
+        <XAxis
+          dataKey="bucketStart"
+          tickFormatter={formatLabel}
+          tickLine={false}
+          axisLine={{ stroke: "var(--border)" }}
+          tickMargin={8}
+          interval={0}
+          angle={-45}
+          textAnchor="end"
+          height={50}
+        />
+        <YAxis tickLine={false} axisLine={false} width={28} allowDecimals={false} domain={[0, "auto"]} />
         <ChartTooltip content={<ChartTooltipContent labelFormatter={(_, payload) => formatLabel(Number(payload[0]?.payload.bucketStart ?? 0))} />} />
         <ChartLegend content={<ChartLegendContent />} />
-        <Bar dataKey="good" stackId="status" fill="var(--color-good)" radius={4} maxBarSize={24} />
-        <Bar dataKey="warning" stackId="status" fill="var(--color-warning)" radius={4} maxBarSize={24} />
-        <Bar dataKey="critical" stackId="status" fill="var(--color-critical)" radius={4} maxBarSize={24} />
+        <Bar dataKey="good" stackId="status" fill="var(--color-good)" maxBarSize={24} />
+        <Bar dataKey="warning" stackId="status" fill="var(--color-warning)" maxBarSize={24} />
+        <Bar dataKey="critical" stackId="status" fill="var(--color-critical)" radius={[3, 3, 0, 0]} maxBarSize={24} />
       </BarChart>
     </ChartContainer>
   );
@@ -109,8 +136,6 @@ function TrafficPageInner() {
   const [connected, setConnected] = React.useState(false);
   const [wsError, setWsError] = React.useState<string | null>(null);
 
-  // Reset to page 1 (the live view) whenever the filters change — an old page number from a different
-  // range/host wouldn't mean anything under the new one.
   React.useEffect(() => setPage(1), [range, hostFilter]);
   React.useEffect(() => setIpsPage(1), [range, hostFilter]);
 
@@ -135,10 +160,6 @@ function TrafficPageInner() {
     refetchInterval: 30_000,
   });
 
-  // Live tail: page 1 is "now", so a fresh request there should show up without waiting for the next poll —
-  // debounced so a burst of requests triggers one refetch, not one per request. The socket connects once and
-  // stays open across filter changes, so it reads these through refs rather than closing over stale query
-  // objects from whichever render happened to be active when it opened.
   const pageRef = React.useRef(page);
   pageRef.current = page;
   const eventsRefetchRef = React.useRef(eventsQuery.refetch);
@@ -170,36 +191,55 @@ function TrafficPageInner() {
   const total = eventsQuery.data?.total ?? 0;
   const loading = eventsQuery.isPending;
 
+  const totals = React.useMemo(
+    () =>
+      (summary.data?.counts ?? []).reduce((acc, c) => ({ good: acc.good + c.good, warning: acc.warning + c.warning, critical: acc.critical + c.critical }), {
+        good: 0,
+        warning: 0,
+        critical: 0,
+      }),
+    [summary.data],
+  );
+
   return (
     <div>
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <select
-            value={range}
-            onChange={(e) => setRange(e.target.value as Range)}
-            className="rounded-md border border-border bg-background px-2 py-1 text-xs"
-            aria-label="Time range"
-          >
-            {Object.entries(RANGES).map(([key, r]) => (
-              <option key={key} value={key}>
-                {r.label}
-              </option>
-            ))}
-          </select>
-          {hosts.length > 0 && (
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
             <select
-              value={hostFilter}
-              onChange={(e) => setHostFilter(e.target.value)}
+              value={range}
+              onChange={(e) => setRange(e.target.value as Range)}
               className="rounded-md border border-border bg-background px-2 py-1 text-xs"
-              aria-label="Filter by domain"
+              aria-label="Time range"
             >
-              <option value="all">All domains</option>
-              {hosts.map((h) => (
-                <option key={h.host} value={h.host}>
-                  {h.service ? `${h.host} (${h.service})` : h.host}
+              {Object.entries(RANGES).map(([key, r]) => (
+                <option key={key} value={key}>
+                  {r.label}
                 </option>
               ))}
             </select>
+            {hosts.length > 0 && (
+              <select
+                value={hostFilter}
+                onChange={(e) => setHostFilter(e.target.value)}
+                className="rounded-md border border-border bg-background px-2 py-1 text-xs"
+                aria-label="Filter by domain"
+              >
+                <option value="all">All domains</option>
+                {hosts.map((h) => (
+                  <option key={h.host} value={h.host}>
+                    {h.service ? `${h.host} (${h.service})` : h.host}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+          {total > 0 && (
+            <div className="flex items-center gap-3 rounded-md border border-border px-2.5 py-1">
+              <StatusTotal label="2xx/3xx" value={totals.good} dotClassName="bg-success" />
+              <StatusTotal label="4xx" value={totals.warning} dotClassName="bg-amber-500" />
+              <StatusTotal label="5xx" value={totals.critical} dotClassName="bg-destructive" />
+            </div>
           )}
         </div>
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -210,9 +250,7 @@ function TrafficPageInner() {
 
       {wsError && <p className="mb-3 text-xs text-destructive">{wsError}</p>}
 
-      {!loading && total === 0 && !wsError && (
-        <p className="text-xs text-muted-foreground">No requests in this range yet — traffic to any deployed app's domain will show up here.</p>
-      )}
+      {!loading && total === 0 && !wsError && <p className="text-xs text-muted-foreground">No requests in this range yet.</p>}
 
       {(total > 0 || loading) && !wsError && (
         <>
@@ -283,9 +321,6 @@ function TrafficPageInner() {
   );
 }
 
-// Client island: real-time traffic view — a live tail on page 1 (short-debounced refetch on new requests), a
-// paginated browse of history on any other page. Same {page, pageSize, total} pagination contract as every
-// other table in the app.
 export function TrafficPage() {
   return (
     <QueryProvider>

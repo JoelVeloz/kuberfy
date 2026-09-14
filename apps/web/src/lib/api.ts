@@ -110,6 +110,7 @@ export interface ApiTrafficSummary {
 
 export interface ApiTrafficIp {
   clientIp: string;
+  country: string | null;
   count: number;
   good: number;
   warning: number;
@@ -187,7 +188,7 @@ export interface ApiMarketplaceTemplate {
   envVars: ApiMarketplaceTemplateEnvVar[];
   tags: string[];
   volumes: string[];
-  category: "application" | "database";
+  category: "application" | "database" | "boilerplate";
 }
 
 export class UnauthorizedError extends Error {}

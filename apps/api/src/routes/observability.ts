@@ -1,5 +1,6 @@
 import { PassThrough } from "node:stream";
 import { zValidator } from "@hono/zod-validator";
+import geoip from "geoip-lite";
 import { Hono } from "hono";
 import { upgradeWebSocket } from "hono/bun";
 import { and, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
@@ -192,6 +193,18 @@ observability.get("/traffic/hosts", async (c) => {
   return c.json({ hosts });
 });
 
+const COUNTRY_CACHE_LIMIT = 5_000;
+const countryCache = new Map<string, string | null>();
+
+function resolveCountry(ip: string): string | null {
+  const cached = countryCache.get(ip);
+  if (cached !== undefined) return cached;
+  if (countryCache.size >= COUNTRY_CACHE_LIMIT) countryCache.clear();
+  const country = geoip.lookup(ip)?.country ?? null;
+  countryCache.set(ip, country);
+  return country;
+}
+
 // Table data: distinct client IPs in the range, ranked by request count — same {page, pageSize, total}
 // pagination contract as /traffic/events, so it reuses the same TablePagination on the frontend.
 observability.get("/traffic/ips", zValidator("query", paginationQuery), async (c) => {
@@ -228,6 +241,7 @@ observability.get("/traffic/ips", zValidator("query", paginationQuery), async (c
 
   const items = rows.map((r) => ({
     clientIp: r.clientIp ?? "Unknown",
+    country: r.clientIp ? resolveCountry(r.clientIp) : null,
     count: r.count,
     good: r.good,
     warning: r.warning,
