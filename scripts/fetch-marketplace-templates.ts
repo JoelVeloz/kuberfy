@@ -72,7 +72,7 @@ const MANUAL_TEMPLATES: Template[] = [
     description: "The world's most advanced open source relational database.",
     source: "official",
     sourceUrl: "https://hub.docker.com/_/postgres",
-    logo: null,
+    logo: "https://cdn.simpleicons.org/postgresql/4169E1",
     image: "postgres:17-alpine",
     port: 5432,
     envVars: [
@@ -90,7 +90,7 @@ const MANUAL_TEMPLATES: Template[] = [
     description: "The world's most popular open source relational database.",
     source: "official",
     sourceUrl: "https://hub.docker.com/_/mysql",
-    logo: null,
+    logo: "https://cdn.simpleicons.org/mysql/4479A1",
     image: "mysql:9",
     port: 3306,
     envVars: [
@@ -109,7 +109,7 @@ const MANUAL_TEMPLATES: Template[] = [
     description: "Community-developed, MySQL-compatible relational database.",
     source: "official",
     sourceUrl: "https://hub.docker.com/_/mariadb",
-    logo: null,
+    logo: "https://cdn.simpleicons.org/mariadb/003545",
     image: "mariadb:11",
     port: 3306,
     envVars: [
@@ -128,7 +128,7 @@ const MANUAL_TEMPLATES: Template[] = [
     description: "General-purpose, document-based, distributed NoSQL database.",
     source: "official",
     sourceUrl: "https://hub.docker.com/_/mongo",
-    logo: null,
+    logo: "https://cdn.simpleicons.org/mongodb/47A248",
     image: "mongo:8",
     port: 27017,
     envVars: [
@@ -145,7 +145,7 @@ const MANUAL_TEMPLATES: Template[] = [
     description: "In-memory key-value store used as a database, cache, and message broker.",
     source: "official",
     sourceUrl: "https://hub.docker.com/r/bitnami/redis",
-    logo: null,
+    logo: "https://cdn.simpleicons.org/redis/FF4438",
     image: "bitnami/redis:latest",
     port: 6379,
     // the official redis/redis image only takes --requirepass as a launch argument, which our deploy
@@ -155,6 +155,31 @@ const MANUAL_TEMPLATES: Template[] = [
     tags: ["database", "cache", "key-value"],
     volumes: ["/bitnami/redis/data"],
     category: "database",
+  },
+];
+
+// Easypanel's Dockerizer (dockerizer.easypanel.io) lists 34 framework/language "boilerplate" stacks
+// (Next.js, Django, Laravel, Go, etc.), but each one is a generator that produces a Dockerfile you build
+// from your own source — there is no public image that runs any of them standalone. Verified empirically
+// (docker run --rm, no command, no source) rather than assumed: node:24-alpine, oven/bun, denoland/deno,
+// golang:1.24-alpine, python:3.13-alpine and ruby:3.4-alpine all exit immediately (code 0, no logs — their
+// default CMD is a REPL/shell that hits EOF with no tty attached); php:8.4-apache stays up but serves an
+// empty webroot (403, no index file). Of the 34, only "Static Site" has a real single-container image that
+// serves actual content with zero source code: nginx's own baked-in default page.
+const BOILERPLATE_TEMPLATES: Template[] = [
+  {
+    id: "static-site",
+    name: "Static Site",
+    description: "Nginx serving its own default page — a starting point for a prebuilt HTML/CSS/JS site.",
+    source: "official",
+    sourceUrl: "https://hub.docker.com/_/nginx",
+    logo: "https://cdn.simpleicons.org/nginx/009639",
+    image: "nginx:alpine",
+    port: 80,
+    envVars: [],
+    tags: ["boilerplate", "static", "html", "nginx"],
+    volumes: [],
+    category: "boilerplate",
   },
 ];
 
@@ -172,7 +197,7 @@ type Template = {
   envVars: EnvVarSpec[];
   tags: string[];
   volumes: string[];
-  category: "application" | "database";
+  category: "application" | "database" | "boilerplate";
 };
 
 type SkipReason = { id: string; reason: string };
@@ -344,7 +369,7 @@ async function tryCoolify(id: string): Promise<Template | SkipReason> {
 }
 
 async function main() {
-  const templates: Template[] = [...MANUAL_TEMPLATES];
+  const templates: Template[] = [...MANUAL_TEMPLATES, ...BOILERPLATE_TEMPLATES];
   const skipped: SkipReason[] = [];
 
   for (const id of CANDIDATES) {

@@ -368,7 +368,7 @@
     "description": "Community-developed, MySQL-compatible relational database.",
     "source": "official",
     "sourceUrl": "https://hub.docker.com/_/mariadb",
-    "logo": null,
+    "logo": "https://cdn.simpleicons.org/mariadb/003545",
     "image": "mariadb:11",
     "port": 3306,
     "envVars": [
@@ -478,7 +478,7 @@
     "description": "General-purpose, document-based, distributed NoSQL database.",
     "source": "official",
     "sourceUrl": "https://hub.docker.com/_/mongo",
-    "logo": null,
+    "logo": "https://cdn.simpleicons.org/mongodb/47A248",
     "image": "mongo:8",
     "port": 27017,
     "envVars": [
@@ -503,7 +503,7 @@
     "description": "The world's most popular open source relational database.",
     "source": "official",
     "sourceUrl": "https://hub.docker.com/_/mysql",
-    "logo": null,
+    "logo": "https://cdn.simpleicons.org/mysql/4479A1",
     "image": "mysql:9",
     "port": 3306,
     "envVars": [
@@ -637,7 +637,7 @@
     "description": "The world's most advanced open source relational database.",
     "source": "official",
     "sourceUrl": "https://hub.docker.com/_/postgres",
-    "logo": null,
+    "logo": "https://cdn.simpleicons.org/postgresql/4169E1",
     "image": "postgres:17-alpine",
     "port": 5432,
     "envVars": [
@@ -681,7 +681,7 @@
     "description": "In-memory key-value store used as a database, cache, and message broker.",
     "source": "official",
     "sourceUrl": "https://hub.docker.com/r/bitnami/redis",
-    "logo": null,
+    "logo": "https://cdn.simpleicons.org/redis/FF4438",
     "image": "bitnami/redis:latest",
     "port": 6379,
     "envVars": [
@@ -729,6 +729,20 @@
     "tags": ["monitoring", "network", "speedtest"],
     "volumes": ["/config"],
     "category": "application"
+  },
+  {
+    "id": "static-site",
+    "name": "Static Site",
+    "description": "Nginx serving its own default page — a starting point for a prebuilt HTML/CSS/JS site.",
+    "source": "official",
+    "sourceUrl": "https://hub.docker.com/_/nginx",
+    "logo": "https://cdn.simpleicons.org/nginx/009639",
+    "image": "nginx:alpine",
+    "port": 80,
+    "envVars": [],
+    "tags": ["boilerplate", "static", "html", "nginx"],
+    "volumes": [],
+    "category": "boilerplate"
   },
   {
     "id": "stirling-pdf",

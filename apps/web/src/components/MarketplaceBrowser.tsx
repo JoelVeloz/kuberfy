@@ -1,4 +1,5 @@
 import * as React from "react";
+import { ArrowClockwise, Eye, EyeSlash } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,10 +12,11 @@ import { api, UnauthorizedError, type ApiMarketplaceTemplate } from "@/lib/api";
 import { getQueryParam } from "@/lib/query-params";
 import { toastError } from "@/lib/toast";
 
-// Generates an editable default for secret-looking env vars (passwords, keys) — never sent anywhere,
-// just a reasonable starting value so "Deploy" works without the user having to invent one first.
+const ALPHANUMERIC = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
 function generateSecret() {
-  return crypto.randomUUID().replace(/-/g, "").slice(0, 20);
+  const bytes = crypto.getRandomValues(new Uint8Array(20));
+  return Array.from(bytes, (b) => ALPHANUMERIC[b % ALPHANUMERIC.length]).join("");
 }
 
 function TemplateCard({ template, onSelect }: { template: ApiMarketplaceTemplate; onSelect: () => void }) {
@@ -39,6 +41,7 @@ function ConfigureTemplate({ template, projId, onBack }: { template: ApiMarketpl
   const [envValues, setEnvValues] = React.useState<Record<string, string>>(() =>
     Object.fromEntries(template.envVars.map((v) => [v.key, v.secret ? generateSecret() : (v.default ?? "")])),
   );
+  const [revealed, setRevealed] = React.useState<Record<string, boolean>>({});
   const queryClient = useQueryClient();
   const { mutate, isPending } = useMutation({
     mutationFn: async () => {
@@ -94,12 +97,37 @@ function ConfigureTemplate({ template, projId, onBack }: { template: ApiMarketpl
                   <Label htmlFor={`tpl-env-${v.key}`} className="font-mono text-xs font-normal text-muted-foreground">
                     {v.key}
                   </Label>
-                  <Input
-                    id={`tpl-env-${v.key}`}
-                    type={v.secret ? "password" : "text"}
-                    value={envValues[v.key]}
-                    onChange={(e) => setEnvValues((prev) => ({ ...prev, [v.key]: e.target.value }))}
-                  />
+                  {v.secret ? (
+                    <div className="flex gap-2">
+                      <Input
+                        id={`tpl-env-${v.key}`}
+                        className="flex-1 font-mono"
+                        type={revealed[v.key] ? "text" : "password"}
+                        value={envValues[v.key]}
+                        onChange={(e) => setEnvValues((prev) => ({ ...prev, [v.key]: e.target.value }))}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label={revealed[v.key] ? `Hide ${v.key}` : `Reveal ${v.key}`}
+                        onClick={() => setRevealed((prev) => ({ ...prev, [v.key]: !prev[v.key] }))}
+                      >
+                        {revealed[v.key] ? <EyeSlash /> : <Eye />}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        aria-label={`Generate ${v.key}`}
+                        onClick={() => setEnvValues((prev) => ({ ...prev, [v.key]: generateSecret() }))}
+                      >
+                        <ArrowClockwise />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Input id={`tpl-env-${v.key}`} value={envValues[v.key]} onChange={(e) => setEnvValues((prev) => ({ ...prev, [v.key]: e.target.value }))} />
+                  )}
                 </div>
               ))}
             </div>
@@ -142,6 +170,7 @@ function MarketplaceBrowserInner() {
   });
   const databases = filtered.filter((t) => t.category === "database");
   const applications = filtered.filter((t) => t.category === "application");
+  const boilerplates = filtered.filter((t) => t.category === "boilerplate");
 
   return (
     <>
@@ -158,7 +187,7 @@ function MarketplaceBrowserInner() {
       </div>
 
       <h1 className="font-heading text-lg font-medium">Marketplace</h1>
-      <p className="mt-1 text-xs text-muted-foreground">One-click templates for popular self-hosted apps — a single container each, no extra services required.</p>
+      <p className="mt-1 text-xs text-muted-foreground">One-click templates for popular self-hosted apps.</p>
 
       <Input placeholder="Search templates…" value={search} onChange={(e) => setSearch(e.target.value)} className="mt-6 max-w-sm" />
 
@@ -187,6 +216,16 @@ function MarketplaceBrowserInner() {
               <h2 className="text-sm font-medium">Applications</h2>
               <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {applications.map((t) => (
+                  <TemplateCard key={t.id} template={t} onSelect={() => setSelected(t)} />
+                ))}
+              </div>
+            </div>
+          )}
+          {boilerplates.length > 0 && (
+            <div className="mt-6">
+              <h2 className="text-sm font-medium">Boilerplate Templates</h2>
+              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {boilerplates.map((t) => (
                   <TemplateCard key={t.id} template={t} onSelect={() => setSelected(t)} />
                 ))}
               </div>
