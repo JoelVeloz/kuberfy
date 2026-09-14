@@ -183,7 +183,11 @@ export interface ApiMarketplaceTemplate {
   source: "dokploy" | "coolify" | "official";
   sourceUrl: string;
   logo: string | null;
-  image: string;
+  // exactly one of image (buildType "image") or repoUrl+branch+dockerfilePath (buildType "dockerfile") is set
+  image: string | null;
+  repoUrl?: string;
+  branch?: string;
+  dockerfilePath?: string;
   port: number | null;
   envVars: ApiMarketplaceTemplateEnvVar[];
   tags: string[];
@@ -254,6 +258,7 @@ export const api = {
     repoUrl: string;
     branch: string;
     buildType: BuildType;
+    dockerfilePath?: string;
     envVars?: string;
     registryUsername?: string;
     registryPassword?: string;
@@ -275,11 +280,11 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ memoryLimitMb }),
     }),
-  updateApplicationImage: (id: string, repoUrl: string) =>
+  updateApplicationImage: (id: string, input: { repoUrl: string; registryUsername?: string | null; registryPassword?: string | null }) =>
     request<ApiApplication>(`/api/applications/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ repoUrl }),
+      body: JSON.stringify(input),
     }),
   deleteApplication: (id: string) => request<ApiApplication>(`/api/applications/${id}`, { method: "DELETE" }),
   createDomain: (applicationId: string, host: string, port: number) =>

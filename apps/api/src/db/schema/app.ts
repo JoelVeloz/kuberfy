@@ -96,7 +96,15 @@ export const apiCreateApplication = z.object({
   registryPassword: z.string().min(1).optional(),
 });
 
-export const apiUpdateApplication = apiCreateApplication.omit({ projectId: true }).partial();
+// registryUsername/registryPassword go nullable here (not on create, where absent already means "no credentials")
+// so the edit flow can send an explicit null to clear stored credentials when switching an app back to public.
+export const apiUpdateApplication = apiCreateApplication
+  .omit({ projectId: true })
+  .partial()
+  .extend({
+    registryUsername: z.string().min(1).nullable().optional(),
+    registryPassword: z.string().min(1).nullable().optional(),
+  });
 
 // ---------------------------------------------------------------------------
 // deployment
