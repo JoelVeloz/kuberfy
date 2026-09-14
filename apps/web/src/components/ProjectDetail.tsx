@@ -1,8 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
+import * as React from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createColumnHelper } from "@tanstack/react-table";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
+import { TablePagination } from "@/components/ui/table-pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryProvider } from "@/components/QueryProvider";
 import { EditProjectDialog } from "@/components/EditProjectDialog";
@@ -10,6 +12,8 @@ import { NewApplicationDialog } from "@/components/NewApplicationDialog";
 import { DeploymentStatusBadge } from "@/components/DeploymentStatusBadge";
 import { api, UnauthorizedError, NotFoundError, type ApiApplicationWithStatus, type ApiProject } from "@/lib/api";
 import { getQueryParam } from "@/lib/query-params";
+
+const PAGE_SIZE = 20;
 
 type AppRow = ApiApplicationWithStatus;
 
@@ -37,9 +41,8 @@ async function fetchProject(id: string): Promise<ApiProject> {
   return project;
 }
 
-async function fetchApps(id: string): Promise<AppRow[]> {
-  const { items } = await api.listProjectApplications(id);
-  return items;
+async function fetchApps(id: string, page: number): Promise<{ items: AppRow[]; total: number }> {
+  return api.listProjectApplications(id, page, PAGE_SIZE);
 }
 
 // Client island: the real project id only exists at request time, so it's read from the URL and fetched here
@@ -53,8 +56,9 @@ export function ProjectDetail() {
 
 function ProjectDetailInner() {
   const id = getQueryParam("id");
+  const [page, setPage] = React.useState(1);
   const project = useQuery({ queryKey: ["project", id], queryFn: () => fetchProject(id) });
-  const apps = useQuery({ queryKey: ["project", id, "apps"], queryFn: () => fetchApps(id) });
+  const apps = useQuery({ queryKey: ["project", id, "apps", page], queryFn: () => fetchApps(id, page), placeholderData: keepPreviousData });
 
   if (project.isPending) {
     return (
@@ -115,11 +119,12 @@ function ProjectDetailInner() {
               <Skeleton className="h-8 w-full" />
               <Skeleton className="h-8 w-full" />
             </div>
-          ) : !apps.data || apps.data.length === 0 ? (
+          ) : !apps.data || apps.data.items.length === 0 ? (
             <p className="px-4 py-6 text-xs text-muted-foreground">This project has no applications yet.</p>
           ) : (
-            <DataTable columns={columns} data={apps.data} getRowId={(app) => app.id} rowClassName={() => "relative cursor-pointer"} />
+            <DataTable columns={columns} data={apps.data.items} getRowId={(app) => app.id} rowClassName={() => "relative cursor-pointer"} />
           )}
+          {apps.data && apps.data.items.length > 0 && <TablePagination page={page} pageSize={PAGE_SIZE} total={apps.data.total} onPageChange={setPage} />}
         </CardContent>
       </Card>
     </>
