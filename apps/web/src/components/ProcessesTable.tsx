@@ -49,9 +49,6 @@ const columns = [
   }),
 ];
 
-// Client island, kept separate from SystemPage: it needs its own live-WebSocket tick (same pattern as
-// SystemPage's stats socket), but only ever cares about the latest sample — folding hundreds of processes
-// into SystemPage's rolling chart-history buffer would bloat it for no benefit.
 export function ProcessesTable() {
   const [message, setMessage] = React.useState<ProcessesMessage | null>(null);
   const [connected, setConnected] = React.useState(false);
@@ -86,7 +83,7 @@ export function ProcessesTable() {
           onSortingChange={setSorting}
           fixedLayout
           stickyHeader
-          emptyMessage="No process data — is /host/proc mounted?"
+          emptyMessage="No process data. Check that /host/proc is mounted."
         />
       </CardContent>
     </Card>

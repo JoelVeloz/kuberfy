@@ -39,8 +39,7 @@ export function DeleteApplicationDialog({ applicationId, applicationName, projec
         <DialogHeader>
           <DialogTitle>Delete application</DialogTitle>
           <DialogDescription>
-            This stops and removes the running container and deletes all deployments and domains for <span className="font-mono">{applicationName}</span>. This cannot be
-            undone.
+            Deletes the container, deployments, and domains for <span className="font-mono">{applicationName}</span>. This cannot be undone.
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-1.5">

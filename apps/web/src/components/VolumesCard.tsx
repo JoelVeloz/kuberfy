@@ -9,7 +9,6 @@ import { toast } from "sonner";
 import { api, type ApiVolume } from "@/lib/api";
 import { toastError } from "@/lib/toast";
 
-// Rendered next to the "Volumes" heading — kept separate from VolumesCard so the trigger sits by the section title
 export function AddVolumeDialog({ applicationId }: { applicationId: string }) {
   const [open, setOpen] = React.useState(false);
   const [mountPath, setMountPath] = React.useState("");
@@ -38,7 +37,7 @@ export function AddVolumeDialog({ applicationId }: { applicationId: string }) {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add volume</DialogTitle>
-          <DialogDescription>Keeps data at this path even after redeploys, restarts, or a stopped container. Kuberfy manages the storage — no setup needed.</DialogDescription>
+          <DialogDescription>Persists data across redeploys and restarts.</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="volume-mount-path" className="text-xs font-medium">
@@ -70,7 +69,7 @@ export function VolumesCard({ applicationId, volumes }: { applicationId: string;
     onError: (err) => toastError(err, "Failed to delete volume."),
   });
 
-  if (volumes.length === 0) return <p className="text-xs text-muted-foreground">No volumes configured. Data written inside the container is lost on every redeploy.</p>;
+  if (volumes.length === 0) return <p className="text-xs text-muted-foreground">No volumes. Container data is lost on redeploy.</p>;
 
   return (
     <ul className="flex flex-col gap-2">

@@ -10,7 +10,6 @@ import { toast } from "sonner";
 import { api, type ApiDomain } from "@/lib/api";
 import { toastError } from "@/lib/toast";
 
-// Rendered next to the "Domains" heading — kept separate from DomainsCard so the trigger sits by the section title
 export function AddDomainDialog({ applicationId }: { applicationId: string }) {
   const [open, setOpen] = React.useState(false);
   const [host, setHost] = React.useState("");
@@ -59,7 +58,7 @@ export function AddDomainDialog({ applicationId }: { applicationId: string }) {
                 <Sparkle /> {suggest.isPending ? "Generating…" : "Generate"}
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">Generates a public domain — HTTPS included, no DNS setup needed.</p>
+            <p className="text-xs text-muted-foreground">Generates a free public domain with HTTPS.</p>
           </div>
           <div className="flex flex-col gap-1.5">
             <label htmlFor="domain-port" className="text-xs font-medium">
@@ -217,9 +216,7 @@ function DomainRow({
                 <Switch checked={isLocalhostHost ? false : sslEnabled} disabled={isLocalhostHost} onCheckedChange={setSslEnabled} />
               </label>
               <p className="text-xs text-muted-foreground">
-                {isLocalhostHost
-                  ? "`.localhost` domains never leave this machine, so they can't get a real SSL certificate."
-                  : "Provisioned automatically on first request — no action needed once enabled."}
+                {isLocalhostHost ? "`.localhost` domains can't get SSL." : "Provisioned automatically."}
               </p>
               <DialogFooter>
                 <DialogClose asChild>

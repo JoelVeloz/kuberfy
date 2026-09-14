@@ -12,9 +12,6 @@ function formatBytes(bytes: number) {
   return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb.toFixed(0)} MB`;
 }
 
-// Reclaims disk space taken up by images no longer used by any container (e.g. an app's old image after a
-// redeploy, or one pulled once from the marketplace and never deployed) plus the Dockerfile build cache —
-// the two things that actually accumulate on a long-running instance. Never touches an image a running app needs.
 export function PruneDockerButton() {
   const [open, setOpen] = React.useState(false);
   const [pending, setPending] = React.useState(false);
@@ -42,10 +39,7 @@ export function PruneDockerButton() {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Clean up unused Docker images</DialogTitle>
-          <DialogDescription>
-            Removes every image not currently used by a running app or by kuberfy itself, plus the Dockerfile build cache — the usual reason disk usage creeps up over time.
-            Nothing running is affected.
-          </DialogDescription>
+          <DialogDescription>Removes unused images and the build cache. Nothing running is affected.</DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <DialogClose asChild>

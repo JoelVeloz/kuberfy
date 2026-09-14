@@ -9,7 +9,7 @@ import { PruneDockerButton } from "@/components/PruneDockerButton";
   <div class="flex items-center justify-between gap-4">
     <div>
       <h1 class="font-heading text-lg font-medium">System</h1>
-      <p class="mt-1 text-xs text-muted-foreground">Host resource usage and a summary of every application's current footprint.</p>
+      <p class="mt-1 text-xs text-muted-foreground">Host resource usage and per-app footprint.</p>
     </div>
     <PruneDockerButton client:load />
   </div>
@@ -19,7 +19,7 @@ import { PruneDockerButton } from "@/components/PruneDockerButton";
 
   <div class="mt-6">
     <h2 class="font-heading text-sm font-medium">Processes</h2>
-    <p class="mt-1 text-xs text-muted-foreground">Every process on the host — click a column to sort by it.</p>
+    <p class="mt-1 text-xs text-muted-foreground">Every process on the host. Click a column to sort.</p>
     <div class="mt-3">
       <ProcessesTable client:load />
     </div>

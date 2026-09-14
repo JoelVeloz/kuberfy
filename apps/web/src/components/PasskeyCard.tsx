@@ -21,7 +21,6 @@ export function PasskeyCard() {
 
 function PasskeyCardInner() {
   const queryClient = useQueryClient();
-  // Shares the "settings" cache key with SettingsForm/ExposedPortsCard (same QueryProvider singleton).
   const settings = useQuery({ queryKey: ["settings"], queryFn: api.getSettings });
   const passkeys = useQuery({
     queryKey: ["passkeys"],
@@ -91,7 +90,7 @@ function PasskeyCardInner() {
         </div>
 
         {list.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No passkeys registered yet — add one below to turn this on.</p>
+          <p className="text-xs text-muted-foreground">No passkeys yet. Add one to turn this on.</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {list.map((passkey) => (

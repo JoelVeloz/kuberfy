@@ -66,7 +66,7 @@ function NewUserDialog() {
           <>
             <DialogHeader>
               <DialogTitle>User created</DialogTitle>
-              <DialogDescription>Copy this password now — it won't be shown again.</DialogDescription>
+              <DialogDescription>Copy this password now. It won't be shown again.</DialogDescription>
             </DialogHeader>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium">Email</label>
@@ -210,7 +210,7 @@ function UsersPageInner() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="font-heading text-lg font-medium">Users</h1>
-          <p className="mt-1 text-xs text-muted-foreground">Accounts are created here only — there's no public sign-up.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Accounts are created here only. No public sign-up.</p>
         </div>
         {isAdmin && <NewUserDialog />}
       </div>

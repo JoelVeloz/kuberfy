@@ -37,7 +37,7 @@ function SettingsFormInner() {
     mutationFn: () => api.updateSettings(domain.trim()),
     onSuccess: (data) => {
       if (data.liveUpdateError) toast.warning(data.liveUpdateError);
-      else toast.success("The domain is live — kuberfy is now reachable at this address.");
+      else toast.success("Domain is live.");
       queryClient.invalidateQueries({ queryKey: ["settings"] });
     },
     onError: (err) => toastError(err, "Failed to save settings."),
@@ -65,9 +65,7 @@ function SettingsFormInner() {
               <Sparkle /> {suggest.isPending ? "Generating…" : "Generate"}
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">
-            The domain this kuberfy dashboard itself is reached at. "Generate" gives you a free one with HTTPS, no DNS setup needed.
-          </p>
+          <p className="text-xs text-muted-foreground">Domain for this dashboard. Generate creates a free one with HTTPS.</p>
         </div>
 
         {query.data.serverIp && (
@@ -87,7 +85,7 @@ function SettingsFormInner() {
                 <Copy />
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">This server's public IP, detected at install time — useful if you installed without a domain.</p>
+            <p className="text-xs text-muted-foreground">Public IP detected at install time.</p>
           </div>
         )}
 

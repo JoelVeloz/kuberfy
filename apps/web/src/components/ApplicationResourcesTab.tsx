@@ -7,7 +7,6 @@ import { api, type ApiApplicationDetail } from "@/lib/api";
 import { toastError } from "@/lib/toast";
 import { toast } from "sonner";
 
-// The hard memory cap enforced on the container (Docker HostConfig.Memory).
 export function ResourcesContent({ app }: { app: ApiApplicationDetail }) {
   const [memoryLimitMb, setMemoryLimitMb] = React.useState(String(app.memoryLimitMb));
   const queryClient = useQueryClient();
@@ -33,7 +32,7 @@ export function ResourcesContent({ app }: { app: ApiApplicationDetail }) {
               Memory limit (MB)
             </label>
             <Input id="memory-limit" type="number" min={1} step={1} value={memoryLimitMb} onChange={(e) => setMemoryLimitMb(e.target.value)} />
-            <p className="text-xs text-muted-foreground">Hard cap enforced on the container. Applied on the next deploy or restart.</p>
+            <p className="text-xs text-muted-foreground">Applied on next deploy or restart.</p>
           </div>
           <Button className="mt-3" size="sm" disabled={!isValid || parsed === app.memoryLimitMb || save.isPending} onClick={() => save.mutate(parsed)}>
             {save.isPending ? "Saving…" : "Save"}

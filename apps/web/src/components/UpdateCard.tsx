@@ -45,8 +45,6 @@ function UpdateCardInner() {
       await api.updateKuberfy();
       setConfirmOpen(false);
       setRestarting(true);
-      // The service restart itself (stop-first) kills this very request's connection a moment after it succeeds —
-      // give it a head start before polling, then keep retrying until the new container answers again.
       setTimeout(pollUntilBack, 3000);
     } catch (err) {
       toastError(err, "Failed to start the update.");
@@ -67,7 +65,7 @@ function UpdateCardInner() {
         <CardContent className="flex flex-col items-center gap-2 py-8 text-center">
           <ArrowsClockwise className="animate-spin text-2xl text-muted-foreground" />
           <p className="text-sm font-medium">Kuberfy is restarting…</p>
-          <p className="text-xs text-muted-foreground">This page will reload automatically once it's back — deployed apps are not affected.</p>
+          <p className="text-xs text-muted-foreground">Reloads automatically. Deployed apps aren't affected.</p>
         </CardContent>
       </Card>
     );
@@ -86,7 +84,7 @@ function UpdateCardInner() {
             {state === "checking" && "Checking for the latest version…"}
             {state === "up-to-date" && "You're running the latest published image."}
             {state === "available" && "Pulls the latest image and restarts kuberfy's own service."}
-            {state === "unknown" && "Couldn't check for updates — run `kuberfy update` on the host instead."}
+            {state === "unknown" && "Couldn't check for updates. Run `kuberfy update` on the host."}
           </p>
         </div>
 
@@ -100,10 +98,7 @@ function UpdateCardInner() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Update kuberfy?</DialogTitle>
-                <DialogDescription>
-                  Pulls the latest image and restarts kuberfy's own Swarm service. The dashboard will be briefly unreachable (a few seconds) while it restarts — deployed apps
-                  keep running.
-                </DialogDescription>
+                <DialogDescription>Restarts kuberfy's service. Briefly unreachable for a few seconds; deployed apps keep running.</DialogDescription>
               </DialogHeader>
               <DialogFooter>
                 <DialogClose asChild>

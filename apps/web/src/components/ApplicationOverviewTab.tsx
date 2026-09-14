@@ -6,7 +6,6 @@ import { ApplicationStatsChart } from "@/components/ApplicationStatsChart";
 import type { ApplicationTab } from "@/components/ApplicationShell";
 import type { ApiApplicationDetail } from "@/lib/api";
 
-// The application's landing tab — a quick summary with links into the other tabs, rather than repeating their full content here.
 export function OverviewContent({ app, onSelectTab }: { app: ApiApplicationDetail; onSelectTab: (tab: ApplicationTab) => void }) {
   const latest = app.deployments[0];
 
@@ -47,7 +46,7 @@ export function OverviewContent({ app, onSelectTab }: { app: ApiApplicationDetai
                   </a>
                 </div>
               ) : (
-                <p className="text-xs text-muted-foreground">No deployments yet — hit Deploy to build and run this application for the first time.</p>
+                <p className="text-xs text-muted-foreground">No deployments yet. Hit Deploy to run this app.</p>
               )}
             </CardContent>
           </Card>
