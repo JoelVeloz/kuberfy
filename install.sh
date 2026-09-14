@@ -7,6 +7,7 @@
 set -e
 
 if [ -t 1 ] || [ -e /dev/tty ]; then
+  IS_TTY=1
   BOLD="\033[1m"
   CYAN="\033[36m"
   GREEN="\033[32m"
@@ -14,6 +15,7 @@ if [ -t 1 ] || [ -e /dev/tty ]; then
   RED="\033[31m"
   NC="\033[0m"
 else
+  IS_TTY=0
   BOLD=""
   CYAN=""
   GREEN=""
@@ -45,6 +47,26 @@ success() {
 
 warn() {
   printf "${YELLOW}${BOLD}⚠ %s${NC}\n" "$1"
+}
+
+run_with_elapsed() {
+  msg="$1"; shift
+  log="$(mktemp)"
+  "$@" >"$log" 2>&1 &
+  pid=$!
+  start=$(date +%s)
+  while kill -0 "$pid" 2>/dev/null; do
+    if [ "$IS_TTY" = "1" ]; then
+      printf "\r${CYAN}➜ %s (%ss)${NC}" "$msg" "$(($(date +%s) - start))"
+    fi
+    sleep 1
+  done
+  wait "$pid"
+  status=$?
+  [ "$IS_TTY" = "1" ] && printf "\r\033[K"
+  [ $status -ne 0 ] && cat "$log" >&2
+  rm -f "$log"
+  return $status
 }
 
 printf "${BOLD}${CYAN}"
@@ -202,11 +224,9 @@ if [ -n "$KUBERFY_REPO" ]; then
   if [ ! -d /opt/kuberfy/src ]; then
     git clone "$KUBERFY_REPO" /opt/kuberfy/src
   fi
-  info "Building Kuberfy image from $KUBERFY_REPO..."
-  docker build -t "$KUBERFY_IMAGE" /opt/kuberfy/src
+  run_with_elapsed "Building Kuberfy image from $KUBERFY_REPO..." docker build -t "$KUBERFY_IMAGE" /opt/kuberfy/src
 else
-  info "Pulling remote image: $KUBERFY_IMAGE..."
-  docker pull "$KUBERFY_IMAGE" >/dev/null
+  run_with_elapsed "Pulling remote image: $KUBERFY_IMAGE..." docker pull "$KUBERFY_IMAGE"
 fi
 
 AUTH_SECRET=$(openssl rand -hex 32)
