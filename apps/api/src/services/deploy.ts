@@ -1,7 +1,7 @@
 import { EventEmitter } from "node:events";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import Docker from "dockerode";
 import { and, eq, inArray } from "drizzle-orm";
 import simpleGit from "simple-git";
@@ -270,8 +270,13 @@ async function buildFromGit(app: typeof application.$inferSelect, imageTag: stri
     log(`Cloning ${app.repoUrl} (${app.branch})`);
     await simpleGit().clone(app.repoUrl, dir, ["--depth", "1", "--branch", app.branch]);
 
+    // dockerfilePath is relative to the repo root and may sit inside a subdirectory (e.g. a monorepo example) —
+    // the build context follows it there so the Dockerfile's own COPY paths (relative to its own directory) resolve.
+    const dockerfilePath = app.dockerfilePath ?? "Dockerfile";
+    const context = join(dir, dirname(dockerfilePath));
+
     log(`Building ${imageTag}`);
-    const stream = await docker.buildImage({ context: dir, src: ["."] }, { t: imageTag, dockerfile: app.dockerfilePath ?? "Dockerfile" });
+    const stream = await docker.buildImage({ context, src: ["."] }, { t: imageTag, dockerfile: basename(dockerfilePath) });
     await new Promise<void>((resolve, reject) => {
       docker.modem.followProgress(
         stream,
