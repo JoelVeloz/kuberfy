@@ -66,7 +66,14 @@ export async function reconcileInterruptedDeployments() {
 const STALE_BUILDING_MS = 3 * 60 * 1000;
 
 export async function reconcileDeploymentStatuses() {
-  const rows = await db.query.deployment.findMany({ where: (fields, { inArray }) => inArray(fields.status, ["failed", "building", "running"]) });
+  // Only ever the latest deployment per application — never a historical row. deploy() guarantees at most one
+  // "running" row per app by stopping any other before setting a new one; touching older rows here (a bug that
+  // shipped earlier tonight) breaks that guarantee; e.g. two old rows with no containerId both fall back to the
+  // same deterministic service name below and can both get flipped to "running" at once.
+  const apps = await db.query.application.findMany();
+  const rows = (await Promise.all(apps.map((a) => latestDeployment(a.id)))).filter(
+    (d): d is NonNullable<typeof d> => d !== undefined && ["failed", "building", "running"].includes(d.status),
+  );
   for (const dep of rows) {
     if (dep.status === "building" && Date.now() - dep.updatedAt.getTime() < STALE_BUILDING_MS) continue;
 
@@ -183,6 +190,12 @@ async function deploy(app: typeof application.$inferSelect, deploymentId: string
   // while before declaring victory, instead of trusting `createService` alone. A single check after a fixed
   // 1.5s wasn't enough for a cold image pull: the task is often still "preparing" (extracting layers) at that
   // point even though it goes on to start fine seconds later, producing a false "failed" status.
+  // TODO: 30s is still a fixed guess, not per-image — a genuinely slow-booting app can outlive it and get
+  // marked "failed" even though it was going to come up fine. Confirmed for real, not assumed, against these
+  // marketplace templates under normal (non-overloaded) conditions: stirling-pdf (Java + LibreOffice + Xvfb),
+  // pocket-id. Worth becoming adaptive (e.g. keep polling as long as the task state is still progressing —
+  // "preparing"/"starting" — instead of a hard wall-clock cutoff) rather than raising the fixed number, which
+  // would just move the same problem to a different, still-arbitrary, slow app.
   const deployTimeoutAt = Date.now() + 30_000;
   let task: Awaited<ReturnType<typeof docker.listTasks>>[number] | undefined;
   do {

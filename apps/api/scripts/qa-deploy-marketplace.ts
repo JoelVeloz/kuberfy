@@ -10,6 +10,15 @@ const ALPHANUMERIC = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012345
 const generateSecret = () =>
   Array.from(crypto.getRandomValues(new Uint8Array(20)), (b) => ALPHANUMERIC[b % ALPHANUMERIC.length]).join("");
 
+// Required (no default) non-secret vars can't be left blank — plenty of images refuse to start on an empty
+// string (flatnotes: "FLATNOTES_USERNAME must be set"). A real user fills these in on the marketplace form;
+// this script needs some value of its own, guessed from the key's shape since there's no per-template hint.
+function fillRequiredValue(key: string): string {
+  if (/DOMAIN|URL/i.test(key)) return "http://localhost";
+  if (/EMAIL/i.test(key)) return "qa@kuberfy.test";
+  return "kuberfy-qa";
+}
+
 const owner = await db.query.users.findFirst();
 if (!owner) {
   console.error("No user exists to own the QA project. Create one first with `bun run user:create`.");
@@ -36,7 +45,7 @@ for (const t of templates) {
   }
 
   const isDockerfile = t.image == null;
-  const envVars = Object.fromEntries(t.envVars.map((v) => [v.key, v.secret ? generateSecret() : (v.default ?? "")]));
+  const envVars = Object.fromEntries(t.envVars.map((v) => [v.key, v.secret ? generateSecret() : (v.default ?? fillRequiredValue(v.key))]));
 
   const [app] = await db
     .insert(application)

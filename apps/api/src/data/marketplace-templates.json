@@ -47,7 +47,7 @@
   {
     "id": "alist",
     "name": "AList",
-    "description": "ðŸ—‚ï¸A file list/WebDAV program that supports multiple storages, powered by Gin and Solidjs.",
+    "description": "\u00f0\u0178\u2014\u201a\u00ef\u00b8\u008fA file list/WebDAV program that supports multiple storages, powered by Gin and Solidjs.",
     "source": "dokploy",
     "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/alist",
     "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/alist/alist.svg",
@@ -226,7 +226,7 @@
   {
     "id": "apache-http",
     "name": "Apache HTTP",
-    "description": "The Apache HTTP Server serving its default \"It works!\" page — a starting point for static or CGI-based sites.",
+    "description": "The Apache HTTP Server serving its default \"It works!\" page \u2014 a starting point for static or CGI-based sites.",
     "source": "official",
     "sourceUrl": "https://hub.docker.com/_/httpd",
     "logo": "https://cdn.simpleicons.org/apache/D22128",
@@ -484,70 +484,6 @@
     "category": "application"
   },
   {
-    "id": "convertx",
-    "name": "ConvertX",
-    "description": "ConvertX is a service for converting media files, with optional user registration and file management features.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/convertx",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/convertx/logo.png",
-    "image": "ghcr.io/c4illin/convertx",
-    "port": 3000,
-    "envVars": [
-      {
-        "key": "JWT_SECRET",
-        "default": null,
-        "secret": true
-      },
-      {
-        "key": "ACCOUNT_REGISTRATION",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "HTTP_ALLOWED",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "ALLOW_UNAUTHENTICATED",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "AUTO_DELETE_EVERY_N_HOURS",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "WEBROOT",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "FFMPEG_ARGS",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "HIDE_HISTORY",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "LANGUAGE",
-        "default": null,
-        "secret": false
-      }
-    ],
-    "tags": [
-      "media",
-      "converter",
-      "ffmpeg"
-    ],
-    "volumes": [],
-    "category": "application"
-  },
-  {
     "id": "crawl4ai",
     "name": "Crawl4AI",
     "description": "Crawl4AI is a modern AI-powered web crawler with support for screenshots, PDFs, JavaScript execution, and LLM-based extraction. Includes an interactive playground and MCP (Model Context Protocol) integration.",
@@ -624,54 +560,6 @@
       "data-analysis"
     ],
     "volumes": [],
-    "category": "application"
-  },
-  {
-    "id": "dagu",
-    "name": "Dagu",
-    "description": "Dagu is a self-contained workflow engine with a Web UI. Schedule and orchestrate jobs as DAGs defined in declarative YAML, with no DBMS required.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/dagu",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/dagu/logo.png",
-    "image": "ghcr.io/dagucloud/dagu:2.10.7",
-    "port": 8080,
-    "envVars": [
-      {
-        "key": "DAGU_HOST",
-        "default": "0.0.0.0",
-        "secret": false
-      },
-      {
-        "key": "DAGU_PORT",
-        "default": "8080",
-        "secret": false
-      },
-      {
-        "key": "DAGU_AUTH_MODE",
-        "default": "basic",
-        "secret": false
-      },
-      {
-        "key": "DAGU_AUTH_BASIC_USERNAME",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "DAGU_AUTH_BASIC_PASSWORD",
-        "default": null,
-        "secret": true
-      }
-    ],
-    "tags": [
-      "workflow",
-      "automation",
-      "scheduler",
-      "cron",
-      "devops"
-    ],
-    "volumes": [
-      "/var/lib/dagu"
-    ],
     "category": "application"
   },
   {
@@ -814,57 +702,6 @@
     "category": "application"
   },
   {
-    "id": "duplicati",
-    "name": "Duplicati",
-    "description": "Duplicati is a free, open-source backup solution that offers zero-trust, fully encrypted backups for your data",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/duplicati",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/duplicati/logo.png",
-    "image": "lscr.io/linuxserver/duplicati:2.3.0",
-    "port": 8200,
-    "envVars": [
-      {
-        "key": "PUID",
-        "default": "0",
-        "secret": false
-      },
-      {
-        "key": "PGID",
-        "default": "0",
-        "secret": false
-      },
-      {
-        "key": "TZ",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "SETTINGS_ENCRYPTION_KEY",
-        "default": null,
-        "secret": true
-      },
-      {
-        "key": "DUPLICATI__WEBSERVICE_PASSWORD",
-        "default": null,
-        "secret": true
-      },
-      {
-        "key": "DUPLICATI__WEBSERVICE_ALLOWED_HOSTNAMES",
-        "default": "*",
-        "secret": false
-      }
-    ],
-    "tags": [
-      "backup",
-      "self-hosted",
-      "simple"
-    ],
-    "volumes": [
-      "/config"
-    ],
-    "category": "application"
-  },
-  {
     "id": "excalidraw",
     "name": "Excalidraw",
     "description": "Excalidraw is a free and open source online diagramming tool that lets you easily create and share beautiful diagrams.",
@@ -883,7 +720,7 @@
   {
     "id": "fastapi",
     "name": "FastAPI (Python)",
-    "description": "A production-ready FastAPI starter with Uvicorn and Gunicorn — serves a JSON hello-world endpoint, ready for your own API.",
+    "description": "A production-ready FastAPI starter with Uvicorn and Gunicorn \u2014 serves a JSON hello-world endpoint, ready for your own API.",
     "source": "official",
     "sourceUrl": "https://hub.docker.com/r/tiangolo/uvicorn-gunicorn-fastapi",
     "logo": "https://cdn.simpleicons.org/fastapi/009688",
@@ -927,49 +764,9 @@
     "category": "application"
   },
   {
-    "id": "filegator",
-    "name": "FileGator",
-    "description": "FileGator is a simple self-hosted web file manager with multi-user support.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/filegator",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/filegator/filegator.svg",
-    "image": "filegator/filegator:v7.14.3",
-    "port": 8080,
-    "envVars": [],
-    "tags": [
-      "files",
-      "file-manager",
-      "self-hosted"
-    ],
-    "volumes": [
-      "/var/www/filegator/repository",
-      "/var/www/filegator/private"
-    ],
-    "category": "application"
-  },
-  {
-    "id": "flaresolverr",
-    "name": "FlareSolverr",
-    "description": "FlareSolverr is a proxy server to bypass Cloudflare and DDoS-GUARD protection.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/flaresolverr",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/flaresolverr/logo.png",
-    "image": "ghcr.io/flaresolverr/flaresolverr:latest",
-    "port": 8191,
-    "envVars": [],
-    "tags": [
-      "proxy",
-      "cloudflare",
-      "bypass",
-      "ddos-guard"
-    ],
-    "volumes": [],
-    "category": "application"
-  },
-  {
     "id": "flask",
     "name": "Flask (Python)",
-    "description": "A production-ready Flask starter with uWSGI and Nginx — serves a hello-world page, ready to replace with your own app.",
+    "description": "A production-ready Flask starter with uWSGI and Nginx \u2014 serves a hello-world page, ready to replace with your own app.",
     "source": "official",
     "sourceUrl": "https://hub.docker.com/r/tiangolo/uwsgi-nginx-flask",
     "logo": "https://cdn.simpleicons.org/flask/000000",
@@ -984,98 +781,6 @@
     ],
     "volumes": [],
     "category": "boilerplate"
-  },
-  {
-    "id": "flatnotes",
-    "name": "Flatnotes",
-    "description": "A self-hosted, modern note-taking web app that saves your notes as plain text Markdown files.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/flatnotes",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/flatnotes/image.png",
-    "image": "dullage/flatnotes:latest",
-    "port": 8080,
-    "envVars": [
-      {
-        "key": "PUID",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "PGID",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "FLATNOTES_AUTH_TYPE",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "FLATNOTES_USERNAME",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "FLATNOTES_PASSWORD",
-        "default": null,
-        "secret": true
-      },
-      {
-        "key": "FLATNOTES_SECRET_KEY",
-        "default": null,
-        "secret": true
-      },
-      {
-        "key": "FLATNOTES_SESSION_EXPIRY_DAYS",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "FLATNOTES_TOTP_KEY",
-        "default": null,
-        "secret": true
-      },
-      {
-        "key": "FLATNOTES_PATH_PREFIX",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "FLATNOTES_QUICK_ACCESS_HIDE",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "FLATNOTES_QUICK_ACCESS_TITLE",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "FLATNOTES_QUICK_ACCESS_TERM",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "FLATNOTES_QUICK_ACCESS_SORT",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "FLATNOTES_QUICK_ACCESS_LIMIT",
-        "default": null,
-        "secret": false
-      }
-    ],
-    "tags": [
-      "notes",
-      "productivity",
-      "markdown",
-      "self-hosted"
-    ],
-    "volumes": [
-      "/data"
-    ],
-    "category": "application"
   },
   {
     "id": "fmd-server",
@@ -1180,25 +885,6 @@
     "category": "application"
   },
   {
-    "id": "garage",
-    "name": "Garage S3",
-    "description": "Garage is an open-source distributed object storage service tailored for self-hosting.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/garage",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/garage/garage.svg",
-    "image": "dxflrs/garage:v2.0.0",
-    "port": 3900,
-    "envVars": [],
-    "tags": [
-      "storage",
-      "object-storage"
-    ],
-    "volumes": [
-      "/var/lib/garage"
-    ],
-    "category": "application"
-  },
-  {
     "id": "gitea",
     "name": "Gitea",
     "description": "Gitea is a self-hosted, lightweight Git service, offering version control, collaboration, and code hosting.",
@@ -1232,36 +918,6 @@
     "category": "application"
   },
   {
-    "id": "gotenberg",
-    "name": "Gotenberg",
-    "description": "Gotenberg is a Docker-powered stateless API for PDF files.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/gotenberg",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/gotenberg/gotenberg.png",
-    "image": "gotenberg/gotenberg:latest",
-    "port": 3000,
-    "envVars": [
-      {
-        "key": "GOTENBERG_API_BASIC_AUTH_USERNAME",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "GOTENBERG_API_BASIC_AUTH_PASSWORD",
-        "default": null,
-        "secret": true
-      }
-    ],
-    "tags": [
-      "api",
-      "backend",
-      "pdf",
-      "tools"
-    ],
-    "volumes": [],
-    "category": "application"
-  },
-  {
     "id": "gotify",
     "name": "Gotify",
     "description": "Gotify is a simple server for sending and receiving self-hosted push notifications.",
@@ -1279,138 +935,6 @@
     "volumes": [
       "/app/data"
     ],
-    "category": "application"
-  },
-  {
-    "id": "grafana",
-    "name": "Grafana",
-    "description": "Grafana is an open source platform for data visualization and monitoring.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/grafana",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/grafana/grafana.svg",
-    "image": "grafana/grafana-enterprise:12.4",
-    "port": 3000,
-    "envVars": [],
-    "tags": [
-      "monitoring"
-    ],
-    "volumes": [
-      "/var/lib/grafana"
-    ],
-    "category": "application"
-  },
-  {
-    "id": "grocy",
-    "name": "Grocy",
-    "description": "Grocy is a web-based household management and grocery list application.",
-    "source": "coolify",
-    "sourceUrl": "https://github.com/coollabsio/coolify/blob/main/templates/compose/grocy.yaml",
-    "logo": "https://raw.githubusercontent.com/coollabsio/coolify/main/svgs/grocy.svg",
-    "image": "lscr.io/linuxserver/grocy:4.6.0",
-    "port": 80,
-    "envVars": [
-      {
-        "key": "PUID",
-        "default": "1000",
-        "secret": false
-      },
-      {
-        "key": "PGID",
-        "default": "1000",
-        "secret": false
-      },
-      {
-        "key": "TZ",
-        "default": "Europe/Madrid",
-        "secret": false
-      }
-    ],
-    "tags": [
-      "groceries",
-      "household",
-      "management",
-      "grocery",
-      "shopping"
-    ],
-    "volumes": [
-      "/config"
-    ],
-    "category": "application"
-  },
-  {
-    "id": "homarr",
-    "name": "Homarr",
-    "description": "A sleek, modern dashboard that puts all your apps and services in one place with Docker integration.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/homarr",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/homarr/homarr.png",
-    "image": "ghcr.io/homarr-labs/homarr:latest",
-    "port": 7575,
-    "envVars": [
-      {
-        "key": "SECRET_ENCRYPTION_KEY",
-        "default": null,
-        "secret": true
-      }
-    ],
-    "tags": [
-      "dashboard",
-      "monitoring"
-    ],
-    "volumes": [
-      "/appdata"
-    ],
-    "category": "application"
-  },
-  {
-    "id": "homebox",
-    "name": "Homebox",
-    "description": "Homebox is a self-hosted home inventory and organization app for tracking belongings, locations, and labels.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/homebox",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/homebox/homebox.svg",
-    "image": "ghcr.io/sysadminsmedia/homebox:latest",
-    "port": 7745,
-    "envVars": [
-      {
-        "key": "TZ",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "HBOX_AUTH_API_KEY_PEPPER",
-        "default": null,
-        "secret": false
-      }
-    ],
-    "tags": [
-      "inventory",
-      "home",
-      "organization",
-      "self-hosted"
-    ],
-    "volumes": [
-      "/data"
-    ],
-    "category": "application"
-  },
-  {
-    "id": "homepage",
-    "name": "Homepage",
-    "description": "Homepage is a highly customizable self-hosted application dashboard and startpage with service and widget integrations.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/homepage",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/homepage/homepage.png",
-    "image": "ghcr.io/gethomepage/homepage:v1.13.1",
-    "port": 3000,
-    "envVars": [],
-    "tags": [
-      "dashboard",
-      "startpage",
-      "self-hosted",
-      "productivity"
-    ],
-    "volumes": [],
     "category": "application"
   },
   {
@@ -1456,58 +980,6 @@
       "tools"
     ],
     "volumes": [],
-    "category": "application"
-  },
-  {
-    "id": "jellyfin",
-    "name": "Jellyfin",
-    "description": "Jellyfin is a Free Software Media System that puts you in control of managing and streaming your media. ",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/jellyfin",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/jellyfin/jellyfin.svg",
-    "image": "jellyfin/jellyfin:10",
-    "port": 8096,
-    "envVars": [
-      {
-        "key": "JELLYFIN_PublishedServerUrl",
-        "default": "http://${JELLYFIN_HOST}",
-        "secret": false
-      }
-    ],
-    "tags": [
-      "media-system"
-    ],
-    "volumes": [
-      "/config",
-      "/cache",
-      "/media"
-    ],
-    "category": "application"
-  },
-  {
-    "id": "jellyseerr",
-    "name": "Jellyseerr",
-    "description": "Jellyseerr is a media request and discovery manager for Jellyfin, Plex, and Emby users.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/jellyseerr",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/jellyseerr/jellyseerr.svg",
-    "image": "fallenbagel/jellyseerr:2.7.3",
-    "port": 5055,
-    "envVars": [
-      {
-        "key": "LOG_LEVEL",
-        "default": "info",
-        "secret": false
-      }
-    ],
-    "tags": [
-      "media",
-      "requests",
-      "jellyfin"
-    ],
-    "volumes": [
-      "/app/config"
-    ],
     "category": "application"
   },
   {
@@ -1560,91 +1032,6 @@
     "category": "application"
   },
   {
-    "id": "librespeed",
-    "name": "LibreSpeed",
-    "description": "LibreSpeed is a lightweight, self-hosted HTML5 speed test for measuring download, upload, ping, and jitter in modern browsers.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/librespeed",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/librespeed/librespeed.svg",
-    "image": "lscr.io/linuxserver/librespeed:latest",
-    "port": 80,
-    "envVars": [
-      {
-        "key": "PUID",
-        "default": "1000",
-        "secret": false
-      },
-      {
-        "key": "PGID",
-        "default": "1000",
-        "secret": false
-      },
-      {
-        "key": "TZ",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "PASSWORD",
-        "default": null,
-        "secret": true
-      },
-      {
-        "key": "CUSTOM_RESULTS",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "DB_TYPE",
-        "default": "sqlite",
-        "secret": false
-      }
-    ],
-    "tags": [
-      "speedtest",
-      "networking",
-      "monitoring",
-      "self-hosted"
-    ],
-    "volumes": [
-      "/config"
-    ],
-    "category": "application"
-  },
-  {
-    "id": "libretranslate",
-    "name": "LibreTranslate",
-    "description": "LibreTranslate is a free and open-source machine translation API, powered by Argos Translate. Self-hosted, no external dependencies, and supports multiple languages.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/libretranslate",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/libretranslate/libretranslate.svg",
-    "image": "libretranslate/libretranslate:latest",
-    "port": 5000,
-    "envVars": [
-      {
-        "key": "LT_API_KEYS",
-        "default": "true",
-        "secret": false
-      },
-      {
-        "key": "LT_API_KEYS_DB_PATH",
-        "default": "/app/db/api_keys.db",
-        "secret": false
-      }
-    ],
-    "tags": [
-      "translation",
-      "api",
-      "nlp",
-      "language"
-    ],
-    "volumes": [
-      "/home/libretranslate/.local",
-      "/app/db"
-    ],
-    "category": "application"
-  },
-  {
     "id": "linkding",
     "name": "Linkding",
     "description": "Linkding is a self-hosted bookmark manager with a clean and simple interface.",
@@ -1659,49 +1046,6 @@
       "self-hosted"
     ],
     "volumes": [],
-    "category": "application"
-  },
-  {
-    "id": "lubelogger",
-    "name": "LubeLogger",
-    "description": "LubeLogger is a self-hosted vehicle maintenance and fuel mileage tracker for managing service records, reminders, fuel logs, and vehicle expenses.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/lubelogger",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/lubelogger/lubelogger.png",
-    "image": "ghcr.io/hargata/lubelogger:v1.6.5",
-    "port": 8080,
-    "envVars": [
-      {
-        "key": "LC_ALL",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "LANG",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "LUBELOGGER_DOMAIN",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "EnableAuth",
-        "default": null,
-        "secret": false
-      }
-    ],
-    "tags": [
-      "vehicle",
-      "maintenance",
-      "fleet",
-      "self-hosted"
-    ],
-    "volumes": [
-      "/App/data",
-      "/root/.aspnet/DataProtection-Keys"
-    ],
     "category": "application"
   },
   {
@@ -1811,117 +1155,6 @@
     "category": "application"
   },
   {
-    "id": "mealie",
-    "name": "Mealie (sqlite version)",
-    "description": " Mealie is an intuitive and easy to use recipe management app. It's designed to make your life easier by being the best recipes management experience on the web and providing you with an easy to use interface to manage your growing collection of recipes. ",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/mealie",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/mealie/mealie.png",
-    "image": "ghcr.io/mealie-recipes/mealie:latest",
-    "port": 9000,
-    "envVars": [
-      {
-        "key": "PUID",
-        "default": "1000",
-        "secret": false
-      },
-      {
-        "key": "PGID",
-        "default": "1000",
-        "secret": false
-      },
-      {
-        "key": "BASE_URL",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "API_DOCS",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "ALLOW_SIGNUP",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "DEFAULT_GROUP",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "DEFAULT_HOUSEHOLD",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "TZ",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "SECURITY_MAX_LOGIN_ATTEMPTS",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "SECURITY_USER_LOCKOUT_TIME",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "DAILY_SCHEDULE_TIME",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "SMTP_HOST",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "SMTP_PORT",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "SMTP_AUTH_STRATEGY",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "SMTP_FROM_NAME",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "SMTP_FROM_EMAIL",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "SMTP_USER",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "SMTP_PASSWORD",
-        "default": null,
-        "secret": true
-      }
-    ],
-    "tags": [
-      "recipes",
-      "shopping-list",
-      "meal-planning"
-    ],
-    "volumes": [
-      "/app/data/"
-    ],
-    "category": "application"
-  },
-  {
     "id": "meilisearch",
     "name": "Meilisearch",
     "description": "Meilisearch is a free and open-source search engine that allows you to easily add search functionality to your web applications.",
@@ -1977,58 +1210,6 @@
     "category": "application"
   },
   {
-    "id": "metube",
-    "name": "MeTube",
-    "description": "MeTube is a web-based YouTube downloader that allows downloading videos and audio using yt-dlp.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/metube",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/metube/logo.png",
-    "image": "ghcr.io/alexta69/metube",
-    "port": 8081,
-    "envVars": [],
-    "tags": [
-      "downloader",
-      "youtube",
-      "media"
-    ],
-    "volumes": [],
-    "category": "application"
-  },
-  {
-    "id": "minio",
-    "name": "Minio",
-    "description": "MinIO is an open source object storage server compatible with Amazon S3 cloud storage service. This template uses pgsty/minio, the actively maintained community fork, because MinIO Inc. stopped publishing Docker images in October 2025 and archived the upstream open source project in February 2026.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/minio",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/minio/minio.png",
-    "image": "pgsty/minio:RELEASE.2026-06-18T00-00-00Z",
-    "port": 9001,
-    "envVars": [
-      {
-        "key": "MINIO_ROOT_USER",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "MINIO_ROOT_PASSWORD",
-        "default": null,
-        "secret": true
-      },
-      {
-        "key": "MINIO_BROWSER_REDIRECT_URL",
-        "default": null,
-        "secret": false
-      }
-    ],
-    "tags": [
-      "storage"
-    ],
-    "volumes": [
-      "/data"
-    ],
-    "category": "application"
-  },
-  {
     "id": "mongodb",
     "name": "MongoDB",
     "description": "General-purpose, document-based, distributed NoSQL database.",
@@ -2058,24 +1239,6 @@
       "/data/db"
     ],
     "category": "database"
-  },
-  {
-    "id": "morphos",
-    "name": "Morphos",
-    "description": "Morphos is a lightweight service for distributed operations and orchestration.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/morphos",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/morphos/image.png",
-    "image": "ghcr.io/danvergara/morphos-server:latest",
-    "port": 8080,
-    "envVars": [],
-    "tags": [
-      "server",
-      "orchestration",
-      "lightweight"
-    ],
-    "volumes": [],
-    "category": "application"
   },
   {
     "id": "mysql",
@@ -2213,32 +1376,9 @@
     "category": "application"
   },
   {
-    "id": "nextjs",
-    "name": "Next.js",
-    "description": "Vercel's own official Docker example — builds from source with the App Router and Next.js's standalone output mode.",
-    "source": "official",
-    "sourceUrl": "https://github.com/vercel/next.js/tree/canary/examples/with-docker",
-    "logo": "https://cdn.simpleicons.org/nextdotjs/000000",
-    "image": null,
-    "repoUrl": "https://github.com/vercel/next.js",
-    "branch": "canary",
-    "dockerfilePath": "examples/with-docker/Dockerfile",
-    "port": 3000,
-    "envVars": [],
-    "tags": [
-      "boilerplate",
-      "nextjs",
-      "react",
-      "javascript",
-      "frontend"
-    ],
-    "volumes": [],
-    "category": "boilerplate"
-  },
-  {
     "id": "node-express",
     "name": "Node.js (Express)",
-    "description": "A minimal Express.js hello-world app — serves a welcome page on port 8080, ready to extend with your own routes.",
+    "description": "A minimal Express.js hello-world app \u2014 serves a welcome page on port 8080, ready to extend with your own routes.",
     "source": "official",
     "sourceUrl": "https://hub.docker.com/r/kornkitti/express-hello-world",
     "logo": "https://cdn.simpleicons.org/nodedotjs/5FA04E",
@@ -2254,29 +1394,6 @@
     ],
     "volumes": [],
     "category": "boilerplate"
-  },
-  {
-    "id": "ntfy",
-    "name": "NTFY",
-    "description": "ntfy lets you send push notifications to your phone or desktop via scripts from any computer, using simple HTTP PUT or POST requests.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/ntfy",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/ntfy/logo.png",
-    "image": "binwiederhier/ntfy",
-    "port": 80,
-    "envVars": [],
-    "tags": [
-      "alerting",
-      "alerts",
-      "api",
-      "notifications",
-      "self-hosted"
-    ],
-    "volumes": [
-      "/var/lib/ntfy",
-      "/var/cache/ntfy"
-    ],
-    "category": "application"
   },
   {
     "id": "omni-tools",
@@ -2362,77 +1479,9 @@
     "category": "application"
   },
   {
-    "id": "pairdrop",
-    "name": "PairDrop",
-    "description": "PairDrop is a self-hosted local file sharing web app for sending files and text between nearby devices.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/pairdrop",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/pairdrop/pairdrop.svg",
-    "image": "lscr.io/linuxserver/pairdrop:latest",
-    "port": 3000,
-    "envVars": [
-      {
-        "key": "PUID",
-        "default": "1000",
-        "secret": false
-      },
-      {
-        "key": "PGID",
-        "default": "1000",
-        "secret": false
-      },
-      {
-        "key": "TZ",
-        "default": null,
-        "secret": false
-      }
-    ],
-    "tags": [
-      "file-sharing",
-      "p2p",
-      "web-app",
-      "self-hosted"
-    ],
-    "volumes": [
-      "/config"
-    ],
-    "category": "application"
-  },
-  {
-    "id": "palmr",
-    "name": "Palmr",
-    "description": "Palmr the open-source, self-hosted alternative to WeTransfer. Share files securely, without tracking or limitations.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/palmr",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/palmr/palmr.png",
-    "image": "kyantech/palmr:latest",
-    "port": 5487,
-    "envVars": [
-      {
-        "key": "ENABLE_S3",
-        "default": "false",
-        "secret": false
-      },
-      {
-        "key": "ENCRYPTION_KEY",
-        "default": null,
-        "secret": true
-      }
-    ],
-    "tags": [
-      "file-sharing",
-      "self-hosted",
-      "open-source"
-    ],
-    "volumes": [
-      "/app/server"
-    ],
-    "category": "application"
-  },
-  {
     "id": "php",
     "name": "PHP",
-    "description": "PHP-FPM 8.4 with Nginx on Alpine — serves a phpinfo() page out of the box, ready to replace with your own PHP files.",
+    "description": "PHP-FPM 8.4 with Nginx on Alpine \u2014 serves a phpinfo() page out of the box, ready to replace with your own PHP files.",
     "source": "official",
     "sourceUrl": "https://hub.docker.com/r/trafex/php-nginx",
     "logo": "https://cdn.simpleicons.org/php/777BB4",
@@ -2447,43 +1496,6 @@
     ],
     "volumes": [],
     "category": "boilerplate"
-  },
-  {
-    "id": "pinchflat",
-    "name": "Pinchflat",
-    "description": "Pinchflat is a self-hosted YouTube downloader that allows you to download videos and playlists with a simple web interface.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/pinchflat",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/pinchflat/logo.png",
-    "image": "ghcr.io/kieraneglin/pinchflat:latest",
-    "port": 8945,
-    "envVars": [],
-    "tags": [
-      "youtube",
-      "downloader",
-      "media"
-    ],
-    "volumes": [],
-    "category": "application"
-  },
-  {
-    "id": "pocket-id",
-    "name": "Pocket ID",
-    "description": "A simple and easy-to-use OIDC provider that allows users to authenticate with their passkeys to your services.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/pocket-id",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/pocket-id/pocket-id.svg",
-    "image": "ghcr.io/pocket-id/pocket-id:v1",
-    "port": 1411,
-    "envVars": [],
-    "tags": [
-      "identity",
-      "auth"
-    ],
-    "volumes": [
-      "/app/data"
-    ],
-    "category": "application"
   },
   {
     "id": "pocketbase",
@@ -2583,48 +1595,6 @@
     "category": "application"
   },
   {
-    "id": "qbittorrent",
-    "name": "qBittorrent",
-    "description": "A free and open-source BitTorrent client with web interface for remote management. Default login: admin (check container logs for temporary password on first startup).",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/qbittorrent",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/qbittorrent/qbittorrent.svg",
-    "image": "lscr.io/linuxserver/qbittorrent:latest",
-    "port": 8080,
-    "envVars": [
-      {
-        "key": "PUID",
-        "default": "1000",
-        "secret": false
-      },
-      {
-        "key": "PGID",
-        "default": "1000",
-        "secret": false
-      },
-      {
-        "key": "WEBUI_PORT",
-        "default": "8080",
-        "secret": false
-      },
-      {
-        "key": "TORRENTING_PORT",
-        "default": "6881",
-        "secret": false
-      }
-    ],
-    "tags": [
-      "torrent",
-      "download",
-      "file-sharing"
-    ],
-    "volumes": [
-      "/config",
-      "/downloads"
-    ],
-    "category": "application"
-  },
-  {
     "id": "redis",
     "name": "Redis",
     "description": "In-memory key-value store used as a database, cache, and message broker.",
@@ -2649,23 +1619,6 @@
       "/bitnami/redis/data"
     ],
     "category": "database"
-  },
-  {
-    "id": "scrutiny",
-    "name": "Scrutiny",
-    "description": "Hard Drive S.M.A.R.T Monitoring, Historical Trends & Real World Failure Thresholds",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/scrutiny",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/scrutiny/scrutiny.png",
-    "image": "ghcr.io/analogj/scrutiny:v0.8.3-omnibus",
-    "port": 8080,
-    "envVars": [],
-    "tags": [
-      "monitoring",
-      "nas"
-    ],
-    "volumes": [],
-    "category": "application"
   },
   {
     "id": "shiori",
@@ -2788,7 +1741,7 @@
   {
     "id": "static-site",
     "name": "Static Site",
-    "description": "Nginx serving its own default page — a starting point for a prebuilt HTML/CSS/JS site.",
+    "description": "Nginx serving its own default page \u2014 a starting point for a prebuilt HTML/CSS/JS site.",
     "source": "official",
     "sourceUrl": "https://hub.docker.com/_/nginx",
     "logo": "https://cdn.simpleicons.org/nginx/009639",
@@ -2833,36 +1786,6 @@
     "category": "application"
   },
   {
-    "id": "stirling-pdf",
-    "name": "Stirling Pdf",
-    "description": "Stirling is a powerful web based PDF manipulation tool",
-    "source": "coolify",
-    "sourceUrl": "https://github.com/coollabsio/coolify/blob/main/templates/compose/stirling-pdf.yaml",
-    "logo": "https://raw.githubusercontent.com/coollabsio/coolify/main/svgs/stirling.png",
-    "image": "stirlingtools/stirling-pdf:latest",
-    "port": 8080,
-    "envVars": [
-      {
-        "key": "DOCKER_ENABLE_SECURITY",
-        "default": "false",
-        "secret": false
-      }
-    ],
-    "tags": [
-      "pdf",
-      "manipulation",
-      "web",
-      "tool"
-    ],
-    "volumes": [
-      "/usr/share/tesseract-ocr/5/tessdata",
-      "/configs",
-      "/customFiles/",
-      "/logs/"
-    ],
-    "category": "application"
-  },
-  {
     "id": "syncthing",
     "name": "Syncthing",
     "description": "Syncthing is a continuous file synchronization program that synchronizes files between two or more computers in real time.",
@@ -2897,24 +1820,6 @@
       "/config",
       "/var/syncthing/Sync"
     ],
-    "category": "application"
-  },
-  {
-    "id": "trilium",
-    "name": "Trilium",
-    "description": "Trilium Notes is a hierarchical note taking application with focus on building large personal knowledge bases.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/trilium",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/trilium/trilium.png",
-    "image": "zadam/trilium:latest",
-    "port": 8080,
-    "envVars": [],
-    "tags": [
-      "self-hosted",
-      "productivity",
-      "personal-use"
-    ],
-    "volumes": [],
     "category": "application"
   },
   {
@@ -2993,96 +1898,6 @@
     "volumes": [
       "/app/pb_data"
     ],
-    "category": "application"
-  },
-  {
-    "id": "vaultwarden",
-    "name": "Vaultwarden",
-    "description": "Unofficial Bitwarden compatible server written in Rust, formerly known as bitwarden_rs",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/vaultwarden",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/vaultwarden/vaultwarden.svg",
-    "image": "vaultwarden/server:1.36.0",
-    "port": 80,
-    "envVars": [
-      {
-        "key": "DOMAIN",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "SIGNUPS_ALLOWED",
-        "default": null,
-        "secret": false
-      }
-    ],
-    "tags": [
-      "open-source"
-    ],
-    "volumes": [
-      "/data"
-    ],
-    "category": "application"
-  },
-  {
-    "id": "wakapi",
-    "name": "Wakapi",
-    "description": "Wakapi is a self-hosted WakaTime-compatible backend for tracking coding activity and developer statistics.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/wakapi",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/wakapi/wakapi.svg",
-    "image": "ghcr.io/muety/wakapi:latest",
-    "port": 3000,
-    "envVars": [
-      {
-        "key": "WAKAPI_PASSWORD_SALT",
-        "default": null,
-        "secret": true
-      },
-      {
-        "key": "WAKAPI_DB_TYPE",
-        "default": "sqlite3",
-        "secret": false
-      },
-      {
-        "key": "WAKAPI_DB_NAME",
-        "default": "/data/wakapi.db",
-        "secret": false
-      },
-      {
-        "key": "WAKAPI_LISTEN_IPV4",
-        "default": "0.0.0.0",
-        "secret": false
-      }
-    ],
-    "tags": [
-      "developer-tools",
-      "analytics",
-      "wakatime",
-      "self-hosted"
-    ],
-    "volumes": [
-      "/data"
-    ],
-    "category": "application"
-  },
-  {
-    "id": "web-check",
-    "name": "Web-Check",
-    "description": "Web-Check is a powerful all-in-one website analyzer that provides detailed insights into any website's security, performance, and functionality.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/web-check",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/web-check/logo.png",
-    "image": "lissy93/web-check",
-    "port": 3000,
-    "envVars": [],
-    "tags": [
-      "website-analyzer",
-      "security",
-      "performance",
-      "seo"
-    ],
-    "volumes": [],
     "category": "application"
   },
   {

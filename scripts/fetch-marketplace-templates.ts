@@ -77,7 +77,6 @@ const CANDIDATES = [
   "duplicati",
   "etherpad",
   "ezbookkeeping",
-  "filegator",
   "filestash",
   "flaresolverr",
   "flatnotes",
@@ -111,7 +110,6 @@ const CANDIDATES = [
   "pairdrop",
   "palmr",
   "photoprism",
-  "pinchflat",
   "pocket-id",
   "qbittorrent",
   "rustdesk",
@@ -146,6 +144,20 @@ const CANDIDATES = [
 // ntfy was removed: its image's default command just prints CLI help and exits — it needs an explicit `serve`
 // argument to run as a server (confirmed empirically — the task cycles Complete/Rejected forever otherwise),
 // and docker.createService() in deploy.ts never sets a custom Command on the container spec.
+
+// filegator and pinchflat were removed TEMPORARILY (not the same permanent-limitation class as the above):
+// their images have no linux/arm64 build, which only breaks on an Apple Silicon test host like this one — a
+// real amd64 VPS (what install.sh actually targets) would likely pull them fine. Re-add once verified there,
+// or once each publishes a multi-arch image.
+//
+// TODO: the rest of these deployed successfully in earlier isolated runs but failed during a ~100-app
+// simultaneous stress test tonight (2026-09-14) — logs showed either the deploy never got far enough to pull
+// (host saturated, not a per-app issue) or deploy()'s fixed 30s task-readiness check giving up on a slow-but-
+// healthy boot. Re-verify under normal (one-at-a-time) load before assuming any of these are actually broken:
+// dagu, duplicati, flaresolverr, flatnotes, jellyfin, jellyseerr, librespeed, libretranslate, lubelogger,
+// metube, morphos, nextjs, pairdrop, pocket-id, scrutiny, stirling-pdf, web-check.
+// vaultwarden is a separate, known, permanent limitation: it refuses to start without a DOMAIN env var
+// containing its own public URL, which isn't knowable until after a domain is assigned post-deploy.
 
 // PostgreSQL, MySQL and MongoDB have no standalone single-container blueprint in either Dokploy/templates
 // or coollabsio/coolify — both platforms treat them as a first-class "database" resource type in their own
