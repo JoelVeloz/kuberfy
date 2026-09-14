@@ -39,7 +39,7 @@ import DocsLayout from "@/layouts/DocsLayout.astro";
         </td>
         <td>~600 MB – 1.5 GB RAM</td>
         <td>
-          <strong>~14 MB RAM</strong>
+          <strong>~23 MB RAM</strong> (~37 MB combined with Traefik)
         </td>
       </tr>
       <tr>
@@ -99,6 +99,12 @@ import DocsLayout from "@/layouts/DocsLayout.astro";
     </li>
     <li>
       <strong>Deploy from Git or Images:</strong> Deploy directly from public Docker Hub / GHCR images or clone Git repositories with custom Dockerfiles.
+    </li>
+    <li>
+      <strong>
+        <a href="/docs/marketplace">Marketplace Templates:</a>
+      </strong>{" "}
+      36 pre-configured open-source apps (Gitea, Vaultwarden, Postgres, n8n, and more) deploy in one click with secrets and volumes already set up.
     </li>
     <li>
       <strong>Automatic HTTPS:</strong> Built-in Traefik integration provisions Let's Encrypt SSL certificates automatically when a domain is attached.

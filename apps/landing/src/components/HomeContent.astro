@@ -8,248 +8,549 @@ interface Props {
 const { lang } = Astro.props;
 const t = strings[lang];
 const installCmd = "curl -sSL https://kuberfy.pages.dev/install.sh | sudo sh";
+const updateCmd = "curl -sSL https://kuberfy.pages.dev/update.sh | sudo sh";
+const uninstallCmd = "curl -sSL https://kuberfy.pages.dev/uninstall.sh | sudo sh";
 const otherLocales = (Object.keys(LOCALE_PATHS) as Locale[]).filter((l) => l !== lang);
 const localeLabel: Record<Locale, string> = { en: "EN", es: "ES", "pt-BR": "PT-BR" };
 ---
 
-<div class="relative overflow-hidden">
+<div class="relative overflow-hidden selection:bg-ember selection:text-ink">
+  <!-- Ambient background glow & grid -->
   <div
-    class="pointer-events-none absolute -top-40 left-1/2 h-140 w-225 -translate-x-1/2 rounded-full opacity-40 blur-3xl"
-    style="background: radial-gradient(closest-side, color-mix(in oklab, var(--color-ember) 35%, transparent), transparent);"
-  >
-  </div>
+    class="pointer-events-none absolute -top-40 left-1/2 h-[600px] w-[900px] -translate-x-1/2 rounded-full opacity-35 blur-[120px]"
+    style="background: radial-gradient(closest-side, color-mix(in oklab, var(--color-ember) 40%, transparent), transparent);"
+  ></div>
+  <div class="pointer-events-none absolute inset-0 bg-grid-pattern opacity-15"></div>
 
-  <header class="relative mx-auto flex max-w-6xl items-center justify-between px-6 py-6 md:px-10">
-    <a href={LOCALE_PATHS[lang]} class="font-display text-sm font-medium tracking-tight text-cream">
-      kuberfy<span class="text-ember">.</span>
-    </a>
-    <nav class="flex items-center gap-6 text-sm text-smoke">
-      <a href="#lighter" class="hidden transition-colors hover:text-cream sm:inline">{t.nav.lighter}</a>
-      <a href="#benchmarks" class="hidden transition-colors hover:text-cream sm:inline">{t.nav.benchmarks}</a>
-      <a href="#features" class="hidden transition-colors hover:text-cream sm:inline">{t.nav.features}</a>
-      <a href="#architecture" class="hidden transition-colors hover:text-cream md:inline">{t.nav.architecture}</a>
-      <a href="/docs" class="font-medium text-cream transition-colors hover:text-cream">{t.nav.docs}</a>
-      <span class="flex items-center gap-2 border-l border-line pl-4 text-xs">
-        <span class="text-cream">{localeLabel[lang]}</span>
-        {
-          otherLocales.map((l) => (
-            <a href={LOCALE_PATHS[l]} class="text-smoke-dim transition-colors hover:text-ember">
+  <!-- Sticky Navbar -->
+  <header class="sticky top-0 z-50 border-b border-line/70 bg-ink/80 backdrop-blur-md">
+    <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5 md:px-10">
+      <div class="flex items-center gap-3">
+        <a href={LOCALE_PATHS[lang]} class="font-display text-base font-bold tracking-tight text-cream">
+          kuberfy<span class="text-ember">.</span>
+        </a>
+        <span class="hidden rounded-full border border-line bg-panel px-2.5 py-0.5 font-display text-[10px] font-medium tracking-wide text-smoke-dim sm:inline-block">
+          v0.1 • Open Source
+        </span>
+      </div>
+
+      <nav class="flex items-center gap-6 text-sm text-smoke">
+        <a href="#comparison" class="hidden transition-colors hover:text-cream md:inline">
+          {t.nav.comparison}
+        </a>
+        <a href="#benchmarks" class="hidden transition-colors hover:text-cream sm:inline">
+          {t.nav.benchmarks}
+        </a>
+        <a href="#features" class="hidden transition-colors hover:text-cream sm:inline">
+          {t.nav.features}
+        </a>
+        <a href="#architecture" class="hidden transition-colors hover:text-cream lg:inline">
+          {t.nav.architecture}
+        </a>
+        <a href="#quickstart" class="hidden transition-colors hover:text-cream md:inline">
+          {t.nav.quickstart}
+        </a>
+        <a href="/docs" class="font-medium text-cream transition-colors hover:text-ember">
+          {t.nav.docs}
+        </a>
+
+        <!-- Language Switcher -->
+        <div class="flex items-center gap-1.5 border-l border-line pl-4 text-xs font-mono">
+          <span class="rounded bg-panel-2 px-1.5 py-0.5 font-bold text-ember">{localeLabel[lang]}</span>
+          {otherLocales.map((l) => (
+            <a href={LOCALE_PATHS[l]} class="px-1 text-smoke-dim transition-colors hover:text-cream">
               {localeLabel[l]}
             </a>
-          ))
-        }
-      </span>
-      <a href="https://github.com/JoelVeloz/kuberfy" class="rounded-md border border-line px-3 py-1.5 text-cream transition-colors hover:border-ember hover:text-ember">
-        GitHub
-      </a>
-    </nav>
+          ))}
+        </div>
+
+        <div class="flex items-center gap-2">
+          <a
+            href="https://github.com/JoelVeloz/kuberfy"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="hidden items-center gap-1.5 rounded-lg border border-line bg-panel px-3 py-1.5 text-xs text-cream transition-colors hover:border-smoke-dim sm:flex"
+          >
+            <svg class="h-3.5 w-3.5 fill-current" viewBox="0 0 24 24">
+              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+            </svg>
+            GitHub
+          </a>
+          <a
+            href="#quickstart"
+            class="rounded-lg bg-ember px-3.5 py-1.5 text-xs font-medium text-ink transition-all hover:bg-ember-bright hover:shadow-lg hover:shadow-ember/20"
+          >
+            {t.nav.installBtn}
+          </a>
+        </div>
+      </nav>
+    </div>
   </header>
 
-  <section class="relative mx-auto max-w-6xl px-6 pt-16 pb-24 md:px-10 md:pt-24 md:pb-32">
-    <p class="mb-6 inline-flex items-center gap-2 rounded-full border border-line bg-panel px-3 py-1 text-xs tracking-wide text-smoke uppercase">
-      <span class="h-1.5 w-1.5 rounded-full bg-signal"></span>
-      {t.hero.badge}
-    </p>
+  <!-- Hero Section -->
+  <section class="relative mx-auto max-w-6xl px-6 pt-16 pb-16 md:px-10 md:pt-24 md:pb-24">
+    <div class="flex flex-col items-center text-center">
+      <!-- Badge -->
+      <div class="mb-6 inline-flex items-center gap-2 rounded-full border border-line bg-panel/90 px-3.5 py-1.5 text-xs text-smoke shadow-sm">
+        <span class="relative flex h-2 w-2">
+          <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-signal opacity-75"></span>
+          <span class="relative inline-flex h-2 w-2 rounded-full bg-signal"></span>
+        </span>
+        <span class="font-medium text-cream">{t.hero.badge}</span>
+      </div>
 
-    <h1 class="max-w-3xl text-balance font-display text-4xl leading-[1.1] font-medium tracking-tight text-cream sm:text-5xl md:text-6xl">
-      {t.hero.titleLine1} <br />
-      <span class="text-ember">{t.hero.titleEmber}</span>
-    </h1>
+      <!-- Main Headline -->
+      <h1 class="max-w-4xl text-balance font-display text-4xl leading-[1.1] font-semibold tracking-tight text-cream sm:text-5xl md:text-6xl lg:text-7xl">
+        {t.hero.titleLine1} <br class="hidden sm:inline" />
+        <span class="bg-gradient-to-r from-ember to-ember-bright bg-clip-text text-transparent">{t.hero.titleEmber}</span>
+      </h1>
 
-    <p class="mt-6 max-w-xl text-balance text-lg text-smoke">{t.hero.subtitle}</p>
+      <!-- Grounded Subtitle -->
+      <p class="mt-6 max-w-2xl text-balance text-base leading-relaxed text-smoke sm:text-lg">{t.hero.subtitle}</p>
 
-    <div class="mt-10 flex w-full max-w-xl items-start justify-between gap-3 rounded-lg border border-line bg-panel py-3 pr-2 pl-4">
-      <code id="install-cmd" class="font-display text-xs leading-6 break-all whitespace-pre-wrap text-smoke sm:text-sm">
-        <span class="text-ember-bright">$</span> {installCmd}
-      </code>
-      <button
-        id="copy-btn"
-        type="button"
-        aria-label="Copy install command"
-        data-copy-label={t.hero.copy}
-        data-copied-label={t.hero.copied}
-        class="mt-0.5 shrink-0 rounded-md border border-line bg-ink px-2.5 py-1.5 text-xs text-smoke transition-colors hover:border-ember hover:text-ember"
-      >
-        {t.hero.copy}
-      </button>
-    </div>
-    <p class="mt-3 text-xs text-smoke-dim">{t.hero.installNote}</p>
-  </section>
-</div>
-
-<section id="lighter" class="border-y border-line bg-panel/40">
-  <div class="mx-auto max-w-6xl px-6 py-20 md:px-10">
-    <h2 class="font-display text-2xl font-medium tracking-tight text-cream sm:text-3xl">{t.lighter.heading}</h2>
-    <p class="mt-3 max-w-2xl text-smoke">{t.lighter.body}</p>
-
-    <div class="mt-10 overflow-x-auto rounded-xl border border-line">
-      <div class="min-w-160">
-        <div class="grid grid-cols-[1fr_1.4fr_1.4fr] bg-panel-2 text-xs tracking-wide text-smoke-dim uppercase">
-          <div class="px-5 py-3"></div>
-          <div class="border-l border-line px-5 py-3">{t.lighter.tableHeaderTypical}</div>
-          <div class="border-l border-line px-5 py-3 text-ember">{t.lighter.tableHeaderKuberfy}</div>
+      <!-- Install Command Box -->
+      <div class="mt-8 flex w-full max-w-xl flex-col items-center gap-3">
+        <div class="flex w-full items-center justify-between gap-3 rounded-xl border border-line bg-panel/95 p-2.5 shadow-2xl ring-1 ring-white/5 sm:p-3">
+          <div class="flex min-w-0 items-center gap-2.5 pl-2 font-display text-xs text-cream sm:text-sm">
+            <span class="text-ember font-bold select-none">$</span>
+            <span id="hero-cmd" class="truncate select-all">
+              {installCmd}
+            </span>
+          </div>
+          <button
+            id="hero-copy-btn"
+            type="button"
+            data-target="hero-cmd"
+            data-label={t.hero.copy}
+            data-copied={t.hero.copied}
+            class="shrink-0 cursor-pointer rounded-lg border border-line bg-panel-2 px-3.5 py-2 font-display text-xs font-medium text-cream transition-all hover:border-ember hover:bg-ink hover:text-ember active:scale-95"
+          >
+            {t.hero.copy}
+          </button>
         </div>
-        {
-          t.lighter.comparison.map((row) => (
-            <div class="grid grid-cols-[1fr_1.4fr_1.4fr] border-t border-line text-sm">
-              <div class="px-5 py-4 font-medium text-cream">{row.row}</div>
-              <div class="border-l border-line px-5 py-4 text-smoke">{row.typical}</div>
-              <div class="border-l border-line bg-ember-dim/20 px-5 py-4 text-cream">{row.kuberfy}</div>
-            </div>
-          ))
-        }
+        <p class="text-xs text-smoke-dim">{t.hero.requirements}</p>
+      </div>
+
+      <!-- Quick Action Buttons -->
+      <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
+        <a
+          href="/docs"
+          class="inline-flex items-center gap-2 rounded-lg border border-line bg-panel px-4 py-2 text-xs font-medium text-cream transition-colors hover:border-smoke hover:bg-panel-2"
+        >
+          <svg class="h-3.5 w-3.5 text-smoke" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+            />
+          </svg>
+          {t.hero.viewDocs}
+        </a>
+        <a
+          href="https://github.com/JoelVeloz/kuberfy"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-2 rounded-lg border border-line bg-panel px-4 py-2 text-xs font-medium text-cream transition-colors hover:border-smoke hover:bg-panel-2"
+        >
+          <svg class="h-3.5 w-3.5 fill-current text-ember" viewBox="0 0 24 24">
+            <path d="M12 .587l3.668 7.431 8.2 1.192-5.934 5.784 1.399 8.166-7.333-3.856-7.333 3.856 1.399-8.166-5.934-5.784 8.2-1.192zm0 5.702l-2.223 4.503-4.969.722 3.596 3.505-.849 4.949 4.445-2.337 4.445 2.337-.849-4.949 3.596-3.505-4.969-.722z" />
+          </svg>
+          {t.hero.githubStars}
+        </a>
       </div>
     </div>
-  </div>
-</section>
 
-<section id="benchmarks" class="mx-auto max-w-6xl px-6 py-20 md:px-10">
-  <h2 class="font-display text-2xl font-medium tracking-tight text-cream sm:text-3xl">{t.benchmarks.heading}</h2>
-  <p class="mt-3 max-w-2xl text-smoke">{t.benchmarks.body}</p>
-
-  <div class="mt-10 grid gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
-    {
-      t.benchmarks.stats.map((s) => (
-        <div class="bg-ink px-6 py-6">
-          <p class="font-display text-3xl font-medium text-ember">{s.value}</p>
-          <p class="mt-2 text-sm text-smoke">{s.label}</p>
+    <div class="relative mt-14 sm:mt-18">
+      <div class="relative overflow-hidden rounded-2xl border border-line bg-panel shadow-2xl ring-1 ring-white/10">
+        <div class="flex items-center gap-3 border-b border-line bg-panel-2 px-4 py-3">
+          <div class="flex items-center gap-1.5">
+            <span class="h-2.5 w-2.5 rounded-full bg-line"></span>
+            <span class="h-2.5 w-2.5 rounded-full bg-line"></span>
+            <span class="h-2.5 w-2.5 rounded-full bg-line"></span>
+          </div>
+          <div class="flex-1 truncate rounded-md bg-ink/60 px-3 py-1 text-center font-display text-[11px] text-smoke-dim">{t.mockup.urlBar}</div>
         </div>
-      ))
-    }
-  </div>
-  <p class="mt-4 text-xs text-smoke-dim">{t.benchmarks.note}</p>
-</section>
 
-<section id="features" class="mx-auto max-w-6xl px-6 py-20 md:px-10">
-  <h2 class="font-display text-2xl font-medium tracking-tight text-cream sm:text-3xl">{t.features.heading}</h2>
-  <p class="mt-3 max-w-2xl text-smoke">{t.features.body}</p>
-
-  <div class="mt-10 grid gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-2 lg:grid-cols-3">
-    {
-      t.features.items.map((f) => (
-        <div class="bg-ink px-6 py-6">
-          <h3 class="font-display text-sm font-medium text-cream">{f.title}</h3>
-          <p class="mt-2 text-sm text-smoke">{f.body}</p>
+        <!-- TODO: drop the real dashboard screenshot in apps/landing/public/dashboard.png and replace this placeholder with <img src="/dashboard.png" alt={t.mockup.screenshotAlt} class="block w-full" /> -->
+        <div class="flex aspect-video items-center justify-center bg-ink">
+          <p class="font-display text-xs text-smoke-dim">{t.mockup.screenshotPlaceholder}</p>
         </div>
-      ))
-    }
-  </div>
-</section>
-
-<section id="architecture" class="border-y border-line bg-panel/40">
-  <div class="mx-auto max-w-6xl px-6 py-20 md:px-10">
-    <h2 class="font-display text-2xl font-medium tracking-tight text-cream sm:text-3xl">{t.architecture.heading}</h2>
-    <p class="mt-3 max-w-2xl text-smoke">{t.architecture.body}</p>
-
-    <div class="mt-12 overflow-x-auto">
-      <svg
-        viewBox="0 0 920 300"
-        class="mx-auto min-w-180"
-        role="img"
-        aria-label="Traffic flows from the internet through Traefik to Kuberfy, which drives Docker to run your applications"
-      >
-        <defs>
-          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-            <path d="M0,0 L10,5 L0,10 z" fill="var(--color-smoke-dim)"></path>
-          </marker>
-        </defs>
-
-        <line x1="70" y1="150" x2="230" y2="150" stroke="var(--color-smoke-dim)" stroke-width="1.5" marker-end="url(#arrow)"></line>
-        <line x1="370" y1="150" x2="530" y2="150" stroke="var(--color-smoke-dim)" stroke-width="1.5" marker-end="url(#arrow)"></line>
-        <line x1="670" y1="150" x2="790" y2="90" stroke="var(--color-smoke-dim)" stroke-width="1.5" marker-end="url(#arrow)"></line>
-        <line x1="670" y1="150" x2="790" y2="150" stroke="var(--color-smoke-dim)" stroke-width="1.5" marker-end="url(#arrow)"></line>
-        <line x1="670" y1="150" x2="790" y2="210" stroke="var(--color-smoke-dim)" stroke-width="1.5" marker-end="url(#arrow)"></line>
-
-        <g>
-          <circle cx="35" cy="150" r="26" fill="none" stroke="var(--color-line)" stroke-width="1.5"></circle>
-          <text x="35" y="155" text-anchor="middle" fill="var(--color-smoke)" font-size="20" font-family="var(--font-display)">
-            ↑
-          </text>
-          <text x="35" y="196" text-anchor="middle" fill="var(--color-smoke)" font-size="12" font-family="var(--font-body)">
-            {t.architecture.internet}
-          </text>
-        </g>
-
-        <g>
-          <rect x="230" y="115" width="140" height="70" rx="10" fill="var(--color-panel)" stroke="var(--color-ember)" stroke-width="1.5"></rect>
-          <text x="300" y="145" text-anchor="middle" fill="var(--color-cream)" font-size="14" font-family="var(--font-display)">
-            Traefik
-          </text>
-          <text x="300" y="163" text-anchor="middle" fill="var(--color-smoke)" font-size="11" font-family="var(--font-body)">
-            {t.architecture.edgeNote}
-          </text>
-        </g>
-
-        <g>
-          <rect x="530" y="105" width="140" height="90" rx="10" fill="var(--color-panel)" stroke="var(--color-line)" stroke-width="1.5"></rect>
-          <text x="600" y="140" text-anchor="middle" fill="var(--color-cream)" font-size="14" font-family="var(--font-display)">
-            Kuberfy
-          </text>
-          <text x="600" y="158" text-anchor="middle" fill="var(--color-smoke)" font-size="11" font-family="var(--font-body)">
-            {t.architecture.dashboardNote}
-          </text>
-          <text x="600" y="174" text-anchor="middle" fill="var(--color-smoke-dim)" font-size="11" font-family="var(--font-body)">
-            {t.architecture.dbNote}
-          </text>
-        </g>
-
-        <g>
-          <rect x="790" y="60" width="110" height="50" rx="8" fill="var(--color-panel)" stroke="var(--color-line)" stroke-width="1.5"></rect>
-          <text x="845" y="90" text-anchor="middle" fill="var(--color-smoke)" font-size="11" font-family="var(--font-body)">
-            {t.architecture.appA}
-          </text>
-
-          <rect x="790" y="125" width="110" height="50" rx="8" fill="var(--color-panel)" stroke="var(--color-line)" stroke-width="1.5"></rect>
-          <text x="845" y="155" text-anchor="middle" fill="var(--color-smoke)" font-size="11" font-family="var(--font-body)">
-            {t.architecture.appB}
-          </text>
-
-          <rect x="790" y="190" width="110" height="50" rx="8" fill="var(--color-panel)" stroke="var(--color-line)" stroke-width="1.5"></rect>
-          <text x="845" y="220" text-anchor="middle" fill="var(--color-smoke)" font-size="11" font-family="var(--font-body)">
-            {t.architecture.appC}
-          </text>
-        </g>
-
-        <path d="M 600 195 C 600 250, 845 250, 845 240" fill="none" stroke="var(--color-ember)" stroke-width="1.5" stroke-dasharray="3 4" marker-end="url(#arrow)"></path>
-        <text x="720" y="272" text-anchor="middle" fill="var(--color-ember)" font-size="11" font-family="var(--font-body)">
-          {t.architecture.dockerNote}
-        </text>
-      </svg>
+      </div>
     </div>
-  </div>
-</section>
+  </section>
 
-<footer class="mx-auto max-w-6xl px-6 py-16 md:px-10">
-  <div class="flex flex-col items-start justify-between gap-6 border-t border-line pt-10 sm:flex-row sm:items-center">
-    <div>
-      <p class="font-display text-sm text-cream">kuberfy</p>
-      <p class="mt-1 text-sm text-smoke-dim">{t.footer.tagline}</p>
-    </div>
-    <div class="flex gap-6 text-sm text-smoke">
-      <a href="https://github.com/JoelVeloz/kuberfy" class="transition-colors hover:text-ember">
-        {t.footer.github}
-      </a>
-      <a href="https://github.com/JoelVeloz/kuberfy#readme" class="transition-colors hover:text-ember">
-        {t.footer.documentation}
-      </a>
-      <a href="https://github.com/JoelVeloz/kuberfy/issues" class="transition-colors hover:text-ember">
-        {t.footer.issues}
-      </a>
-    </div>
-  </div>
-</footer>
+  <!-- Benchmarks & Real Metrics Strip -->
+  <section id="benchmarks" class="border-y border-line bg-panel/50 py-16">
+    <div class="mx-auto max-w-6xl px-6 md:px-10">
+      <div class="text-center">
+        <h2 class="font-display text-2xl font-semibold tracking-tight text-cream sm:text-3xl">{t.benchmarks.heading}</h2>
+        <p class="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-smoke sm:text-base">{t.benchmarks.body}</p>
+      </div>
 
+      <div class="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {t.benchmarks.stats.map((s) => (
+          <div class="relative overflow-hidden rounded-xl border border-line bg-ink/90 p-6 transition-transform hover:-translate-y-0.5">
+            <p class="font-display text-4xl font-bold text-ember">{s.value}</p>
+            <p class="mt-2 font-display text-sm font-semibold text-cream">{s.label}</p>
+            <p class="mt-1 text-xs text-smoke-dim">{s.sub}</p>
+          </div>
+        ))}
+      </div>
+      <p class="mt-6 text-center font-display text-xs text-smoke-dim">{t.benchmarks.note}</p>
+    </div>
+  </section>
+
+  <!-- Technical Comparison Table: Kuberfy vs Other PaaS -->
+  <section id="comparison" class="mx-auto max-w-6xl px-6 py-20 md:px-10 md:py-28">
+    <div class="text-center">
+      <h2 class="font-display text-2xl font-semibold tracking-tight text-cream sm:text-3xl md:text-4xl">{t.comparison.heading}</h2>
+      <p class="mx-auto mt-4 max-w-2xl text-sm text-smoke sm:text-base">{t.comparison.body}</p>
+    </div>
+
+    <div class="mt-12 overflow-x-auto rounded-2xl border border-line shadow-xl">
+      <table class="w-full min-w-[640px] text-left text-sm">
+        <thead class="bg-panel-2 font-display text-xs uppercase tracking-wider text-smoke-dim">
+          <tr>
+            <th scope="col" class="px-6 py-4">
+              {t.comparison.tableHeaderFeature}
+            </th>
+            <th scope="col" class="border-l border-line px-6 py-4 text-smoke">
+              {t.comparison.tableHeaderTypical}
+            </th>
+            <th scope="col" class="border-l border-line bg-ember-dim/20 px-6 py-4 font-bold text-ember">
+              {t.comparison.tableHeaderKuberfy}
+            </th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-line bg-ink/70">
+          {t.comparison.rows.map((row) => (
+            <tr class="transition-colors hover:bg-panel/40">
+              <td class="px-6 py-4 font-medium text-cream">{row.feature}</td>
+              <td class="border-l border-line px-6 py-4 text-smoke">{row.typical}</td>
+              <td class="border-l border-line bg-ember-dim/10 px-6 py-4 font-medium text-cream">
+                <div class="flex items-start gap-2">
+                  <svg class="mt-0.5 h-4 w-4 shrink-0 text-signal" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>{row.kuberfy}</span>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Bento Grid: Features Section -->
+  <section id="features" class="border-y border-line bg-panel/30 py-20 md:py-28">
+    <div class="mx-auto max-w-6xl px-6 md:px-10">
+      <div class="text-center">
+        <h2 class="font-display text-2xl font-semibold tracking-tight text-cream sm:text-3xl md:text-4xl">{t.features.heading}</h2>
+        <p class="mx-auto mt-4 max-w-2xl text-sm text-smoke sm:text-base">{t.features.body}</p>
+      </div>
+
+      <div class="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {t.features.items.map((item) => (
+          <div class="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-line bg-ink/80 p-6 transition-all hover:border-ember/50 hover:bg-panel hover:shadow-xl">
+            <div>
+              <span class="inline-block rounded-md border border-line bg-panel-2 px-2.5 py-1 font-display text-[10px] font-medium tracking-wide text-ember">{item.tag}</span>
+              <h3 class="mt-4 font-display text-base font-semibold text-cream transition-colors group-hover:text-ember">{item.title}</h3>
+              <p class="mt-2.5 text-xs leading-relaxed text-smoke sm:text-sm">{item.body}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- Architecture Section -->
+  <section id="architecture" class="mx-auto max-w-6xl px-6 py-20 md:px-10 md:py-28">
+    <div class="text-center">
+      <h2 class="font-display text-2xl font-semibold tracking-tight text-cream sm:text-3xl md:text-4xl">{t.architecture.heading}</h2>
+      <p class="mx-auto mt-4 max-w-2xl text-sm text-smoke sm:text-base">{t.architecture.body}</p>
+    </div>
+
+    <!-- Interactive Architecture Pipeline -->
+    <div class="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <!-- Step 1 -->
+      <div class="relative rounded-2xl border border-line bg-panel p-6 shadow-md">
+        <span class="font-display text-xs font-bold text-smoke-dim">01</span>
+        <h3 class="mt-3 font-display text-sm font-semibold text-cream">{t.architecture.step1Title}</h3>
+        <p class="mt-2 text-xs leading-relaxed text-smoke">{t.architecture.step1Desc}</p>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="relative rounded-2xl border border-line bg-panel p-6 shadow-md ring-1 ring-ember/20">
+        <span class="font-display text-xs font-bold text-ember">02</span>
+        <h3 class="mt-3 font-display text-sm font-semibold text-cream">{t.architecture.step2Title}</h3>
+        <p class="mt-2 text-xs leading-relaxed text-smoke">{t.architecture.step2Desc}</p>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="relative rounded-2xl border border-line bg-panel p-6 shadow-md">
+        <span class="font-display text-xs font-bold text-smoke-dim">03</span>
+        <h3 class="mt-3 font-display text-sm font-semibold text-cream">{t.architecture.step3Title}</h3>
+        <p class="mt-2 text-xs leading-relaxed text-smoke">{t.architecture.step3Desc}</p>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="relative rounded-2xl border border-line bg-panel p-6 shadow-md">
+        <span class="font-display text-xs font-bold text-smoke-dim">04</span>
+        <h3 class="mt-3 font-display text-sm font-semibold text-cream">{t.architecture.step4Title}</h3>
+        <p class="mt-2 text-xs leading-relaxed text-smoke">{t.architecture.step4Desc}</p>
+      </div>
+    </div>
+
+    <!-- Resilience callout -->
+    <div class="mt-6 rounded-xl border border-line bg-panel-2/80 p-4 text-center sm:p-5">
+      <p class="font-display text-xs text-smoke sm:text-sm">
+        🛡️ <span class="font-semibold text-cream">{t.architecture.resilienceNote}</span>
+      </p>
+    </div>
+  </section>
+
+  <!-- Interactive Quickstart & Server Commands -->
+  <section id="quickstart" class="border-t border-line bg-panel/40 py-20 md:py-28">
+    <div class="mx-auto max-w-4xl px-6 md:px-10">
+      <div class="text-center">
+        <h2 class="font-display text-2xl font-semibold tracking-tight text-cream sm:text-3xl md:text-4xl">{t.quickstart.heading}</h2>
+        <p class="mx-auto mt-4 max-w-xl text-sm text-smoke sm:text-base">{t.quickstart.body}</p>
+      </div>
+
+      <!-- Command Box with Tabs -->
+      <div class="mt-10 overflow-hidden rounded-2xl border border-line bg-ink shadow-2xl">
+        <!-- Tabs -->
+        <div class="flex items-center border-b border-line bg-panel-2 px-4 pt-2">
+          <button type="button" class="cmd-tab active-tab cursor-pointer border-b-2 border-ember px-4 py-2.5 font-display text-xs font-medium text-cream" data-tab="install">
+            {t.quickstart.tabInstall}
+          </button>
+          <button
+            type="button"
+            class="cmd-tab cursor-pointer border-b-2 border-transparent px-4 py-2.5 font-display text-xs font-medium text-smoke-dim transition-colors hover:text-smoke"
+            data-tab="update"
+          >
+            {t.quickstart.tabUpdate}
+          </button>
+          <button
+            type="button"
+            class="cmd-tab cursor-pointer border-b-2 border-transparent px-4 py-2.5 font-display text-xs font-medium text-smoke-dim transition-colors hover:text-smoke"
+            data-tab="uninstall"
+          >
+            {t.quickstart.tabUninstall}
+          </button>
+        </div>
+
+        <!-- Terminal Panels -->
+        <div class="p-4 sm:p-6">
+          <!-- Tab 1: Install -->
+          <div id="tab-content-install" class="tab-panel flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <code class="font-display text-xs leading-relaxed text-cream select-all sm:text-sm">
+              <span class="text-ember font-bold">$</span> <span id="quick-cmd-install">{installCmd}</span>
+            </code>
+            <button
+              type="button"
+              data-target="quick-cmd-install"
+              data-label={t.hero.copy}
+              data-copied={t.hero.copied}
+              class="quick-copy-btn shrink-0 cursor-pointer rounded-lg border border-line bg-panel px-3 py-1.5 font-display text-xs font-medium text-smoke transition-all hover:border-ember hover:text-ember active:scale-95"
+            >
+              {t.hero.copy}
+            </button>
+          </div>
+
+          <!-- Tab 2: Update -->
+          <div id="tab-content-update" class="tab-panel hidden flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <code class="font-display text-xs leading-relaxed text-cream select-all sm:text-sm">
+              <span class="text-ember font-bold">$</span> <span id="quick-cmd-update">{updateCmd}</span>
+            </code>
+            <button
+              type="button"
+              data-target="quick-cmd-update"
+              data-label={t.hero.copy}
+              data-copied={t.hero.copied}
+              class="quick-copy-btn shrink-0 cursor-pointer rounded-lg border border-line bg-panel px-3 py-1.5 font-display text-xs font-medium text-smoke transition-all hover:border-ember hover:text-ember active:scale-95"
+            >
+              {t.hero.copy}
+            </button>
+          </div>
+
+          <!-- Tab 3: Uninstall -->
+          <div id="tab-content-uninstall" class="tab-panel hidden flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <code class="font-display text-xs leading-relaxed text-cream select-all sm:text-sm">
+              <span class="text-ember font-bold">$</span> <span id="quick-cmd-uninstall">{uninstallCmd}</span>
+            </code>
+            <button
+              type="button"
+              data-target="quick-cmd-uninstall"
+              data-label={t.hero.copy}
+              data-copied={t.hero.copied}
+              class="quick-copy-btn shrink-0 cursor-pointer rounded-lg border border-line bg-panel px-3 py-1.5 font-display text-xs font-medium text-smoke transition-all hover:border-ember hover:text-ember active:scale-95"
+            >
+              {t.hero.copy}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Requirements Checklist -->
+      <div class="mt-8 rounded-xl border border-line bg-panel p-5">
+        <h4 class="font-display text-xs font-semibold uppercase tracking-wider text-smoke">{t.quickstart.requirementsTitle}</h4>
+        <ul class="mt-3 grid gap-2 sm:grid-cols-2">
+          {t.quickstart.requirements.map((req) => (
+            <li class="flex items-center gap-2 text-xs text-smoke-dim">
+              <svg class="h-3.5 w-3.5 text-signal" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+              </svg>
+              <span>{req}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Developer FAQ -->
+  <section class="mx-auto max-w-4xl px-6 py-20 md:px-10 md:py-28">
+    <div class="text-center">
+      <h2 class="font-display text-2xl font-semibold tracking-tight text-cream sm:text-3xl">{t.faq.heading}</h2>
+      <p class="mx-auto mt-3 max-w-xl text-sm text-smoke">{t.faq.body}</p>
+    </div>
+
+    <div class="mt-12 space-y-4">
+      {t.faq.items.map((item) => (
+        <details class="group rounded-xl border border-line bg-panel p-5 [&_summary::-webkit-details-marker]:hidden">
+          <summary class="flex cursor-pointer items-center justify-between font-display text-sm font-medium text-cream">
+            <span>{item.question}</span>
+            <span class="ml-4 shrink-0 transition-transform group-open:rotate-180">
+              <svg class="h-4 w-4 text-smoke" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </span>
+          </summary>
+          <p class="mt-3 text-xs leading-relaxed text-smoke sm:text-sm">{item.answer}</p>
+        </details>
+      ))}
+    </div>
+  </section>
+
+  <!-- Final Call to Action -->
+  <section class="relative border-t border-line bg-gradient-to-b from-panel to-ink py-20">
+    <div class="mx-auto max-w-4xl px-6 text-center md:px-10">
+      <h2 class="font-display text-3xl font-semibold tracking-tight text-cream sm:text-4xl md:text-5xl">{t.cta.heading}</h2>
+      <p class="mx-auto mt-4 max-w-xl text-sm text-smoke sm:text-base">{t.cta.subtitle}</p>
+
+      <div class="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
+        <a
+          href="#quickstart"
+          class="cursor-pointer rounded-xl bg-ember px-6 py-3 font-display text-xs font-semibold text-ink shadow-xl shadow-ember/20 transition-all hover:bg-ember-bright hover:shadow-ember/30"
+        >
+          {t.cta.button}
+        </a>
+        <a
+          href="https://github.com/JoelVeloz/kuberfy"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="rounded-xl border border-line bg-panel px-6 py-3 font-display text-xs font-medium text-cream transition-colors hover:border-smoke hover:bg-panel-2"
+        >
+          {t.hero.githubStars}
+        </a>
+      </div>
+      <p class="mt-4 text-xs text-smoke-dim">{t.cta.note}</p>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="border-t border-line bg-ink py-12">
+    <div class="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 px-6 sm:flex-row sm:items-center md:px-10">
+      <div>
+        <a href={LOCALE_PATHS[lang]} class="font-display text-sm font-bold text-cream">
+          kuberfy<span class="text-ember">.</span>
+        </a>
+        <p class="mt-1 text-xs text-smoke-dim">{t.footer.tagline}</p>
+      </div>
+
+      <div class="flex flex-wrap gap-6 text-xs text-smoke">
+        <a href="https://github.com/JoelVeloz/kuberfy" target="_blank" rel="noopener noreferrer" class="transition-colors hover:text-ember">
+          {t.footer.github}
+        </a>
+        <a href="/docs" class="transition-colors hover:text-ember">
+          {t.footer.documentation}
+        </a>
+        <a href="https://github.com/JoelVeloz/kuberfy/issues" target="_blank" rel="noopener noreferrer" class="transition-colors hover:text-ember">
+          {t.footer.issues}
+        </a>
+        <a href="https://github.com/JoelVeloz/kuberfy/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" class="transition-colors hover:text-ember">
+          {t.footer.license}
+        </a>
+      </div>
+    </div>
+    <div class="mx-auto mt-6 max-w-6xl border-t border-line/40 px-6 pt-4 text-xs text-smoke-dim md:px-10">{t.footer.copyright}</div>
+  </footer>
+</div>
+
+<!-- Copy & Interactive Tabs Scripts -->
 <script>
-  const btn = document.getElementById("copy-btn");
-  const code = document.getElementById("install-cmd");
+  function setupInteractions() {
+    // Copy button handler for hero and quickstart
+    const copyButtons = document.querySelectorAll("button[data-target]");
+    copyButtons.forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const targetId = btn.getAttribute("data-target");
+        if (!targetId) return;
+        const codeEl = document.getElementById(targetId);
+        const text = codeEl?.textContent?.replace(/^\s*\$\s*/, "").trim() ?? "";
+        if (!text) return;
 
-  btn?.addEventListener("click", async () => {
-    const text = code?.textContent?.replace(/^\s*\$\s*/, "").trim() ?? "";
-    await navigator.clipboard.writeText(text);
-    const original = btn.textContent;
-    btn.textContent = btn.getAttribute("data-copied-label");
-    setTimeout(() => {
-      btn.textContent = original;
-    }, 1500);
-  });
+        try {
+          await navigator.clipboard.writeText(text);
+          const original = btn.textContent;
+          const copied = btn.getAttribute("data-copied") || "Copied!";
+          btn.textContent = copied;
+          setTimeout(() => {
+            btn.textContent = original;
+          }, 2000);
+        } catch (e) {
+          console.error("Clipboard copy failed", e);
+        }
+      });
+    });
+
+    // Quickstart Tabs
+    const tabs = document.querySelectorAll(".cmd-tab");
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const tabName = tab.getAttribute("data-tab");
+        if (!tabName) return;
+
+        // Reset tab styles
+        tabs.forEach((t) => {
+          t.classList.remove("border-ember", "text-cream");
+          t.classList.add("border-transparent", "text-smoke-dim");
+        });
+
+        // Activate clicked tab
+        tab.classList.remove("border-transparent", "text-smoke-dim");
+        tab.classList.add("border-ember", "text-cream");
+
+        // Hide all panels
+        document.querySelectorAll(".tab-panel").forEach((panel) => {
+          panel.classList.add("hidden");
+          panel.classList.remove("flex");
+        });
+
+        // Show active panel
+        const activePanel = document.getElementById(`tab-content-${tabName}`);
+        if (activePanel) {
+          activePanel.classList.remove("hidden");
+          activePanel.classList.add("flex");
+        }
+      });
+    });
+  }
+
+  // Run on initial page load and after client navigation
+  setupInteractions();
+  document.addEventListener("astro:page-load", setupInteractions);
 </script>

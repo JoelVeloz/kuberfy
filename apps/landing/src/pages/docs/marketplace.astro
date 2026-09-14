@@ -1,0 +1,56 @@
+---
+import DocsLayout from "@/layouts/DocsLayout.astro";
+---
+
+<DocsLayout title="Marketplace Templates — Kuberfy Documentation" description="Deploy pre-configured open-source apps from the Kuberfy marketplace in one click.">
+  <h1>Marketplace Templates</h1>
+
+  <p>
+    The <strong>Marketplace</strong> lists 36 pre-configured open-source applications — databases, monitoring tools, self-hosted alternatives to common SaaS products — that
+    deploy as a Docker image with environment variables and volumes already set up. It's a third way to create an application, alongside a Git repository or a manual image.
+  </p>
+
+  <div class="callout-info">
+    <p class="mb-0">
+      <strong>Source:</strong> Template definitions (image, port, environment variables, volumes) are pulled from Dokploy's and Coolify's public template repositories,
+      filtered down to apps that run as a single container — Kuberfy doesn't support multi-container Compose stacks yet. The result is committed to
+      <code>apps/api/src/data/marketplace-templates.json</code>.
+    </p>
+  </div>
+
+  <h2>Deploying a Template</h2>
+  <ol>
+    <li>
+      Open a project and go to <strong>Marketplace</strong>.
+    </li>
+    <li>Search or filter by tag, then select a template.</li>
+    <li>
+      Review the generated configuration: application name, image, internal port, and environment variables. Values marked as secrets (API keys, database passwords) are
+      generated automatically — you can reveal or edit them before deploying.
+    </li>
+    <li>
+      Click <strong>Deploy</strong>. Kuberfy creates the application, attaches any required volumes, and starts a normal image-based deployment — the same rolling update
+      described in <a href="/docs/deployments">Deploying Applications</a>.
+    </li>
+  </ol>
+
+  <h2>What Gets Created</h2>
+  <ul>
+    <li>
+      <strong>Application:</strong> A standard image-based application (<code>buildType: "image"</code>), editable afterward like any other.
+    </li>
+    <li>
+      <strong>Environment variables:</strong> Pre-filled from the template. Values flagged <code>secret: true</code> (passwords, tokens) get a random value generated in the
+      browser instead of a placeholder.
+    </li>
+    <li>
+      <strong>Volumes:</strong> Any paths the template declares (e.g. a database's data directory) are created and mounted automatically.
+    </li>
+  </ul>
+
+  <h2>Updating the Template List</h2>
+  <p>
+    Templates are synced from upstream with <code>bun run scripts/fetch-marketplace-templates.ts</code>, which rewrites <code>marketplace-templates.json</code> after checking
+    each candidate resolves to a single container. Run it and commit the result to pick up new or updated templates.
+  </p>
+</DocsLayout>
