@@ -1,7 +1,6 @@
 ---
 import Layout from "@/layouts/Layout.astro";
-import { SystemPage } from "@/components/SystemPage";
-import { ProcessesTable } from "@/components/ProcessesTable";
+import { SystemTabs } from "@/components/SystemTabs";
 import { PruneDockerButton } from "@/components/PruneDockerButton";
 ---
 
@@ -14,14 +13,6 @@ import { PruneDockerButton } from "@/components/PruneDockerButton";
     <PruneDockerButton client:load />
   </div>
   <div class="mt-6">
-    <SystemPage client:load />
-  </div>
-
-  <div class="mt-6">
-    <h2 class="font-heading text-sm font-medium">Processes</h2>
-    <p class="mt-1 text-xs text-muted-foreground">Every process on the host. Click a column to sort.</p>
-    <div class="mt-3">
-      <ProcessesTable client:load />
-    </div>
+    <SystemTabs client:load />
   </div>
 </Layout>
