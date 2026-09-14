@@ -1,6 +1,5 @@
 import { PassThrough } from "node:stream";
 import { zValidator } from "@hono/zod-validator";
-import geoip from "geoip-lite";
 import { Hono } from "hono";
 import { upgradeWebSocket } from "hono/bun";
 import { and, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
@@ -196,13 +195,31 @@ observability.get("/traffic/hosts", async (c) => {
 const COUNTRY_CACHE_LIMIT = 5_000;
 const countryCache = new Map<string, string | null>();
 
-function resolveCountry(ip: string): string | null {
+// geoip-lite reads its country database as a side effect of being imported, not lazily inside lookup() — a static
+// top-level `import geoip from "geoip-lite"` throws during module evaluation (before any request handler, or even
+// this file's own try/catch, exists to catch it) if that data file is missing from the production build, which it
+// currently is. A dynamic import defers that read to the first actual lookup, inside an async function where a
+// rejection is a normal catchable promise instead of a process-ending crash.
+let geoipModule: typeof import("geoip-lite") | null | undefined;
+async function loadGeoip() {
+  if (geoipModule === undefined) {
+    try {
+      geoipModule = (await import("geoip-lite")).default;
+    } catch {
+      geoipModule = null;
+    }
+  }
+  return geoipModule;
+}
+
+async function resolveCountry(ip: string): Promise<string | null> {
   const cached = countryCache.get(ip);
   if (cached !== undefined) return cached;
   if (countryCache.size >= COUNTRY_CACHE_LIMIT) countryCache.clear();
+  const geoip = await loadGeoip();
   let country: string | null = null;
   try {
-    country = geoip.lookup(ip)?.country ?? null;
+    country = geoip?.lookup(ip)?.country ?? null;
   } catch {
     country = null;
   }
@@ -244,15 +261,17 @@ observability.get("/traffic/ips", zValidator("query", paginationQuery), async (c
       .where(where),
   ]);
 
-  const items = rows.map((r) => ({
-    clientIp: r.clientIp ?? "Unknown",
-    country: r.clientIp ? resolveCountry(r.clientIp) : null,
-    count: r.count,
-    good: r.good,
-    warning: r.warning,
-    critical: r.critical,
-    lastSeen: new Date(r.lastSeen * 1000).toISOString(),
-  }));
+  const items = await Promise.all(
+    rows.map(async (r) => ({
+      clientIp: r.clientIp ?? "Unknown",
+      country: r.clientIp ? await resolveCountry(r.clientIp) : null,
+      count: r.count,
+      good: r.good,
+      warning: r.warning,
+      critical: r.critical,
+      lastSeen: new Date(r.lastSeen * 1000).toISOString(),
+    })),
+  );
   return c.json({ items, total: totalRow.total });
 });
 
