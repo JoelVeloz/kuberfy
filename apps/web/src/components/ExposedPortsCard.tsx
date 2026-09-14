@@ -32,9 +32,9 @@ interface PortRow {
 
 const columnHelper = createColumnHelper<PortRow>();
 const columns = [
-  columnHelper.accessor("port", { header: "Port", meta: { className: "font-mono" } }),
-  columnHelper.accessor("service", { header: "Service" }),
-  columnHelper.accessor("access", { header: "Access", meta: { headerClassName: "text-right", className: "text-right" } }),
+  columnHelper.accessor("port", { header: "Port", cell: (info) => info.getValue(), meta: { className: "font-mono" } }),
+  columnHelper.accessor("service", { header: "Service", cell: (info) => info.getValue() }),
+  columnHelper.accessor("access", { header: "Access", cell: (info) => info.getValue(), meta: { headerClassName: "text-right", className: "text-right" } }),
 ];
 
 export function ExposedPortsCard() {
