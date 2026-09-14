@@ -84,18 +84,19 @@ done
 info "Removing Traefik proxy..."
 docker rm -f kuberfy-traefik 2>/dev/null || true
 
-info "Removing deployed application containers..."
-app_containers=$(docker ps -aq -f label=kuberfy.application 2>/dev/null || true)
-if [ -n "$app_containers" ]; then
-  docker rm -f $app_containers 2>/dev/null || true
+info "Removing deployed application services..."
+app_services=$(docker service ls -q -f label=kuberfy.application 2>/dev/null || true)
+if [ -n "$app_services" ]; then
+  docker service rm $app_services 2>/dev/null || true
 fi
 
 info "Removing overlay networks..."
 docker network rm kuberfy-network kuberfy-apps-network 2>/dev/null || true
 
 info "Removing data volumes..."
+app_volumes=$(docker volume ls -q -f name=kuberfy-vol- 2>/dev/null || true)
 for _ in $(seq 1 10); do
-  if docker volume rm kuberfy-data kuberfy-traefik-certs 2>/dev/null; then
+  if docker volume rm kuberfy-data kuberfy-traefik-certs $app_volumes 2>/dev/null; then
     break
   fi
   sleep 1
