@@ -15,10 +15,11 @@ import { settings, ensureSettingsSeeded } from "./routes/settings";
 import { observability } from "./routes/observability";
 import { system } from "./routes/system";
 import { users } from "./routes/users";
-import { reconcileInterruptedDeployments } from "./services/deploy";
+import { reconcileDeploymentStatuses, reconcileInterruptedDeployments } from "./services/deploy";
 
 await reconcileInterruptedDeployments();
 await ensureSettingsSeeded();
+setInterval(() => reconcileDeploymentStatuses().catch((err) => console.error("reconcileDeploymentStatuses failed:", err)), 30_000);
 
 const app = new Hono();
 

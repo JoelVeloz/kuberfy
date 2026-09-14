@@ -15,7 +15,7 @@ export function OverviewContent({ app, onSelectTab }: { app: ApiApplicationDetai
         <div>
           <h2 className="font-heading text-sm font-medium">Resource usage</h2>
           <div className="mt-3">
-            <ApplicationStatsChart applicationId={app.id} />
+            <ApplicationStatsChart applicationId={app.id} cpuLimit={app.cpuLimit} />
           </div>
         </div>
       )}

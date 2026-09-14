@@ -11,6 +11,7 @@ import { toast } from "sonner";
 
 export function ResourcesContent({ app }: { app: ApiApplicationDetail }) {
   const [memoryLimitMb, setMemoryLimitMb] = React.useState(String(app.memoryLimitMb));
+  const [cpuLimit, setCpuLimit] = React.useState(String(app.cpuLimit));
   const [repoUrl, setRepoUrl] = React.useState(app.repoUrl);
   const [isPrivate, setIsPrivate] = React.useState(app.registryUsername != null);
   const [registryUsername, setRegistryUsername] = React.useState(app.registryUsername ?? "");
@@ -23,6 +24,14 @@ export function ResourcesContent({ app }: { app: ApiApplicationDetail }) {
       queryClient.invalidateQueries({ queryKey: ["application", app.id] });
     },
     onError: (err) => toastError(err, "Failed to save memory limit."),
+  });
+  const saveCpu = useMutation({
+    mutationFn: (cores: number) => api.updateApplicationCpuLimit(app.id, cores),
+    onSuccess: () => {
+      toast.success("CPU limit saved.");
+      queryClient.invalidateQueries({ queryKey: ["application", app.id] });
+    },
+    onError: (err) => toastError(err, "Failed to save CPU limit."),
   });
   const saveImage = useMutation({
     mutationFn: () =>
@@ -42,6 +51,8 @@ export function ResourcesContent({ app }: { app: ApiApplicationDetail }) {
 
   const parsed = Number(memoryLimitMb);
   const isValid = Number.isInteger(parsed) && parsed > 0;
+  const parsedCpu = Number(cpuLimit);
+  const isCpuValid = Number.isFinite(parsedCpu) && parsedCpu > 0;
   const trimmedRepoUrl = repoUrl.trim();
   const wasPrivate = app.registryUsername != null;
   const imageUnchanged =
@@ -103,17 +114,31 @@ export function ResourcesContent({ app }: { app: ApiApplicationDetail }) {
 
       <h2 className="mt-6 font-heading text-sm font-medium">Resources</h2>
       <Card className="mt-3">
-        <CardContent>
-          <div className="flex flex-col gap-1.5 sm:max-w-xs">
-            <label htmlFor="memory-limit" className="text-xs font-medium">
-              Memory limit (MB)
-            </label>
-            <Input id="memory-limit" type="number" min={1} step={1} value={memoryLimitMb} onChange={(e) => setMemoryLimitMb(e.target.value)} />
-            <p className="text-xs text-muted-foreground">Applied on next deploy or restart.</p>
+        <CardContent className="flex flex-col gap-6 sm:flex-row sm:gap-12">
+          <div>
+            <div className="flex flex-col gap-1.5 sm:max-w-xs">
+              <label htmlFor="memory-limit" className="text-xs font-medium">
+                Memory limit (MB)
+              </label>
+              <Input id="memory-limit" type="number" min={1} step={1} value={memoryLimitMb} onChange={(e) => setMemoryLimitMb(e.target.value)} />
+              <p className="text-xs text-muted-foreground">Applied on next deploy or restart.</p>
+            </div>
+            <Button className="mt-3" size="sm" disabled={!isValid || parsed === app.memoryLimitMb || save.isPending} onClick={() => save.mutate(parsed)}>
+              {save.isPending ? "Saving…" : "Save"}
+            </Button>
           </div>
-          <Button className="mt-3" size="sm" disabled={!isValid || parsed === app.memoryLimitMb || save.isPending} onClick={() => save.mutate(parsed)}>
-            {save.isPending ? "Saving…" : "Save"}
-          </Button>
+          <div>
+            <div className="flex flex-col gap-1.5 sm:max-w-xs">
+              <label htmlFor="cpu-limit" className="text-xs font-medium">
+                CPU limit (cores)
+              </label>
+              <Input id="cpu-limit" type="number" min={0.1} step={0.1} value={cpuLimit} onChange={(e) => setCpuLimit(e.target.value)} />
+              <p className="text-xs text-muted-foreground">Hard cap on this app's CPU usage. Applied on next deploy or restart.</p>
+            </div>
+            <Button className="mt-3" size="sm" disabled={!isCpuValid || parsedCpu === app.cpuLimit || saveCpu.isPending} onClick={() => saveCpu.mutate(parsedCpu)}>
+              {saveCpu.isPending ? "Saving…" : "Save"}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </>

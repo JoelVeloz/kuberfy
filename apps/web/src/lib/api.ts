@@ -24,6 +24,7 @@ export interface ApiApplication {
   dockerfilePath: string | null;
   envVars: string | null;
   memoryLimitMb: number;
+  cpuLimit: number;
   // registryPassword is write-only — never sent back by the API
   registryUsername: string | null;
   createdAt: string;
@@ -279,6 +280,12 @@ export const api = {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ memoryLimitMb }),
+    }),
+  updateApplicationCpuLimit: (id: string, cpuLimit: number) =>
+    request<ApiApplication>(`/api/applications/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cpuLimit }),
     }),
   updateApplicationImage: (id: string, input: { repoUrl: string; registryUsername?: string | null; registryPassword?: string | null }) =>
     request<ApiApplication>(`/api/applications/${id}`, {

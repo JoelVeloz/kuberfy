@@ -16,7 +16,6 @@ export function SystemTabs() {
         <SystemPage />
       </TabsContent>
       <TabsContent value="processes">
-        <p className="mb-3 text-xs text-muted-foreground">Every process on the host. Click a column to sort.</p>
         <ProcessesTable />
       </TabsContent>
     </Tabs>

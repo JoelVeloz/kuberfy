@@ -1,0 +1,1 @@
+ALTER TABLE `applications` ADD `cpu_limit` real DEFAULT 1 NOT NULL;

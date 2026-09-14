@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 import { users as user } from "./auth";
 
@@ -70,6 +70,7 @@ export const application = sqliteTable("applications", {
   registryPassword: text("registry_password"),
   // hard cap passed to Docker as HostConfig.Memory — keeps one runaway service from starving the host
   memoryLimitMb: integer("memory_limit_mb").notNull().default(256),
+  cpuLimit: real("cpu_limit").notNull().default(1),
   ...timestamps,
 });
 
@@ -92,6 +93,7 @@ export const apiCreateApplication = z.object({
   dockerfilePath: z.string().min(1).optional(),
   envVars: z.string().optional(),
   memoryLimitMb: z.number().int().positive().default(256),
+  cpuLimit: z.number().positive().default(1),
   registryUsername: z.string().min(1).optional(),
   registryPassword: z.string().min(1).optional(),
 });

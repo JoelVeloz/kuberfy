@@ -8,7 +8,7 @@ import { db } from "../db";
 import { deployment } from "../db/schema/app";
 import { env } from "../lib/env";
 import { requireAuth } from "../lib/auth-middleware";
-import { docker, parseDockerStats, pullImage, resolveContainerId, type DockerStatsSample } from "../services/deploy";
+import { docker, parseDockerStats, pullImage, type DockerStatsSample } from "../services/deploy";
 
 export const system = new Hono();
 
@@ -40,10 +40,11 @@ function hostMemory() {
   return { memTotal: totalKb * 1024, memUsed: (totalKb - availableKb) * 1024 };
 }
 
+type ContainerList = Awaited<ReturnType<typeof docker.listContainers>>;
+
 // Kuberfy's own infrastructure — Traefik plus this very process's container — reported the same way as any
 // deployed app, so you can see whether the platform itself (not just what's deployed on it) is at its limit.
-async function findInfraContainers(): Promise<Array<{ id: string; name: string }>> {
-  const containers = await docker.listContainers();
+function findInfraContainers(containers: ContainerList): Array<{ id: string; name: string }> {
   // Docker sets HOSTNAME to the short container id by default, so this identifies whichever container is
   // actually running this API process, in dev or production, without hardcoding a container/service name.
   const selfId = os.hostname();
@@ -53,6 +54,10 @@ async function findInfraContainers(): Promise<Array<{ id: string; name: string }
     else if (c.Id.startsWith(selfId)) infra.push({ id: c.Id, name: "Kuberfy" });
   }
   return infra;
+}
+
+function resolveServiceContainerId(containers: ContainerList, serviceId: string): string | null {
+  return containers.find((c) => c.Labels["com.docker.swarm.service.id"] === serviceId)?.Id ?? null;
 }
 
 async function containerStats(containerId: string) {
@@ -66,6 +71,7 @@ async function containerStats(containerId: string) {
 }
 
 const CLK_TCK = 100; // USER_HZ — universal on every Linux arch we target, so not worth shelling out to `getconf` for
+const CPU_COUNT = os.cpus().length;
 const HOST_PROC = "/host/proc"; // the real host's /proc, bind-mounted read-only — Swarm services can't share the host PID namespace
 // (no --pid=host equivalent for `docker service create`), so per-process /proc/[pid] entries aren't visible any other way.
 
@@ -180,7 +186,7 @@ system.get(
           const { processes, ticks } = await readHostProcesses(prevTicks, elapsedSeconds);
           prevTicks = ticks;
           prevTime = now;
-          ws.send(JSON.stringify({ t: now, processes }));
+          ws.send(JSON.stringify({ t: now, cpuCount: CPU_COUNT, processes }));
         };
         // Same "fire once immediately" reasoning as /stats — first tick's cpu reads 0 (no prior sample yet) and corrects 2s later.
         void tick();
@@ -201,6 +207,8 @@ system.get(
     return {
       onOpen: (_evt, ws) => {
         const tick = async () => {
+          const t = Date.now();
+
           const nextCpu = cpuSnapshot();
           const hostCpu = hostCpuPercent(prevCpu, nextCpu);
           prevCpu = nextCpu;
@@ -213,30 +221,40 @@ system.get(
           const diskTotal = diskInfo.blocks * diskInfo.bsize;
           const diskUsed = diskTotal - diskInfo.bavail * diskInfo.bsize;
 
+          ws.send(JSON.stringify({ type: "host", t, host: { cpu: hostCpu, cpuCount: CPU_COUNT, memUsed, memTotal, diskUsed, diskTotal } }));
+
           // limit: 1 — only the latest deployment's status/containerId matters here, and this query already
           // reruns every 2s for every application; fetching the full history each time would only get worse
           // as deployments pile up.
-          const apps = await db.query.application.findMany({
-            with: { deployments: { orderBy: desc(deployment.createdAt), limit: 1 } },
-          });
+          const [apps, containers] = await Promise.all([
+            db.query.application.findMany({ with: { deployments: { orderBy: desc(deployment.createdAt), limit: 1 } } }),
+            docker.listContainers(),
+          ]);
+          const infra = findInfraContainers(containers);
 
-          const appStats = await Promise.all(
-            apps.map(async (app) => {
-              const dep = app.deployments[0];
-              // dep.containerId is a Swarm service ID — resolve the task's real container before reading stats,
-              // since the Docker API only exposes stats at the container level.
-              const containerId = dep?.status === "running" && dep.containerId ? await resolveContainerId(dep.containerId) : null;
-              if (!containerId) {
-                return { id: app.id, name: app.name, status: dep?.status ?? null, cpu: 0, memUsed: 0, memLimit: 0 };
-              }
-              return { id: app.id, name: app.name, status: dep!.status, ...(await containerStats(containerId)) };
+          ws.send(
+            JSON.stringify({
+              type: "shell",
+              apps: apps.map((app) => ({ id: app.id, name: app.name, status: app.deployments[0]?.status ?? null, cpuLimit: app.cpuLimit })),
+              infra: infra.map((c) => ({ id: c.id, name: c.name })),
             }),
           );
 
-          const infraContainers = await findInfraContainers();
-          const infraStats = await Promise.all(infraContainers.map(async (c) => ({ id: c.id, name: c.name, ...(await containerStats(c.id)) })));
+          for (const app of apps) {
+            void (async () => {
+              const dep = app.deployments[0];
+              const containerId = dep?.status === "running" && dep.containerId ? resolveServiceContainerId(containers, dep.containerId) : null;
+              const stat = containerId ? await containerStats(containerId) : { cpu: 0, memUsed: 0, memLimit: 0 };
+              ws.send(JSON.stringify({ type: "appStat", t: Date.now(), id: app.id, ...stat }));
+            })();
+          }
 
-          ws.send(JSON.stringify({ t: Date.now(), host: { cpu: hostCpu, memUsed, memTotal, diskUsed, diskTotal }, apps: appStats, infra: infraStats }));
+          for (const c of infra) {
+            void (async () => {
+              const stat = await containerStats(c.id);
+              ws.send(JSON.stringify({ type: "infraStat", t: Date.now(), id: c.id, ...stat }));
+            })();
+          }
         };
         // Fire once immediately so the page isn't sitting blank for a full tick before its first sample —
         // the CPU% on this first message reads 0 (no elapsed window yet) and corrects itself 2s later.

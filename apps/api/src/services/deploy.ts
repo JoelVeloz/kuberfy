@@ -53,6 +53,43 @@ export async function reconcileInterruptedDeployments() {
     .where(inArray(deployment.status, ["pending", "building"]));
 }
 
+// A reconciliation loop, the same pattern Kubernetes controllers use: never trust a status written once at
+// deploy time, periodically compare it against the live Swarm state and correct drift in either direction.
+// Nothing else re-checks a deployment's stored status once deploy() below stops watching it, so left alone
+// the DB can permanently disagree with reality three ways:
+//   - "failed": the 30s task-readiness check in deploy() can give up on a service that goes on to become
+//     healthy moments later (its own RestartPolicy keeps retrying) — heavy concurrent load makes this common.
+//   - "building" with no progress in a while: the process running deploy() died (e.g. was itself the one
+//     redeployed, or crashed) before it could record an outcome — left alone this spins forever in the UI.
+//   - "running" for a service that no longer exists at all (removed outside the normal delete flow, or lost
+//     across some other interruption) — nothing currently ever un-marks that.
+const STALE_BUILDING_MS = 3 * 60 * 1000;
+
+export async function reconcileDeploymentStatuses() {
+  const rows = await db.query.deployment.findMany({ where: (fields, { inArray }) => inArray(fields.status, ["failed", "building", "running"]) });
+  for (const dep of rows) {
+    if (dep.status === "building" && Date.now() - dep.updatedAt.getTime() < STALE_BUILDING_MS) continue;
+
+    const serviceRef = dep.containerId ?? `kuberfy-${dep.applicationId}`;
+    let isRunning = false;
+    try {
+      const tasks = await docker.listTasks({ filters: { service: [serviceRef] } });
+      isRunning = tasks.some((t) => t.Status?.State === "running");
+    } catch {
+      // service doesn't exist (never created, or removed since) — isRunning stays false
+    }
+
+    if (isRunning) {
+      if (dep.status !== "running") await db.update(deployment).set({ status: "running", updatedAt: new Date() }).where(eq(deployment.id, dep.id));
+    } else if (dep.status !== "failed") {
+      await db
+        .update(deployment)
+        .set({ status: "failed", logs: `${dep.logs ?? ""}\nNo running service found for this deployment. Redeploy to try again.`, updatedAt: new Date() })
+        .where(eq(deployment.id, dep.id));
+    }
+  }
+}
+
 export async function runDeployment(applicationId: string) {
   const app = await db.query.application.findFirst({ where: eq(application.id, applicationId) });
   if (!app) return null;
@@ -135,7 +172,7 @@ async function deploy(app: typeof application.$inferSelect, deploymentId: string
     TaskTemplate: {
       ContainerSpec: { Image: imageTag, Env: env, Mounts: mounts, TTY: true },
       RestartPolicy: { Condition: "any" },
-      Resources: { Limits: { MemoryBytes: app.memoryLimitMb * 1024 * 1024 } },
+      Resources: { Limits: { MemoryBytes: app.memoryLimitMb * 1024 * 1024, NanoCPUs: Math.round(app.cpuLimit * 1_000_000_000) } },
       Networks: [{ Target: DEPLOY_NETWORK }],
     },
     Mode: { Replicated: { Replicas: 1 } },

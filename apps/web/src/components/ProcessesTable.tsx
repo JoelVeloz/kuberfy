@@ -13,6 +13,7 @@ interface ProcessSample {
 
 interface ProcessesMessage {
   t: number;
+  cpuCount: number;
   processes: ProcessSample[];
 }
 
@@ -73,19 +74,24 @@ export function ProcessesTable() {
   }
 
   return (
-    <Card>
-      <CardContent className="max-h-[32rem] overflow-y-auto px-0">
-        <DataTable
-          columns={columns}
-          data={message.processes}
-          getRowId={(p) => String(p.pid)}
-          sorting={sorting}
-          onSortingChange={setSorting}
-          fixedLayout
-          stickyHeader
-          emptyMessage="No process data. Check that /host/proc is mounted."
-        />
-      </CardContent>
-    </Card>
+    <>
+      <p className="mb-3 text-xs text-muted-foreground">
+        Every process on the host, CPU per-core (100% = one of {message.cpuCount} cores — a multi-threaded process can read above 100%). Click a column to sort.
+      </p>
+      <Card>
+        <CardContent className="max-h-[32rem] overflow-y-auto px-0">
+          <DataTable
+            columns={columns}
+            data={message.processes}
+            getRowId={(p) => String(p.pid)}
+            sorting={sorting}
+            onSortingChange={setSorting}
+            fixedLayout
+            stickyHeader
+            emptyMessage="No process data. Check that /host/proc is mounted."
+          />
+        </CardContent>
+      </Card>
+    </>
   );
 }

@@ -40,7 +40,7 @@ const tooltipRow = (label: string, formatValue: (value: unknown) => string) => (
 
 // Client island: opens a WebSocket to the API's dockerode stats stream and keeps a rolling window of
 // samples in memory (nothing persisted) — same live-socket pattern as RuntimeLogs, applied to metrics.
-export function ApplicationStatsChart({ applicationId }: { applicationId: string }) {
+export function ApplicationStatsChart({ applicationId, cpuLimit }: { applicationId: string; cpuLimit: number }) {
   const [samples, setSamples] = React.useState<StatsSample[]>([]);
   const [connected, setConnected] = React.useState(false);
 
@@ -80,7 +80,9 @@ export function ApplicationStatsChart({ applicationId }: { applicationId: string
       <Card>
         <CardHeader className="flex-row items-center justify-between space-y-0 pb-0">
           <CardTitle className="text-sm font-medium">CPU</CardTitle>
-          <span className="font-mono text-lg font-medium tabular-nums">{latest!.cpu.toFixed(1)}%</span>
+          <span className="font-mono text-lg font-medium tabular-nums">
+            {latest!.cpu.toFixed(1)}% <span className="text-xs font-normal text-muted-foreground">/ {cpuLimit === 1 ? "1 core" : `${cpuLimit} cores`}</span>
+          </span>
         </CardHeader>
         <CardContent>
           <ChartContainer config={cpuConfig} className="aspect-auto h-32 w-full">
@@ -93,7 +95,7 @@ export function ApplicationStatsChart({ applicationId }: { applicationId: string
               </defs>
               <CartesianGrid vertical={false} strokeDasharray="3 3" />
               <XAxis dataKey="t" type="number" domain={timeDomain} tickFormatter={formatAxisTick} tickLine={false} axisLine={false} minTickGap={40} />
-              <YAxis width={44} tickLine={false} axisLine={false} domain={[0, (max: number) => Math.max(100, Math.ceil(max / 10) * 10)]} unit="%" />
+              <YAxis width={44} tickLine={false} axisLine={false} domain={[0, cpuLimit * 100]} unit="%" />
               <ChartTooltip labelFormatter={formatTooltipLabel} content={<ChartTooltipContent formatter={tooltipRow("CPU", (v) => `${v}%`)} />} />
               <Area dataKey="cpu" name="cpu" type="monotone" fill="url(#fillCpu)" stroke="var(--color-cpu)" strokeWidth={2} isAnimationActive={false} />
             </AreaChart>
