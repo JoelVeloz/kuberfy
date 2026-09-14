@@ -1,4 +1,5 @@
 import * as fs from "node:fs";
+import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import { desc } from "drizzle-orm";
 import { Hono } from "hono";
@@ -75,57 +76,51 @@ interface ProcessSample {
   memUsed: number;
 }
 
-// Mirrors hostCpuPercent's approach (a delta over the real elapsed time between ticks) but per-pid, since
-// /proc/[pid]/stat only exposes cumulative CPU ticks since process start, not a live percentage.
-function readHostProcesses(prevTicks: Map<number, number>, elapsedSeconds: number): { processes: ProcessSample[]; ticks: Map<number, number> } {
+async function readHostProcesses(prevTicks: Map<number, number>, elapsedSeconds: number): Promise<{ processes: ProcessSample[]; ticks: Map<number, number> }> {
   const ticks = new Map<number, number>();
-  const processes: ProcessSample[] = [];
 
   let entries: string[];
   try {
-    entries = fs.readdirSync(HOST_PROC);
+    entries = await fsp.readdir(HOST_PROC);
   } catch {
-    return { processes, ticks }; // not mounted (e.g. local dev without the bind mount) — report no processes rather than crash
+    return { processes: [], ticks };
   }
 
-  for (const entry of entries) {
-    const pid = Number(entry);
-    if (!Number.isInteger(pid)) continue;
+  const results = await Promise.all(
+    entries.map(async (entry): Promise<ProcessSample | null> => {
+      const pid = Number(entry);
+      if (!Number.isInteger(pid)) return null;
 
-    let stat: string;
-    try {
-      stat = fs.readFileSync(`${HOST_PROC}/${pid}/stat`, "utf-8");
-    } catch {
-      continue; // exited between the readdir and this read
-    }
+      let stat: string;
+      try {
+        stat = await fsp.readFile(`${HOST_PROC}/${pid}/stat`, "utf-8");
+      } catch {
+        return null;
+      }
 
-    // comm is parenthesized and may itself contain "(" / ")", so locate it by the outermost pair rather than splitting on spaces
-    const commEnd = stat.lastIndexOf(")");
-    const comm = stat.slice(stat.indexOf("(") + 1, commEnd);
-    // everything after ") " starts at field 3 (state) — utime/stime are fields 14/15, i.e. indexes 11/12 here
-    const fields = stat
-      .slice(commEnd + 2)
-      .trim()
-      .split(/\s+/);
-    const totalTicks = Number(fields[11]) + Number(fields[12]);
-    ticks.set(pid, totalTicks);
+      const commEnd = stat.lastIndexOf(")");
+      const comm = stat.slice(stat.indexOf("(") + 1, commEnd);
+      const fields = stat
+        .slice(commEnd + 2)
+        .trim()
+        .split(/\s+/);
+      const totalTicks = Number(fields[11]) + Number(fields[12]);
+      ticks.set(pid, totalTicks);
 
-    const prev = prevTicks.get(pid);
-    const cpu = prev !== undefined && elapsedSeconds > 0 ? Math.max(0, Math.round(((totalTicks - prev) / CLK_TCK / elapsedSeconds) * 1000) / 10) : 0;
+      const prev = prevTicks.get(pid);
+      const cpu = prev !== undefined && elapsedSeconds > 0 ? Math.max(0, Math.round(((totalTicks - prev) / CLK_TCK / elapsedSeconds) * 1000) / 10) : 0;
 
-    // Full argv reads better for debugging than the 15-char-truncated comm — but kernel threads have no argv, so fall back to comm for those
-    let command = comm;
-    try {
-      const cmdline = fs.readFileSync(`${HOST_PROC}/${pid}/cmdline`, "utf-8").replace(/\0/g, " ").trim();
-      if (cmdline) command = cmdline;
-    } catch {
-      // ignore — comm already set
-    }
+      let command = comm;
+      try {
+        const cmdline = (await fsp.readFile(`${HOST_PROC}/${pid}/cmdline`, "utf-8")).replace(/\0/g, " ").trim();
+        if (cmdline) command = cmdline;
+      } catch {}
 
-    processes.push({ pid, command, cpu, memUsed: Number(fields[21]) * 4096 });
-  }
+      return { pid, command, cpu, memUsed: Number(fields[21]) * 4096 };
+    }),
+  );
 
-  return { processes, ticks };
+  return { processes: results.filter((p): p is ProcessSample => p !== null), ticks };
 }
 
 // Every unused image (not just dangling — matches `docker image prune -a`, since a self-hosted single-node
@@ -179,10 +174,10 @@ system.get(
     let interval: ReturnType<typeof setInterval> | null = null;
     return {
       onOpen: (_evt, ws) => {
-        const tick = () => {
+        const tick = async () => {
           const now = Date.now();
           const elapsedSeconds = (now - prevTime) / 1000;
-          const { processes, ticks } = readHostProcesses(prevTicks, elapsedSeconds);
+          const { processes, ticks } = await readHostProcesses(prevTicks, elapsedSeconds);
           prevTicks = ticks;
           prevTime = now;
           ws.send(JSON.stringify({ t: now, processes }));
