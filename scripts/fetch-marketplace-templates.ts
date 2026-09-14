@@ -35,7 +35,6 @@ const CANDIDATES = [
   "searxng",
   "changedetection",
   "linkding",
-  "ntfy",
   "syncthing",
   "dashy",
   "stirling-pdf",
@@ -83,7 +82,6 @@ const CANDIDATES = [
   "flaresolverr",
   "flatnotes",
   "fmd-server",
-  "garage",
   "gitingest",
   "gotenberg",
   "gotify",
@@ -129,7 +127,6 @@ const CANDIDATES = [
   "vikunja",
   "wakapi",
   "web-check",
-  "wg-easy",
   "yt-dlp-webui",
 ];
 
@@ -137,6 +134,18 @@ const CANDIDATES = [
 // /var/run/docker.sock into the container (dozzle/portainer can't work at all without it), which
 // kuberfy's deploy pipeline has no way to provide — it only ever creates named Docker volumes, never
 // host bind mounts.
+
+// wg-easy was removed: it needs the NET_ADMIN capability and /dev/net/tun to create its WireGuard
+// interface (confirmed empirically — fails with "Operation not permitted" otherwise), and
+// docker.createService() in deploy.ts has no way to grant either.
+
+// garage was removed: it needs a config file mounted into the container (confirmed empirically — fails with
+// "IO error: No such file or directory" without one), and kuberfy's deploy pipeline only ever provisions named
+// data volumes, never injects arbitrary files.
+
+// ntfy was removed: its image's default command just prints CLI help and exits — it needs an explicit `serve`
+// argument to run as a server (confirmed empirically — the task cycles Complete/Rejected forever otherwise),
+// and docker.createService() in deploy.ts never sets a custom Command on the container spec.
 
 // PostgreSQL, MySQL and MongoDB have no standalone single-container blueprint in either Dokploy/templates
 // or coollabsio/coolify — both platforms treat them as a first-class "database" resource type in their own
@@ -410,8 +419,10 @@ function extractVolumePaths(serviceDef: unknown): string[] {
   const paths: string[] = [];
   for (const entry of raw) {
     if (typeof entry !== "string") continue; // long-form { type, source, target } mounts — none of our candidates use them
-    const [source, target] = entry.split(":");
-    if (!source || !target || HOST_BIND_RE.test(source) || NON_DATA_TARGETS.has(target)) continue;
+    // resolveDefault first: a source like "${DATA_DIR:-~/app-data}" has a colon of its own, so splitting the
+    // raw entry on ":" cuts it in the wrong place and produces a garbage target (e.g. trilium-next used to).
+    const [source, target] = resolveDefault(entry).split(":");
+    if (!source || !target || !target.startsWith("/") || HOST_BIND_RE.test(source) || NON_DATA_TARGETS.has(target)) continue;
     paths.push(target);
   }
   return [...new Set(paths)];
@@ -472,6 +483,10 @@ async function tryDokploy(id: string): Promise<Template | SkipReason> {
   if (usesDockerSocket(serviceDef)) return { id, reason: "Dokploy blueprint mounts the host's docker.sock" };
   const image = serviceDef.image ? resolveDefault(serviceDef.image as string) : undefined;
   if (!image) return { id, reason: "Dokploy blueprint builds from source instead of a public image" };
+  // A variable with no ":-default" (e.g. "${SOFTWARE_VERSION_TAG}") is left untouched by resolveDefault since
+  // it genuinely depends on the caller — but that means the literal placeholder would otherwise ship as the
+  // image tag kuberfy tries to pull, which always 400s. gitingest hit exactly this.
+  if (image.includes("${")) return { id, reason: `Dokploy blueprint's image has an unresolved variable: ${image}` };
 
   let port: number | null = tomlText ? parseTomlPort(tomlText) : null;
   if (port === null) {
@@ -519,6 +534,7 @@ async function tryCoolify(id: string): Promise<Template | SkipReason> {
   if (usesDockerSocket(serviceDef)) return { id, reason: "Coolify template mounts the host's docker.sock" };
   const image = serviceDef.image ? resolveDefault(serviceDef.image as string) : undefined;
   if (!image) return { id, reason: "Coolify template builds from source instead of a public image" };
+  if (image.includes("${")) return { id, reason: `Coolify template's image has an unresolved variable: ${image}` };
 
   // Coolify's own reverse-proxy magic (`SERVICE_URL_<NAME>_<PORT>` / `SERVICE_FQDN_<NAME>_<PORT>`) names the
   // container's real HTTP port — more reliable than `expose`/`ports`, which can be an unrelated mapping
