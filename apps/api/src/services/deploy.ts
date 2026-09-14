@@ -14,6 +14,16 @@ export const docker = new Docker();
 // both networks so it can still route to everything.
 const DEPLOY_NETWORK = "kuberfy-apps-network";
 
+// dockerode's pull/build streams have no built-in ceiling — a stalled registry connection or a `followProgress`
+// callback that never fires (observed for real: the image had already finished downloading on the daemon, but the
+// stream's completion callback never resolved the wrapping Promise) otherwise leaves a deployment stuck in
+// "building" forever, with no way for a user to recover except going around the panel straight to Docker.
+const DEPLOY_TIMEOUT_MS = 10 * 60 * 1000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return Promise.race([promise, new Promise<never>((_resolve, reject) => setTimeout(() => reject(new Error(message)), ms))]);
+}
+
 // In-progress build output, so a build-log page opened mid-build can catch up instantly instead of waiting for the next line.
 export const activeBuildLogs = new Map<string, string[]>();
 // One shared emitter: "line" events carry `${deploymentId}\n${text}`, "done" events carry the deploymentId — keeps the
@@ -49,7 +59,7 @@ export async function runDeployment(applicationId: string) {
 
   const [dep] = await db.insert(deployment).values({ applicationId, status: "building" }).returning();
 
-  deploy(app, dep!.id).catch(async (err) => {
+  withTimeout(deploy(app, dep!.id), DEPLOY_TIMEOUT_MS, "Deploy timed out after 10 minutes").catch(async (err) => {
     await db
       .update(deployment)
       .set({ status: "failed", logs: err instanceof Error ? err.message : String(err), updatedAt: new Date() })
@@ -132,11 +142,18 @@ async function deploy(app: typeof application.$inferSelect, deploymentId: string
   });
   log(`Service created (${service.id.slice(0, 12)})`);
 
-  // A task can crash-loop almost immediately (e.g. a required env var is missing) — briefly wait and check its
-  // real state before declaring victory, instead of trusting `createService` alone.
-  await new Promise((resolve) => setTimeout(resolve, 1500));
-  const tasks = await docker.listTasks({ filters: { service: [serviceName] } });
-  const task = tasks.find((t) => t.Status?.State === "running") ?? tasks[0];
+  // A task can crash-loop almost immediately (e.g. a required env var is missing) — poll its real state for a
+  // while before declaring victory, instead of trusting `createService` alone. A single check after a fixed
+  // 1.5s wasn't enough for a cold image pull: the task is often still "preparing" (extracting layers) at that
+  // point even though it goes on to start fine seconds later, producing a false "failed" status.
+  const deployTimeoutAt = Date.now() + 30_000;
+  let task: Awaited<ReturnType<typeof docker.listTasks>>[number] | undefined;
+  do {
+    const tasks = await docker.listTasks({ filters: { service: [serviceName] } });
+    task = tasks.find((t) => t.Status?.State === "running") ?? tasks[0];
+    if (task?.Status?.State === "running") break;
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+  } while (Date.now() < deployTimeoutAt);
   if (task?.Status?.State !== "running") {
     const crashContainerId = task?.Status?.ContainerStatus?.ContainerID as string | undefined;
     const crashLogs = crashContainerId ? await docker.getContainer(crashContainerId).logs({ stdout: true, stderr: true, tail: 100 }) : undefined;
