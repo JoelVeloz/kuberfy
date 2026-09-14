@@ -54,6 +54,83 @@ const CANDIDATES = [
   "actualbudget",
   "speedtest-tracker",
   "wastebin",
+  "adminer",
+  "alist",
+  "anonupload",
+  "anse",
+  "anubis",
+  "apprise-api",
+  "archivebox",
+  "baikal",
+  "bentopdf",
+  "convertx",
+  "crawl4ai",
+  "cyberchef",
+  "dagu",
+  "directory-lister",
+  "domain-locker",
+  "drawio",
+  "drawnix",
+  "dumbassets",
+  "dumbbudget",
+  "dumbdrop",
+  "dumbpad",
+  "duplicati",
+  "etherpad",
+  "ezbookkeeping",
+  "filegator",
+  "filestash",
+  "flaresolverr",
+  "flatnotes",
+  "fmd-server",
+  "garage",
+  "gitingest",
+  "gotenberg",
+  "gotify",
+  "homebox",
+  "hoppscotch",
+  "imgproxy",
+  "ipfs",
+  "jellyfin",
+  "jellyseerr",
+  "kener",
+  "kitchenowl",
+  "languagetool",
+  "libretranslate",
+  "librespeed",
+  "lubelogger",
+  "mailpit",
+  "mazanoke",
+  "mealie",
+  "metube",
+  "morphos",
+  "navidrome",
+  "omni-tools",
+  "onetimesecret",
+  "openspeedtest",
+  "otterwiki",
+  "owncast",
+  "pairdrop",
+  "palmr",
+  "photoprism",
+  "pinchflat",
+  "pocket-id",
+  "qbittorrent",
+  "rustdesk",
+  "scrutiny",
+  "shiori",
+  "silverbullet",
+  "slash",
+  "statping-ng",
+  "trilium",
+  "trilium-next",
+  "upsnap",
+  "uptimekit",
+  "vikunja",
+  "wakapi",
+  "web-check",
+  "wg-easy",
+  "yt-dlp-webui",
 ];
 
 // dozzle, glances, portainer and uptime-kuma were removed: their upstream templates mount
@@ -158,14 +235,11 @@ const MANUAL_TEMPLATES: Template[] = [
   },
 ];
 
-// Easypanel's Dockerizer (dockerizer.easypanel.io) lists 34 framework/language "boilerplate" stacks
-// (Next.js, Django, Laravel, Go, etc.), but each one is a generator that produces a Dockerfile you build
-// from your own source — there is no public image that runs any of them standalone. Verified empirically
-// (docker run --rm, no command, no source) rather than assumed: node:24-alpine, oven/bun, denoland/deno,
-// golang:1.24-alpine, python:3.13-alpine and ruby:3.4-alpine all exit immediately (code 0, no logs — their
-// default CMD is a REPL/shell that hits EOF with no tty attached); php:8.4-apache stays up but serves an
-// empty webroot (403, no index file). Of the 34, only "Static Site" has a real single-container image that
-// serves actual content with zero source code: nginx's own baked-in default page.
+// Bare language runtime images (node:24-alpine, python:3.13-alpine, golang:1.24-alpine, ruby:3.4-alpine,
+// oven/bun, denoland/deno) exit immediately when run without source code — their default CMD is a REPL/shell
+// that hits EOF with no tty attached. php:8.4-apache stays up but serves an empty webroot (403, no index).
+// The boilerplate templates below use community-maintained images that bake in a working hello-world
+// application so they serve actual content out of the box — verified empirically with `docker run --rm -d`.
 const BOILERPLATE_TEMPLATES: Template[] = [
   {
     id: "static-site",
@@ -181,6 +255,93 @@ const BOILERPLATE_TEMPLATES: Template[] = [
     volumes: [],
     category: "boilerplate",
   },
+  {
+    id: "apache-http",
+    name: "Apache HTTP",
+    description: 'The Apache HTTP Server serving its default "It works!" page — a starting point for static or CGI-based sites.',
+    source: "official",
+    sourceUrl: "https://hub.docker.com/_/httpd",
+    logo: "https://cdn.simpleicons.org/apache/D22128",
+    image: "httpd:alpine",
+    port: 80,
+    envVars: [],
+    tags: ["boilerplate", "static", "html", "apache"],
+    volumes: [],
+    category: "boilerplate",
+  },
+  {
+    id: "php",
+    name: "PHP",
+    description: "PHP-FPM 8.4 with Nginx on Alpine — serves a phpinfo() page out of the box, ready to replace with your own PHP files.",
+    source: "official",
+    sourceUrl: "https://hub.docker.com/r/trafex/php-nginx",
+    logo: "https://cdn.simpleicons.org/php/777BB4",
+    image: "trafex/php-nginx:latest",
+    port: 8080,
+    envVars: [],
+    tags: ["boilerplate", "php", "nginx", "backend"],
+    volumes: [],
+    category: "boilerplate",
+  },
+  {
+    id: "node-express",
+    name: "Node.js (Express)",
+    description: "A minimal Express.js hello-world app — serves a welcome page on port 8080, ready to extend with your own routes.",
+    source: "official",
+    sourceUrl: "https://hub.docker.com/r/kornkitti/express-hello-world",
+    logo: "https://cdn.simpleicons.org/nodedotjs/5FA04E",
+    image: "kornkitti/express-hello-world:latest",
+    port: 8080,
+    envVars: [],
+    tags: ["boilerplate", "node", "express", "javascript", "backend"],
+    volumes: [],
+    category: "boilerplate",
+  },
+  {
+    id: "flask",
+    name: "Flask (Python)",
+    description: "A production-ready Flask starter with uWSGI and Nginx — serves a hello-world page, ready to replace with your own app.",
+    source: "official",
+    sourceUrl: "https://hub.docker.com/r/tiangolo/uwsgi-nginx-flask",
+    logo: "https://cdn.simpleicons.org/flask/000000",
+    image: "tiangolo/uwsgi-nginx-flask:python3.11",
+    port: 80,
+    envVars: [],
+    tags: ["boilerplate", "python", "flask", "backend"],
+    volumes: [],
+    category: "boilerplate",
+  },
+  {
+    id: "fastapi",
+    name: "FastAPI (Python)",
+    description: "A production-ready FastAPI starter with Uvicorn and Gunicorn — serves a JSON hello-world endpoint, ready for your own API.",
+    source: "official",
+    sourceUrl: "https://hub.docker.com/r/tiangolo/uvicorn-gunicorn-fastapi",
+    logo: "https://cdn.simpleicons.org/fastapi/009688",
+    image: "tiangolo/uvicorn-gunicorn-fastapi:python3.11",
+    port: 80,
+    envVars: [],
+    tags: ["boilerplate", "python", "fastapi", "api", "backend"],
+    volumes: [],
+    category: "boilerplate",
+  },
+  {
+    id: "nextjs",
+    name: "Next.js",
+    description: "Vercel's own official Docker example — builds from source with the App Router and Next.js's standalone output mode.",
+    source: "official",
+    sourceUrl: "https://github.com/vercel/next.js/tree/canary/examples/with-docker",
+    logo: "https://cdn.simpleicons.org/nextdotjs/000000",
+    image: null,
+    repoUrl: "https://github.com/vercel/next.js",
+    branch: "canary",
+    dockerfilePath: "examples/with-docker/Dockerfile",
+    port: 3000,
+    envVars: [],
+    tags: ["boilerplate", "nextjs", "react", "javascript", "frontend"],
+    volumes: [],
+    category: "boilerplate",
+  },
 ];
 
 type EnvVarSpec = { key: string; default: string | null; secret: boolean };
@@ -192,7 +353,11 @@ type Template = {
   source: "dokploy" | "coolify" | "official";
   sourceUrl: string;
   logo: string | null;
-  image: string;
+  // exactly one of image (buildType "image") or repoUrl+branch+dockerfilePath (buildType "dockerfile") is set
+  image: string | null;
+  repoUrl?: string;
+  branch?: string;
+  dockerfilePath?: string;
   port: number | null;
   envVars: EnvVarSpec[];
   tags: string[];
@@ -214,6 +379,13 @@ function resolveDefault(value: string): string {
 function parseTomlPort(text: string): number | null {
   const match = text.match(/port\s*=\s*(\d[\d_]*)/);
   return match ? Number(match[1].replace(/_/g, "")) : null;
+}
+
+function titleCase(id: string): string {
+  return id
+    .split("-")
+    .map((w) => w[0]?.toUpperCase() + w.slice(1))
+    .join(" ");
 }
 
 async function ghRaw(path: string): Promise<string | null> {
@@ -243,6 +415,16 @@ function extractVolumePaths(serviceDef: unknown): string[] {
     paths.push(target);
   }
   return [...new Set(paths)];
+}
+
+// dozzle, glances, portainer and uptime-kuma were excluded by hand for this same reason before this check
+// existed (see removed-candidates note above) — kuberfy's deploy pipeline only ever creates named Docker
+// volumes, never host bind mounts, so a container that needs the host's docker.sock can't actually work.
+function usesDockerSocket(serviceDef: unknown): boolean {
+  if (typeof serviceDef !== "object" || serviceDef === null) return false;
+  const raw = (serviceDef as Record<string, unknown>).volumes;
+  if (!Array.isArray(raw)) return false;
+  return raw.some((entry) => typeof entry === "string" && entry.includes("docker.sock"));
 }
 
 function countServices(compose: unknown): string[] {
@@ -287,6 +469,7 @@ async function tryDokploy(id: string): Promise<Template | SkipReason> {
 
   const serviceName = serviceNames[0]!;
   const serviceDef = (compose as Record<string, Record<string, unknown>>).services[serviceName]!;
+  if (usesDockerSocket(serviceDef)) return { id, reason: "Dokploy blueprint mounts the host's docker.sock" };
   const image = serviceDef.image ? resolveDefault(serviceDef.image as string) : undefined;
   if (!image) return { id, reason: "Dokploy blueprint builds from source instead of a public image" };
 
@@ -301,7 +484,7 @@ async function tryDokploy(id: string): Promise<Template | SkipReason> {
 
   return {
     id,
-    name: meta.name ?? id,
+    name: meta.name && meta.name !== id ? meta.name : titleCase(id),
     description: meta.description ?? "",
     source: "dokploy",
     sourceUrl: `https://github.com/Dokploy/templates/tree/main/blueprints/${id}`,
@@ -333,6 +516,7 @@ async function tryCoolify(id: string): Promise<Template | SkipReason> {
 
   const serviceName = serviceNames[0]!;
   const serviceDef = (compose as Record<string, Record<string, unknown>>).services[serviceName]!;
+  if (usesDockerSocket(serviceDef)) return { id, reason: "Coolify template mounts the host's docker.sock" };
   const image = serviceDef.image ? resolveDefault(serviceDef.image as string) : undefined;
   if (!image) return { id, reason: "Coolify template builds from source instead of a public image" };
 
@@ -351,10 +535,7 @@ async function tryCoolify(id: string): Promise<Template | SkipReason> {
 
   return {
     id,
-    name: id
-      .split("-")
-      .map((w) => w[0]?.toUpperCase() + w.slice(1))
-      .join(" "),
+    name: titleCase(id),
     description: header.slogan ?? "",
     source: "coolify",
     sourceUrl: `https://github.com/coollabsio/coolify/blob/main/templates/compose/${id}.yaml`,

@@ -1,10 +1,9 @@
 import * as React from "react";
-import { ArrowClockwise, Eye, EyeSlash } from "@phosphor-icons/react";
+import { ArrowClockwise, Cube, Eye, EyeSlash, GithubLogo } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryProvider } from "@/components/QueryProvider";
@@ -26,9 +25,11 @@ function TemplateCard({ template, onSelect }: { template: ApiMarketplaceTemplate
         <div className="flex items-center gap-2">
           {template.logo && <img src={template.logo} alt="" className="size-5 shrink-0" onError={(e) => e.currentTarget.remove()} />}
           <span className="font-medium">{template.name}</span>
-          <Badge variant="outline" className="ml-auto">
-            Kuberfy
-          </Badge>
+          {template.image ? (
+            <Cube weight="bold" className="size-3.5 shrink-0 text-blue-500" title="Deploys a prebuilt Docker image" />
+          ) : (
+            <GithubLogo weight="bold" className="size-3.5 shrink-0 text-foreground" title="Builds from a Git repository" />
+          )}
         </div>
         <p className="line-clamp-2 text-xs text-muted-foreground">{template.description || "No description provided."}</p>
       </CardContent>
@@ -37,8 +38,9 @@ function TemplateCard({ template, onSelect }: { template: ApiMarketplaceTemplate
 }
 
 function ConfigureTemplate({ template, projId, onBack }: { template: ApiMarketplaceTemplate; projId: string; onBack: () => void }) {
+  const isDockerfile = template.image == null;
   const [name, setName] = React.useState(template.id);
-  const [image, setImage] = React.useState(template.image);
+  const [image, setImage] = React.useState(template.image ?? "");
   const [envValues, setEnvValues] = React.useState<Record<string, string>>(() =>
     Object.fromEntries(template.envVars.map((v) => [v.key, v.secret ? generateSecret() : (v.default ?? "")])),
   );
@@ -49,9 +51,10 @@ function ConfigureTemplate({ template, projId, onBack }: { template: ApiMarketpl
       const app = await api.createApplication({
         projectId: projId,
         name: name.trim(),
-        repoUrl: image.trim(),
-        branch: "main",
-        buildType: "image",
+        repoUrl: isDockerfile ? template.repoUrl! : image.trim(),
+        branch: isDockerfile ? (template.branch ?? "main") : "main",
+        buildType: isDockerfile ? "dockerfile" : "image",
+        dockerfilePath: isDockerfile ? template.dockerfilePath : undefined,
         port: template.port ?? undefined,
         envVars: Object.keys(envValues).length > 0 ? JSON.stringify(envValues) : undefined,
       });
@@ -73,7 +76,15 @@ function ConfigureTemplate({ template, projId, onBack }: { template: ApiMarketpl
       <div>
         <h1 className="font-heading text-lg font-medium">{template.name}</h1>
         <p className="mt-1 text-xs text-muted-foreground">
-          Deploying <span className="font-mono text-foreground">{image.trim() || template.image}</span>
+          {isDockerfile ? (
+            <>
+              Building from <span className="font-mono text-foreground">{template.repoUrl}</span>
+            </>
+          ) : (
+            <>
+              Deploying <span className="font-mono text-foreground">{image.trim() || template.image}</span>
+            </>
+          )}
           {template.port && (
             <>
               {" "}
@@ -90,11 +101,13 @@ function ConfigureTemplate({ template, projId, onBack }: { template: ApiMarketpl
             <Label htmlFor="tpl-name">Application name</Label>
             <Input id="tpl-name" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="tpl-image">Image</Label>
-            <Input id="tpl-image" className="font-mono" value={image} onChange={(e) => setImage(e.target.value)} placeholder="e.g. mariadb:11" />
-            <p className="text-xs text-muted-foreground">Change the tag to deploy a different version.</p>
-          </div>
+          {!isDockerfile && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="tpl-image">Image</Label>
+              <Input id="tpl-image" className="font-mono" value={image} onChange={(e) => setImage(e.target.value)} placeholder="e.g. mariadb:11" />
+              <p className="text-xs text-muted-foreground">Change the tag to deploy a different version.</p>
+            </div>
+          )}
           {template.envVars.length > 0 && (
             <div className="flex flex-col gap-3">
               <Label>Environment variables</Label>
@@ -139,7 +152,7 @@ function ConfigureTemplate({ template, projId, onBack }: { template: ApiMarketpl
             </div>
           )}
           <div className="flex items-center gap-2">
-            <Button disabled={name.trim().length === 0 || image.trim().length === 0 || isPending} onClick={() => mutate()}>
+            <Button disabled={name.trim().length === 0 || (!isDockerfile && image.trim().length === 0) || isPending} onClick={() => mutate()}>
               {isPending ? "Deploying…" : "Deploy"}
             </Button>
             <Button variant="outline" onClick={onBack}>
