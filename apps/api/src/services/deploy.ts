@@ -133,7 +133,7 @@ async function deploy(app: typeof application.$inferSelect, deploymentId: string
     Name: serviceName,
     Labels: labels,
     TaskTemplate: {
-      ContainerSpec: { Image: imageTag, Env: env, Mounts: mounts },
+      ContainerSpec: { Image: imageTag, Env: env, Mounts: mounts, TTY: true },
       RestartPolicy: { Condition: "any" },
       Resources: { Limits: { MemoryBytes: app.memoryLimitMb * 1024 * 1024 } },
       Networks: [{ Target: DEPLOY_NETWORK }],

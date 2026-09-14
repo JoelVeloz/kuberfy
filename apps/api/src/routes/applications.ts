@@ -1,3 +1,4 @@
+import { Writable } from "node:stream";
 import { zValidator } from "@hono/zod-validator";
 import { StatusCodes } from "http-status-codes";
 import { and, desc, eq } from "drizzle-orm";
@@ -193,9 +194,23 @@ applications.get(
           return;
         }
 
-        const logStream = (await docker.getContainer(containerId).logs({ follow, stdout: true, stderr: true, tail: 200 })) as unknown as LogStream;
+        const container = docker.getContainer(containerId);
+        const [info, logStream] = await Promise.all([
+          container.inspect(),
+          container.logs({ follow, stdout: true, stderr: true, tail: 200 }) as unknown as Promise<LogStream>,
+        ]);
         stream = logStream;
-        logStream.on("data", (chunk) => ws.send(chunk.toString("utf-8")));
+        if (info.Config.Tty) {
+          logStream.on("data", (chunk) => ws.send(chunk.toString("utf-8")));
+        } else {
+          const sink = new Writable({
+            write: (chunk: Buffer, _encoding, callback) => {
+              ws.send(chunk.toString("utf-8"));
+              callback();
+            },
+          });
+          docker.modem.demuxStream(logStream as unknown as NodeJS.ReadableStream, sink, sink);
+        }
         logStream.on("error", () => ws.close());
         if (!follow) logStream.on("end", () => ws.close());
       },
