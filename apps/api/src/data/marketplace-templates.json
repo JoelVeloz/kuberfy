@@ -23,7 +23,8 @@
     "volumes": [
       "/data"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "micro"
   },
   {
     "id": "adminer",
@@ -42,7 +43,8 @@
       "postgresql"
     ],
     "volumes": [],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "nano"
   },
   {
     "id": "alist",
@@ -78,7 +80,8 @@
     "volumes": [
       "/opt/alist/data"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "micro"
   },
   {
     "id": "anonupload",
@@ -113,7 +116,8 @@
     "volumes": [
       "/var/www/html/uploads"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "nano"
   },
   {
     "id": "anse",
@@ -163,7 +167,8 @@
       "ui"
     ],
     "volumes": [],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "nano"
   },
   {
     "id": "anubis",
@@ -221,7 +226,8 @@
       "bot-protection"
     ],
     "volumes": [],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "micro"
   },
   {
     "id": "apache-http",
@@ -240,7 +246,8 @@
       "apache"
     ],
     "volumes": [],
-    "category": "boilerplate"
+    "category": "boilerplate",
+    "defaultSize": "nano"
   },
   {
     "id": "apprise-api",
@@ -275,7 +282,8 @@
     "volumes": [
       "/config"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "nano"
   },
   {
     "id": "archivebox",
@@ -311,7 +319,8 @@
     "volumes": [
       "/data"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "medium"
   },
   {
     "id": "audiobookshelf",
@@ -339,7 +348,8 @@
       "/metadata",
       "/audiobooks"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "small"
   },
   {
     "id": "baikal",
@@ -367,7 +377,8 @@
       "/var/www/baikal/config",
       "/var/www/baikal/Specific"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "nano"
   },
   {
     "id": "bentopdf",
@@ -386,7 +397,8 @@
       "utility"
     ],
     "volumes": [],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "micro"
   },
   {
     "id": "calibre-web",
@@ -429,7 +441,8 @@
       "/config",
       "/books"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "micro"
   },
   {
     "id": "changedetection",
@@ -449,7 +462,8 @@
     "volumes": [
       "/datastore"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "medium"
   },
   {
     "id": "code-server",
@@ -481,7 +495,8 @@
     "volumes": [
       "/home/coder"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "medium"
   },
   {
     "id": "crawl4ai",
@@ -542,7 +557,8 @@
       "api"
     ],
     "volumes": [],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "large"
   },
   {
     "id": "cyberchef",
@@ -560,7 +576,8 @@
       "data-analysis"
     ],
     "volumes": [],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "nano"
   },
   {
     "id": "dashy",
@@ -581,7 +598,8 @@
     "volumes": [
       "/app/user-data"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "nano"
   },
   {
     "id": "directory-lister",
@@ -601,7 +619,8 @@
     "volumes": [
       "/data"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "nano"
   },
   {
     "id": "drawnix",
@@ -618,7 +637,8 @@
       "content-generation"
     ],
     "volumes": [],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "nano"
   },
   {
     "id": "dumbassets",
@@ -638,7 +658,8 @@
     "volumes": [
       "/app/data"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "nano"
   },
   {
     "id": "dumbbudget",
@@ -659,7 +680,8 @@
     "volumes": [
       "/app/data"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "nano"
   },
   {
     "id": "dumbdrop",
@@ -679,7 +701,8 @@
     "volumes": [
       "/app/uploads"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "nano"
   },
   {
     "id": "dumbpad",
@@ -699,7 +722,8 @@
     "volumes": [
       "/app/data"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "nano"
   },
   {
     "id": "excalidraw",
@@ -715,7 +739,8 @@
       "drawing"
     ],
     "volumes": [],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "nano"
   },
   {
     "id": "fastapi",
@@ -735,7 +760,8 @@
       "backend"
     ],
     "volumes": [],
-    "category": "boilerplate"
+    "category": "boilerplate",
+    "defaultSize": "nano"
   },
   {
     "id": "filebrowser",
@@ -761,7 +787,8 @@
       "/data",
       "/config"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "micro"
   },
   {
     "id": "flask",
@@ -780,7 +807,8 @@
       "backend"
     ],
     "volumes": [],
-    "category": "boilerplate"
+    "category": "boilerplate",
+    "defaultSize": "nano"
   },
   {
     "id": "fmd-server",
@@ -822,7 +850,8 @@
     "volumes": [
       "/var/lib/fmd-server/db/"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "nano"
   },
   {
     "id": "freshrss",
@@ -882,7 +911,8 @@
       "/var/www/FreshRSS/data",
       "/var/www/FreshRSS/extensions"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "micro"
   },
   {
     "id": "gitea",
@@ -915,7 +945,8 @@
     "volumes": [
       "/data"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "medium"
   },
   {
     "id": "gotify",
@@ -935,7 +966,8 @@
     "volumes": [
       "/app/data"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "nano"
   },
   {
     "id": "ipfs",
@@ -963,7 +995,8 @@
       "/data/ipfs",
       "/export"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "medium"
   },
   {
     "id": "it-tools",
@@ -980,7 +1013,8 @@
       "tools"
     ],
     "volumes": [],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "nano"
   },
   {
     "id": "kavita",
@@ -1010,7 +1044,8 @@
       "/books",
       "/comics"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "small"
   },
   {
     "id": "languagetool",
@@ -1029,7 +1064,8 @@
       "api"
     ],
     "volumes": [],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "medium"
   },
   {
     "id": "linkding",
@@ -1046,7 +1082,8 @@
       "self-hosted"
     ],
     "volumes": [],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "micro"
   },
   {
     "id": "mailpit",
@@ -1091,7 +1128,8 @@
     "volumes": [
       "/data"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "nano"
   },
   {
     "id": "mariadb",
@@ -1132,7 +1170,8 @@
     "volumes": [
       "/var/lib/mysql"
     ],
-    "category": "database"
+    "category": "database",
+    "defaultSize": "small"
   },
   {
     "id": "mazanoke",
@@ -1152,7 +1191,8 @@
       "gallery"
     ],
     "volumes": [],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "micro"
   },
   {
     "id": "meilisearch",
@@ -1176,7 +1216,8 @@
     "volumes": [
       "/meili_data"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "small"
   },
   {
     "id": "memos",
@@ -1207,7 +1248,8 @@
     "volumes": [
       "/var/opt/memos"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "micro"
   },
   {
     "id": "mongodb",
@@ -1238,7 +1280,8 @@
     "volumes": [
       "/data/db"
     ],
-    "category": "database"
+    "category": "database",
+    "defaultSize": "medium"
   },
   {
     "id": "mysql",
@@ -1279,7 +1322,8 @@
     "volumes": [
       "/var/lib/mysql"
     ],
-    "category": "database"
+    "category": "database",
+    "defaultSize": "small"
   },
   {
     "id": "n8n",
@@ -1333,7 +1377,8 @@
     "volumes": [
       "/home/node/.n8n"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "medium"
   },
   {
     "id": "navidrome",
@@ -1373,7 +1418,8 @@
       "/data",
       "/music"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "small"
   },
   {
     "id": "node-express",
@@ -1393,7 +1439,8 @@
       "backend"
     ],
     "volumes": [],
-    "category": "boilerplate"
+    "category": "boilerplate",
+    "defaultSize": "nano"
   },
   {
     "id": "omni-tools",
@@ -1412,7 +1459,8 @@
       "self-hosted"
     ],
     "volumes": [],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "nano"
   },
   {
     "id": "openspeedtest",
@@ -1432,7 +1480,8 @@
       "bandwidth"
     ],
     "volumes": [],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "nano"
   },
   {
     "id": "otterwiki",
@@ -1453,7 +1502,8 @@
     "volumes": [
       "/app-data"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "nano"
   },
   {
     "id": "owncast",
@@ -1476,7 +1526,8 @@
     "volumes": [
       "/app/data"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "medium"
   },
   {
     "id": "php",
@@ -1495,7 +1546,8 @@
       "backend"
     ],
     "volumes": [],
-    "category": "boilerplate"
+    "category": "boilerplate",
+    "defaultSize": "nano"
   },
   {
     "id": "pocketbase",
@@ -1536,7 +1588,8 @@
     "volumes": [
       "/pocketbase"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "micro"
   },
   {
     "id": "postgresql",
@@ -1572,7 +1625,8 @@
     "volumes": [
       "/var/lib/postgresql/data"
     ],
-    "category": "database"
+    "category": "database",
+    "defaultSize": "small"
   },
   {
     "id": "privatebin",
@@ -1592,7 +1646,8 @@
     "volumes": [
       "/srv/data"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "nano"
   },
   {
     "id": "redis",
@@ -1618,7 +1673,8 @@
     "volumes": [
       "/bitnami/redis/data"
     ],
-    "category": "database"
+    "category": "database",
+    "defaultSize": "micro"
   },
   {
     "id": "shiori",
@@ -1645,7 +1701,8 @@
     "volumes": [
       "/srv/shiori"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "nano"
   },
   {
     "id": "silverbullet",
@@ -1671,7 +1728,8 @@
     "volumes": [
       "/space"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "micro"
   },
   {
     "id": "slash",
@@ -1695,7 +1753,8 @@
     "volumes": [
       "/var/opt/slash"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "nano"
   },
   {
     "id": "speedtest-tracker",
@@ -1736,7 +1795,8 @@
     "volumes": [
       "/config"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "micro"
   },
   {
     "id": "static-site",
@@ -1755,7 +1815,8 @@
       "nginx"
     ],
     "volumes": [],
-    "category": "boilerplate"
+    "category": "boilerplate",
+    "defaultSize": "nano"
   },
   {
     "id": "statping-ng",
@@ -1783,7 +1844,8 @@
       "status-page"
     ],
     "volumes": [],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "nano"
   },
   {
     "id": "syncthing",
@@ -1820,7 +1882,8 @@
       "/config",
       "/var/syncthing/Sync"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "small"
   },
   {
     "id": "trilium-next",
@@ -1846,7 +1909,8 @@
     "volumes": [
       "/home/node/trilium-data"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "micro"
   },
   {
     "id": "upsnap",
@@ -1898,7 +1962,8 @@
     "volumes": [
       "/app/pb_data"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "nano"
   },
   {
     "id": "yt-dlp-webui",
@@ -1920,6 +1985,7 @@
       "/downloads",
       "/config"
     ],
-    "category": "application"
+    "category": "application",
+    "defaultSize": "small"
   }
 ]
