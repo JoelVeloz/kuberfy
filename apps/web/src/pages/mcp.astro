@@ -1,0 +1,13 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { McpPage } from "@/components/McpPage";
+---
+
+<Layout title="MCP">
+  <h1 class="font-heading text-lg font-medium">MCP</h1>
+  <p class="mt-1 text-xs text-muted-foreground">Connect an AI agent to this kuberfy instance to create and deploy projects on your behalf.</p>
+
+  <div class="mt-6 max-w-2xl">
+    <McpPage client:load />
+  </div>
+</Layout>

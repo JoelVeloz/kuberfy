@@ -1,5 +1,7 @@
 ---
 import Layout from "@/layouts/Layout.astro";
+import { Card, CardContent } from "@/components/ui/card";
+import { buttonVariants } from "@/components/ui/button";
 import { SettingsForm } from "@/components/SettingsForm";
 import { ExposedPortsCard } from "@/components/ExposedPortsCard";
 import { PasskeyCard } from "@/components/PasskeyCard";
@@ -15,5 +17,16 @@ import { UpdateCard } from "@/components/UpdateCard";
     <UpdateCard client:load />
     <PasskeyCard client:load />
     <ExposedPortsCard client:load />
+    <Card>
+      <CardContent className="flex items-center justify-between gap-4">
+        <div>
+          <h2 class="text-sm font-medium">MCP</h2>
+          <p class="mt-1 text-xs text-muted-foreground">Let an AI agent create and deploy projects on this instance.</p>
+        </div>
+        <a href="/mcp" class={buttonVariants({ size: "sm", variant: "outline" })}>
+          Set up
+        </a>
+      </CardContent>
+    </Card>
   </div>
 </Layout>
