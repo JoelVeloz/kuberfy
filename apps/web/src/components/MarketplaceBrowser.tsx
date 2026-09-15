@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryProvider } from "@/components/QueryProvider";
-import { api, UnauthorizedError, type ApiMarketplaceTemplate } from "@/lib/api";
+import { api, UnauthorizedError, type ApiAppSize, type ApiMarketplaceTemplate } from "@/lib/api";
 import { getQueryParam } from "@/lib/query-params";
 import { toastError } from "@/lib/toast";
 
@@ -19,7 +19,8 @@ function generateSecret() {
   return Array.from(bytes, (b) => ALPHANUMERIC[b % ALPHANUMERIC.length]).join("");
 }
 
-function TemplateCard({ template, onSelect }: { template: ApiMarketplaceTemplate; onSelect: () => void }) {
+function TemplateCard({ template, appSizes, onSelect }: { template: ApiMarketplaceTemplate; appSizes: ApiAppSize[] | undefined; onSelect: () => void }) {
+  const size = appSizes?.find((s) => s.id === template.defaultSize);
   return (
     <Card className="relative cursor-pointer transition-colors hover:border-foreground/30" onClick={onSelect}>
       <CardContent className="flex flex-col gap-2 px-4 py-3">
@@ -33,6 +34,11 @@ function TemplateCard({ template, onSelect }: { template: ApiMarketplaceTemplate
           )}
         </div>
         <p className="line-clamp-2 text-xs text-muted-foreground">{template.description || "No description provided."}</p>
+        {size && (
+          <p className="text-[11px] text-muted-foreground/70">
+            {size.label} · {size.cpuLimit} {size.cpuLimit === 1 ? "core" : "cores"} · {size.memoryLimitMb} MB
+          </p>
+        )}
       </CardContent>
     </Card>
   );
@@ -42,7 +48,7 @@ function ConfigureTemplate({ template, projId, onBack }: { template: ApiMarketpl
   const isDockerfile = template.image == null;
   const [name, setName] = React.useState(template.id);
   const [image, setImage] = React.useState(template.image ?? "");
-  const [size, setSize] = React.useState("nano");
+  const [size, setSize] = React.useState(template.defaultSize);
   const [envValues, setEnvValues] = React.useState<Record<string, string>>(() =>
     Object.fromEntries(template.envVars.map((v) => [v.key, v.secret ? generateSecret() : (v.default ?? "")])),
   );
@@ -191,6 +197,7 @@ function MarketplaceBrowserInner() {
   const [selected, setSelected] = React.useState<ApiMarketplaceTemplate | null>(null);
   const project = useQuery({ queryKey: ["project", projId], queryFn: () => api.getProject(projId), enabled: projId.length > 0 });
   const templates = useQuery({ queryKey: ["marketplace-templates"], queryFn: api.listMarketplaceTemplates });
+  const appSizes = useQuery({ queryKey: ["app-sizes"], queryFn: api.listAppSizes });
 
   if (projId.length === 0) {
     return <p className="text-xs text-muted-foreground">No project selected. Open the marketplace from within a project.</p>;
@@ -245,7 +252,7 @@ function MarketplaceBrowserInner() {
               <h2 className="text-sm font-medium">Databases</h2>
               <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {databases.map((t) => (
-                  <TemplateCard key={t.id} template={t} onSelect={() => setSelected(t)} />
+                  <TemplateCard key={t.id} template={t} appSizes={appSizes.data} onSelect={() => setSelected(t)} />
                 ))}
               </div>
             </div>
@@ -255,7 +262,7 @@ function MarketplaceBrowserInner() {
               <h2 className="text-sm font-medium">Applications</h2>
               <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {applications.map((t) => (
-                  <TemplateCard key={t.id} template={t} onSelect={() => setSelected(t)} />
+                  <TemplateCard key={t.id} template={t} appSizes={appSizes.data} onSelect={() => setSelected(t)} />
                 ))}
               </div>
             </div>
@@ -265,7 +272,7 @@ function MarketplaceBrowserInner() {
               <h2 className="text-sm font-medium">Boilerplate Templates</h2>
               <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {boilerplates.map((t) => (
-                  <TemplateCard key={t.id} template={t} onSelect={() => setSelected(t)} />
+                  <TemplateCard key={t.id} template={t} appSizes={appSizes.data} onSelect={() => setSelected(t)} />
                 ))}
               </div>
             </div>

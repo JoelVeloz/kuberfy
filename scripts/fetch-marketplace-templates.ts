@@ -181,6 +181,7 @@ const MANUAL_TEMPLATES: Template[] = [
     tags: ["database", "sql", "relational"],
     volumes: ["/var/lib/postgresql/data"],
     category: "database",
+    defaultSize: "small",
   },
   {
     id: "mysql",
@@ -200,6 +201,7 @@ const MANUAL_TEMPLATES: Template[] = [
     tags: ["database", "sql", "relational"],
     volumes: ["/var/lib/mysql"],
     category: "database",
+    defaultSize: "small",
   },
   {
     id: "mariadb",
@@ -219,6 +221,7 @@ const MANUAL_TEMPLATES: Template[] = [
     tags: ["database", "sql", "relational"],
     volumes: ["/var/lib/mysql"],
     category: "database",
+    defaultSize: "small",
   },
   {
     id: "mongodb",
@@ -236,6 +239,7 @@ const MANUAL_TEMPLATES: Template[] = [
     tags: ["database", "nosql", "document"],
     volumes: ["/data/db"],
     category: "database",
+    defaultSize: "medium",
   },
   {
     id: "redis",
@@ -253,6 +257,7 @@ const MANUAL_TEMPLATES: Template[] = [
     tags: ["database", "cache", "key-value"],
     volumes: ["/bitnami/redis/data"],
     category: "database",
+    defaultSize: "micro",
   },
 ];
 
@@ -275,6 +280,7 @@ const BOILERPLATE_TEMPLATES: Template[] = [
     tags: ["boilerplate", "static", "html", "nginx"],
     volumes: [],
     category: "boilerplate",
+    defaultSize: "nano",
   },
   {
     id: "apache-http",
@@ -289,6 +295,7 @@ const BOILERPLATE_TEMPLATES: Template[] = [
     tags: ["boilerplate", "static", "html", "apache"],
     volumes: [],
     category: "boilerplate",
+    defaultSize: "nano",
   },
   {
     id: "php",
@@ -303,6 +310,7 @@ const BOILERPLATE_TEMPLATES: Template[] = [
     tags: ["boilerplate", "php", "nginx", "backend"],
     volumes: [],
     category: "boilerplate",
+    defaultSize: "nano",
   },
   {
     id: "node-express",
@@ -317,6 +325,7 @@ const BOILERPLATE_TEMPLATES: Template[] = [
     tags: ["boilerplate", "node", "express", "javascript", "backend"],
     volumes: [],
     category: "boilerplate",
+    defaultSize: "nano",
   },
   {
     id: "flask",
@@ -331,6 +340,7 @@ const BOILERPLATE_TEMPLATES: Template[] = [
     tags: ["boilerplate", "python", "flask", "backend"],
     volumes: [],
     category: "boilerplate",
+    defaultSize: "nano",
   },
   {
     id: "fastapi",
@@ -345,6 +355,7 @@ const BOILERPLATE_TEMPLATES: Template[] = [
     tags: ["boilerplate", "python", "fastapi", "api", "backend"],
     volumes: [],
     category: "boilerplate",
+    defaultSize: "nano",
   },
   {
     id: "nextjs",
@@ -362,10 +373,13 @@ const BOILERPLATE_TEMPLATES: Template[] = [
     tags: ["boilerplate", "nextjs", "react", "javascript", "frontend"],
     volumes: [],
     category: "boilerplate",
+    defaultSize: "nano",
   },
 ];
 
 type EnvVarSpec = { key: string; default: string | null; secret: boolean };
+
+type AppSize = "nano" | "micro" | "small" | "medium" | "large";
 
 type Template = {
   id: string;
@@ -384,9 +398,67 @@ type Template = {
   tags: string[];
   volumes: string[];
   category: "application" | "database" | "boilerplate";
+  defaultSize: AppSize;
 };
 
 type SkipReason = { id: string; reason: string };
+
+const DEFAULT_SIZE_BY_ID: Record<string, AppSize> = {
+  actualbudget: "micro",
+  alist: "micro",
+  anonupload: "nano",
+  anse: "nano",
+  anubis: "micro",
+  "apprise-api": "nano",
+  archivebox: "medium",
+  audiobookshelf: "small",
+  baikal: "nano",
+  bentopdf: "micro",
+  "calibre-web": "micro",
+  changedetection: "medium",
+  "code-server": "medium",
+  crawl4ai: "large",
+  cyberchef: "nano",
+  dashy: "nano",
+  "directory-lister": "nano",
+  drawnix: "nano",
+  dumbassets: "nano",
+  dumbbudget: "nano",
+  dumbdrop: "nano",
+  dumbpad: "nano",
+  excalidraw: "nano",
+  filebrowser: "micro",
+  "fmd-server": "nano",
+  freshrss: "micro",
+  gitea: "medium",
+  gotify: "nano",
+  ipfs: "medium",
+  "it-tools": "nano",
+  kavita: "small",
+  languagetool: "medium",
+  linkding: "micro",
+  mailpit: "nano",
+  mazanoke: "micro",
+  meilisearch: "small",
+  memos: "micro",
+  n8n: "medium",
+  navidrome: "small",
+  "omni-tools": "nano",
+  openspeedtest: "nano",
+  otterwiki: "nano",
+  owncast: "medium",
+  pocketbase: "micro",
+  privatebin: "nano",
+  shiori: "nano",
+  silverbullet: "micro",
+  slash: "nano",
+  "speedtest-tracker": "micro",
+  "statping-ng": "nano",
+  syncthing: "small",
+  "trilium-next": "micro",
+  upsnap: "nano",
+  "yt-dlp-webui": "small",
+};
 
 const SECRET_KEY_RE = /PASSWORD|SECRET|TOKEN|_KEY$|^KEY|APIKEY/i;
 
@@ -522,6 +594,7 @@ async function tryDokploy(id: string): Promise<Template | SkipReason> {
     tags: meta.tags ?? [],
     volumes: extractVolumePaths(serviceDef),
     category: "application",
+    defaultSize: DEFAULT_SIZE_BY_ID[id] ?? "nano",
   };
 }
 
@@ -574,6 +647,7 @@ async function tryCoolify(id: string): Promise<Template | SkipReason> {
     tags: header.tags ? header.tags.split(",").map((t) => t.trim()) : [],
     volumes: extractVolumePaths(serviceDef),
     category: "application",
+    defaultSize: DEFAULT_SIZE_BY_ID[id] ?? "nano",
   };
 }
 

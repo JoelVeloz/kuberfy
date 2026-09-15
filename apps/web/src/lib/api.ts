@@ -194,6 +194,7 @@ export interface ApiMarketplaceTemplate {
   tags: string[];
   volumes: string[];
   category: "application" | "database" | "boilerplate";
+  defaultSize: "nano" | "micro" | "small" | "medium" | "large";
 }
 
 export interface ApiAppSize {
