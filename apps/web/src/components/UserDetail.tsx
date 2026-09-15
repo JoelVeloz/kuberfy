@@ -1,7 +1,8 @@
 import * as React from "react";
-import { Desktop, Fingerprint, Trash } from "@phosphor-icons/react";
+import { Desktop, DeviceMobile, DeviceTablet, Fingerprint, Trash } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createColumnHelper } from "@tanstack/react-table";
+import { UAParser } from "ua-parser-js";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,6 +16,20 @@ import { toastError } from "@/lib/toast";
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+const deviceIconByType = { mobile: DeviceMobile, tablet: DeviceTablet } as const;
+
+function describeDevice(userAgent: string | null) {
+  if (!userAgent) return { label: "Unknown device", Icon: Desktop };
+  const { browser, os, device } = UAParser(userAgent);
+  const label = [browser.name, os.name].filter(Boolean).join(" on ") || userAgent;
+  const Icon = deviceIconByType[device.type as keyof typeof deviceIconByType] ?? Desktop;
+  return { label, Icon };
 }
 
 const passkeyColumnHelper = createColumnHelper<ApiUserPasskey>();
@@ -45,16 +60,23 @@ const sessionColumnHelper = createColumnHelper<ApiUserSession>();
 function useSessionColumns(onRevoke: (token: string) => void, revoking: boolean) {
   return React.useMemo(
     () => [
-      sessionColumnHelper.display({ id: "icon", meta: { className: "w-8" }, cell: () => <Desktop className="text-muted-foreground" /> }),
       sessionColumnHelper.accessor("userAgent", {
-        cell: (info) => (
-          <div className="max-w-64 truncate" title={info.getValue() || "Unknown device"}>
-            {info.getValue() || "Unknown device"}
-          </div>
-        ),
+        meta: { className: "w-56" },
+        cell: (info) => {
+          const { label, Icon } = describeDevice(info.getValue());
+          return (
+            <div className="flex items-center gap-2" title={info.getValue() || "Unknown device"}>
+              <Icon className="shrink-0 text-muted-foreground" />
+              <span className="truncate">{label}</span>
+            </div>
+          );
+        },
       }),
       sessionColumnHelper.accessor("ipAddress", { meta: { className: "text-muted-foreground" }, cell: (info) => info.getValue() || "Unknown IP" }),
-      sessionColumnHelper.accessor("createdAt", { meta: { className: "text-muted-foreground" }, cell: (info) => formatDate(info.getValue()) }),
+      sessionColumnHelper.accessor("createdAt", {
+        meta: { className: "text-muted-foreground whitespace-nowrap" },
+        cell: (info) => formatDateTime(info.getValue()),
+      }),
       sessionColumnHelper.display({
         id: "actions",
         meta: { className: "w-8" },
