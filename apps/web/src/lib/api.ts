@@ -214,6 +214,21 @@ export interface ApiMarketplaceTemplate {
   defaultSize: "nano" | "micro" | "small" | "medium" | "large";
 }
 
+// Same fields as ApiMarketplaceTemplate (the marketplace and the project marketplace both deploy Applications,
+// so an "app within a project template" is just a marketplace template minus its browsing-only metadata),
+// plus the two things unique to being one app among several in a project.
+export type ApiProjectTemplateApp = Pick<ApiMarketplaceTemplate, "id" | "name" | "image" | "repoUrl" | "branch" | "dockerfilePath" | "port" | "envVars" | "volumes"> & {
+  defaultSize?: ApiMarketplaceTemplate["defaultSize"];
+  exposeDomain?: boolean;
+};
+
+export interface ApiProjectTemplate {
+  id: string;
+  projectName: string;
+  description: string;
+  apps: ApiProjectTemplateApp[];
+}
+
 export interface ApiAppSize {
   id: "nano" | "micro" | "small" | "medium" | "large";
   label: string;
@@ -354,6 +369,13 @@ export const api = {
   restartApplication: (applicationId: string) => request<ApiDeployment>(`/api/applications/${applicationId}/restart`, { method: "POST" }),
   stopApplication: (applicationId: string) => request<ApiDeployment>(`/api/applications/${applicationId}/stop`, { method: "POST" }),
   listMarketplaceTemplates: () => request<ApiMarketplaceTemplate[]>("/api/marketplace/templates"),
+  listProjectTemplates: () => request<ApiProjectTemplate[]>("/api/marketplace/projects"),
+  deployProjectTemplate: (id: string, input?: { projectName?: string; sizeOverrides?: Record<string, string> }) =>
+    request<{ projectId: string; applicationIds: string[] }>(`/api/marketplace/projects/${id}/deploy`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input ?? {}),
+    }),
   listAppSizes: () => request<ApiAppSize[]>("/api/app-sizes"),
   getSettings: () => request<ApiSettings>("/api/settings"),
   suggestKuberfyDomain: () => request<{ host: string }>("/api/settings/suggest-domain"),

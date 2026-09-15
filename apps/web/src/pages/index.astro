@@ -1,5 +1,6 @@
 ---
 import Layout from "@/layouts/Layout.astro";
+import { buttonVariants } from "@/components/ui/button";
 import { NewProjectDialog } from "@/components/NewProjectDialog";
 import { ProjectsTable } from "@/components/ProjectsTable";
 ---
@@ -10,7 +11,12 @@ import { ProjectsTable } from "@/components/ProjectsTable";
       <h1 class="font-heading text-lg font-medium">Projects</h1>
       <p class="mt-1 text-xs text-muted-foreground">Applications on this server are grouped into projects.</p>
     </div>
-    <NewProjectDialog client:load />
+    <div class="flex items-center gap-2">
+      <a href="/project-marketplace" class={buttonVariants({ size: "sm", variant: "outline" })}>
+        Project templates
+      </a>
+      <NewProjectDialog client:load />
+    </div>
   </div>
 
   <ProjectsTable client:load />
