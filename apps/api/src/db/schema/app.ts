@@ -315,6 +315,9 @@ export const setting = sqliteTable("settings", {
   exposePanelPort: integer("expose_panel_port", { mode: "boolean" }).notNull().default(false),
   // whether the login page offers "Sign in with passkey" — off by default until the admin registers one from Settings
   passkeyEnabled: integer("passkey_enabled", { mode: "boolean" }).notNull().default(false),
+  // bearer token for the /api/mcp endpoint — remote MCP clients have no browser session to authenticate with,
+  // so this is the whole instance's credential for it instead. Null until generated from the MCP settings page.
+  mcpToken: text("mcp_token"),
   ...timestamps,
 });
 

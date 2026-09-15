@@ -12,6 +12,7 @@ import { appSizesRoute } from "./routes/app-sizes";
 import { domains } from "./routes/domains";
 import { volumes } from "./routes/volumes";
 import { marketplace } from "./routes/marketplace";
+import { mcp } from "./routes/mcp";
 import { projectTemplates } from "./routes/project-templates";
 import { settings, ensureSettingsSeeded } from "./routes/settings";
 import { observability } from "./routes/observability";
@@ -39,6 +40,8 @@ app.route("/api/domains", domains);
 app.route("/api/volumes", volumes);
 app.route("/api/marketplace/templates", marketplace);
 app.route("/api/marketplace/projects", projectTemplates);
+// Own bearer-token auth (see routes/mcp.ts) — remote MCP clients have no browser session cookie to check instead.
+app.route("/api/mcp", mcp);
 app.route("/api/settings", settings);
 app.route("/api/observability", observability);
 app.route("/api/system", system);

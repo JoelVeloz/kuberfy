@@ -9,7 +9,9 @@
   },
   "dependencies": {
     "@better-auth/passkey": "^1.7.4",
+    "@hono/mcp": "^0.3.2",
     "@hono/zod-validator": "^0.9.1",
+    "@modelcontextprotocol/sdk": "^1.19.1",
     "better-auth": "^1.7.4",
     "dockerode": "^5.0.1",
     "drizzle-orm": "^0.45.2",

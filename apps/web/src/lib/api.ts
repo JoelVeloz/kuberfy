@@ -378,6 +378,7 @@ export const api = {
     }),
   listAppSizes: () => request<ApiAppSize[]>("/api/app-sizes"),
   getSettings: () => request<ApiSettings>("/api/settings"),
+  getMcpToken: () => request<{ token: string }>("/api/settings/mcp-token"),
   suggestKuberfyDomain: () => request<{ host: string }>("/api/settings/suggest-domain"),
   updateSettings: (kuberfyDomain: string) =>
     request<ApiSettings>("/api/settings", {

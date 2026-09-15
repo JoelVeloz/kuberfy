@@ -1,4 +1,3 @@
-import * as React from "react";
 import { Copy } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -7,7 +6,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryProvider } from "@/components/QueryProvider";
 import { api } from "@/lib/api";
-import { authClient } from "@/lib/auth-client";
 
 const TOOLS = [
   { name: "list_projects", description: "List every project, with each one's id." },
@@ -38,9 +36,9 @@ function CopyBlock({ text }: { text: string }) {
 
 function McpPageInner() {
   const settings = useQuery({ queryKey: ["settings"], queryFn: api.getSettings });
-  const { data: session } = authClient.useSession();
+  const token = useQuery({ queryKey: ["mcp-token"], queryFn: api.getMcpToken });
 
-  if (settings.isPending) {
+  if (settings.isPending || token.isPending) {
     return (
       <Card>
         <CardContent className="flex flex-col gap-3">
@@ -52,32 +50,20 @@ function McpPageInner() {
   }
 
   const host = settings.data?.kuberfyDomain;
-  const baseUrl = host ? `https://${host}` : "http://<your-server-ip>:3000";
-  const email = session?.user.email ?? "<your-email>";
-
-  const command = `claude mcp add kuberfy \\
-  -e KUBERFY_URL=${baseUrl} \\
-  -e KUBERFY_EMAIL=${email} \\
-  -e KUBERFY_PASSWORD=<your-password> \\
-  -- bun run <path-to-kuberfy-repo>/apps/mcp/src/index.ts`;
+  const mcpUrl = host ? `https://${host}/api/mcp` : `http://${settings.data?.serverIp ?? "<your-server-ip>"}:3000/api/mcp`;
+  const command = `claude mcp add --transport http kuberfy ${mcpUrl} --header "Authorization: Bearer ${token.data?.token}"`;
 
   return (
     <div className="flex flex-col gap-6">
       <Card>
         <CardContent className="flex flex-col gap-3">
-          <h2 className="text-sm font-medium">1. Clone kuberfy and install dependencies</h2>
-          <p className="text-xs text-muted-foreground">The MCP server ships in the kuberfy repository itself, at apps/mcp — it isn't a separate download.</p>
-          <CopyBlock text={"git clone https://github.com/JoelVeloz/kuberfy.git\ncd kuberfy && bun install"} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="flex flex-col gap-3">
-          <h2 className="text-sm font-medium">2. Connect it to this instance</h2>
-          <p className="text-xs text-muted-foreground">
-            Replace <span className="font-mono">&lt;your-password&gt;</span> and <span className="font-mono">&lt;path-to-kuberfy-repo&gt;</span> below, then run it from anywhere.
-          </p>
+          <h2 className="text-sm font-medium">Connect</h2>
+          <p className="text-xs text-muted-foreground">This instance's own MCP endpoint — runs as part of kuberfy itself, nothing to install or clone.</p>
           <CopyBlock text={command} />
+          <p className="text-xs text-muted-foreground">
+            For a different MCP client, point it at <span className="font-mono text-foreground">{mcpUrl}</span> with header{" "}
+            <span className="font-mono text-foreground">Authorization: Bearer {token.data?.token}</span>.
+          </p>
         </CardContent>
       </Card>
 

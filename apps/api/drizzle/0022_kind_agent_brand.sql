@@ -1,0 +1,1 @@
+ALTER TABLE `settings` ADD `mcp_token` text;

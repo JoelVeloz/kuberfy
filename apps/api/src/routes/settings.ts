@@ -9,6 +9,7 @@ import { requireAuth } from "../lib/auth-middleware";
 import { setCachedKuberfyDomain } from "../lib/settings-cache";
 import { applyKuberfyDomain, applyKuberfyPanelPortExposure } from "../services/proxy";
 import { docker } from "../services/deploy";
+import { getOrCreateMcpToken } from "./mcp";
 
 export const settings = new Hono();
 
@@ -36,6 +37,10 @@ settings.get("/", async (c) => {
 });
 
 settings.get("/suggest-domain", (c) => c.json({ host: suggestKuberfyDomainHost() }));
+
+// Generates the /api/mcp bearer token on first read, so the MCP setup page always has one to show without a
+// separate "generate" step.
+settings.get("/mcp-token", async (c) => c.json({ token: await getOrCreateMcpToken() }));
 
 // Live snapshot of every host port actually published by Docker right now (Traefik's container, plus kuberfy's
 // own :3000 when toggled on) — read straight from the Docker API instead of a hand-maintained list, so it never
