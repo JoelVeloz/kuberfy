@@ -1,8 +1,9 @@
 import * as React from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { api, type ApiApplicationDetail } from "@/lib/api";
@@ -12,6 +13,8 @@ import { toast } from "sonner";
 export function ResourcesContent({ app }: { app: ApiApplicationDetail }) {
   const [memoryLimitMb, setMemoryLimitMb] = React.useState(String(app.memoryLimitMb));
   const [cpuLimit, setCpuLimit] = React.useState(String(app.cpuLimit));
+  const appSizes = useQuery({ queryKey: ["app-sizes"], queryFn: api.listAppSizes });
+  const matchedSize = appSizes.data?.find((s) => s.memoryLimitMb === Number(memoryLimitMb) && s.cpuLimit === Number(cpuLimit));
   const [repoUrl, setRepoUrl] = React.useState(app.repoUrl);
   const [isPrivate, setIsPrivate] = React.useState(app.registryUsername != null);
   const [registryUsername, setRegistryUsername] = React.useState(app.registryUsername ?? "");
@@ -114,30 +117,56 @@ export function ResourcesContent({ app }: { app: ApiApplicationDetail }) {
 
       <h2 className="mt-6 font-heading text-sm font-medium">Resources</h2>
       <Card className="mt-3">
-        <CardContent className="flex flex-col gap-6 sm:flex-row sm:gap-12">
-          <div>
-            <div className="flex flex-col gap-1.5 sm:max-w-xs">
-              <label htmlFor="memory-limit" className="text-xs font-medium">
-                Memory limit (MB)
-              </label>
-              <Input id="memory-limit" type="number" min={1} step={1} value={memoryLimitMb} onChange={(e) => setMemoryLimitMb(e.target.value)} />
-              <p className="text-xs text-muted-foreground">Applied on next deploy or restart.</p>
-            </div>
-            <Button className="mt-3" size="sm" disabled={!isValid || parsed === app.memoryLimitMb || save.isPending} onClick={() => save.mutate(parsed)}>
-              {save.isPending ? "Saving…" : "Save"}
-            </Button>
+        <CardContent className="flex flex-col gap-6">
+          <div className="flex flex-col gap-1.5 sm:max-w-xs">
+            <Label htmlFor="app-size-pick">Size</Label>
+            <Select
+              value={matchedSize?.id ?? ""}
+              onValueChange={(id) => {
+                const picked = appSizes.data?.find((s) => s.id === id);
+                if (!picked) return;
+                setMemoryLimitMb(String(picked.memoryLimitMb));
+                setCpuLimit(String(picked.cpuLimit));
+              }}
+            >
+              <SelectTrigger id="app-size-pick" className="w-full">
+                <SelectValue placeholder="Custom" />
+              </SelectTrigger>
+              <SelectContent>
+                {(appSizes.data ?? []).map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.label} · {s.cpuLimit} {s.cpuLimit === 1 ? "core" : "cores"} / {s.memoryLimitMb} MB
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Picking a size fills in the fields below — each still needs its own Save.</p>
           </div>
-          <div>
-            <div className="flex flex-col gap-1.5 sm:max-w-xs">
-              <label htmlFor="cpu-limit" className="text-xs font-medium">
-                CPU limit (cores)
-              </label>
-              <Input id="cpu-limit" type="number" min={0.1} step={0.1} value={cpuLimit} onChange={(e) => setCpuLimit(e.target.value)} />
-              <p className="text-xs text-muted-foreground">Hard cap on this app's CPU usage. Applied on next deploy or restart.</p>
+          <div className="flex flex-col gap-6 sm:flex-row sm:gap-12">
+            <div>
+              <div className="flex flex-col gap-1.5 sm:max-w-xs">
+                <label htmlFor="memory-limit" className="text-xs font-medium">
+                  Memory limit (MB)
+                </label>
+                <Input id="memory-limit" type="number" min={1} step={1} value={memoryLimitMb} onChange={(e) => setMemoryLimitMb(e.target.value)} />
+                <p className="text-xs text-muted-foreground">Applied on next deploy or restart.</p>
+              </div>
+              <Button className="mt-3" size="sm" disabled={!isValid || parsed === app.memoryLimitMb || save.isPending} onClick={() => save.mutate(parsed)}>
+                {save.isPending ? "Saving…" : "Save"}
+              </Button>
             </div>
-            <Button className="mt-3" size="sm" disabled={!isCpuValid || parsedCpu === app.cpuLimit || saveCpu.isPending} onClick={() => saveCpu.mutate(parsedCpu)}>
-              {saveCpu.isPending ? "Saving…" : "Save"}
-            </Button>
+            <div>
+              <div className="flex flex-col gap-1.5 sm:max-w-xs">
+                <label htmlFor="cpu-limit" className="text-xs font-medium">
+                  CPU limit (cores)
+                </label>
+                <Input id="cpu-limit" type="number" min={0.1} step={0.1} value={cpuLimit} onChange={(e) => setCpuLimit(e.target.value)} />
+                <p className="text-xs text-muted-foreground">Hard cap on this app's CPU usage. Applied on next deploy or restart.</p>
+              </div>
+              <Button className="mt-3" size="sm" disabled={!isCpuValid || parsedCpu === app.cpuLimit || saveCpu.isPending} onClick={() => saveCpu.mutate(parsedCpu)}>
+                {saveCpu.isPending ? "Saving…" : "Save"}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

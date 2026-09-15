@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryProvider } from "@/components/QueryProvider";
@@ -41,11 +42,14 @@ function ConfigureTemplate({ template, projId, onBack }: { template: ApiMarketpl
   const isDockerfile = template.image == null;
   const [name, setName] = React.useState(template.id);
   const [image, setImage] = React.useState(template.image ?? "");
+  const [size, setSize] = React.useState("nano");
   const [envValues, setEnvValues] = React.useState<Record<string, string>>(() =>
     Object.fromEntries(template.envVars.map((v) => [v.key, v.secret ? generateSecret() : (v.default ?? "")])),
   );
   const [revealed, setRevealed] = React.useState<Record<string, boolean>>({});
   const queryClient = useQueryClient();
+  const appSizes = useQuery({ queryKey: ["app-sizes"], queryFn: api.listAppSizes });
+  const selectedSize = appSizes.data?.find((s) => s.id === size);
   const { mutate, isPending } = useMutation({
     mutationFn: async () => {
       const app = await api.createApplication({
@@ -57,6 +61,7 @@ function ConfigureTemplate({ template, projId, onBack }: { template: ApiMarketpl
         dockerfilePath: isDockerfile ? template.dockerfilePath : undefined,
         port: template.port ?? undefined,
         envVars: Object.keys(envValues).length > 0 ? JSON.stringify(envValues) : undefined,
+        ...(selectedSize ? { memoryLimitMb: selectedSize.memoryLimitMb, cpuLimit: selectedSize.cpuLimit } : {}),
       });
       for (const mountPath of template.volumes) await api.createVolume(app.id, mountPath);
       return app;
@@ -108,6 +113,21 @@ function ConfigureTemplate({ template, projId, onBack }: { template: ApiMarketpl
               <p className="text-xs text-muted-foreground">Change the tag to deploy a different version.</p>
             </div>
           )}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="tpl-size">Size</Label>
+            <Select value={size} onValueChange={setSize}>
+              <SelectTrigger id="tpl-size" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(appSizes.data ?? []).map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.label} · {s.cpuLimit} {s.cpuLimit === 1 ? "core" : "cores"} / {s.memoryLimitMb} MB
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           {template.envVars.length > 0 && (
             <div className="flex flex-col gap-3">
               <Label>Environment variables</Label>

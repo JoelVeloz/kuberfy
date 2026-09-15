@@ -217,12 +217,13 @@ export function SystemPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="grid gap-6 sm:grid-cols-3">
-        <UsageCard title="Host CPU" percent={host.cpu} detail={`${host.cpu.toFixed(1)}% across ${host.cpuCount} cores`} />
+        <UsageCard title="Host CPU" percent={host.cpu} detail={`${host.cpu.toFixed(1)}% · ${((host.cpu / 100) * host.cpuCount).toFixed(2)} / ${host.cpuCount} cores`} />
         <UsageCard title="Memory" percent={memPercent} detail={`${formatBytes(host.memUsed)} / ${formatBytes(host.memTotal)}`} />
         <UsageCard title="Disk" percent={diskPercent} detail={`${formatBytes(host.diskUsed)} / ${formatBytes(host.diskTotal)}`} />
       </div>
       <p className="-mt-4 text-xs text-muted-foreground">
-        Applications and Infrastructure below show CPU as cores used out of each container's own limit — directly comparable across rows even when limits differ, the same way the Memory column already works. This host has {host.cpuCount} cores total.
+        Applications and Infrastructure below show CPU as cores used out of each container's own limit — directly comparable across rows even when limits differ, the same way
+        the Memory column already works. This host has {host.cpuCount} cores total.
       </p>
 
       <div className="grid gap-6 sm:grid-cols-2">
