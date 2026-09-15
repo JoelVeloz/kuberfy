@@ -24,17 +24,20 @@ type AppRow = ApiApplicationWithStatus;
 
 const columnHelper = createColumnHelper<AppRow>();
 
-function buildColumns(selected: Set<string>, onToggle: (id: string) => void) {
+function buildColumns(rowIds: string[], selected: Set<string>, onToggle: (id: string) => void, onToggleAll: () => void) {
+  const allSelected = rowIds.length > 0 && rowIds.every((id) => selected.has(id));
   return [
     columnHelper.display({
       id: "select",
-      header: "",
-      meta: { className: "w-8" },
+      meta: { className: "relative z-10 w-8" },
+      header: () => <Checkbox checked={allSelected} onCheckedChange={onToggleAll} aria-label="Select all applications" />,
       cell: (info) => (
         <Checkbox
+          className="relative z-10"
           checked={selected.has(info.row.original.id)}
           onClick={(e) => e.stopPropagation()}
           onCheckedChange={() => onToggle(info.row.original.id)}
+          aria-label={`Select ${info.row.original.name}`}
         />
       ),
     }),
@@ -134,6 +137,11 @@ function ProjectDetailInner() {
     });
   }
 
+  function toggleAllSelected() {
+    const rowIds = apps.data?.items.map((a) => a.id) ?? [];
+    setSelected((prev) => (rowIds.every((id) => prev.has(id)) ? new Set() : new Set(rowIds)));
+  }
+
   function changePage(next: number) {
     setPage(next);
     setSelected(new Set());
@@ -204,7 +212,7 @@ function ProjectDetailInner() {
             <p className="px-4 py-6 text-xs text-muted-foreground">This project has no applications yet.</p>
           ) : (
             <DataTable
-              columns={buildColumns(selected, toggleSelected)}
+              columns={buildColumns(apps.data.items.map((a) => a.id), selected, toggleSelected, toggleAllSelected)}
               data={apps.data.items}
               getRowId={(app) => app.id}
               rowClassName={() => "relative cursor-pointer"}
