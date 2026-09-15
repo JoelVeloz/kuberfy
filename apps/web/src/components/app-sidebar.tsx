@@ -1,7 +1,7 @@
 "use client";
 
 import type * as React from "react";
-import { ChartLineUp, Cpu, FolderSimple, Gear, Users as UsersIcon } from "@phosphor-icons/react";
+import { ChartLineUp, Cpu, FolderSimple, Gear, PlugsIcon, Users as UsersIcon } from "@phosphor-icons/react";
 import { KuberfyMark } from "@/components/KuberfyMark";
 import { NavUser } from "@/components/nav-user";
 import { UpdateAvailableButton } from "@/components/UpdateAvailableButton";
@@ -23,13 +23,14 @@ const navItems = [
   { title: "Traffic", href: "/traffic", icon: ChartLineUp, isActive: (path: string) => path.startsWith("/traffic") },
   { title: "System", href: "/system", icon: Cpu, isActive: (path: string) => path.startsWith("/system") },
   { title: "Users", href: "/users", icon: UsersIcon, isActive: (path: string) => path.startsWith("/users") },
+  { title: "MCP", href: "/mcp", icon: PlugsIcon, isActive: (path: string) => path.startsWith("/mcp") },
   { title: "Settings", href: "/settings", icon: Gear, isActive: (path: string) => path.startsWith("/settings") },
 ];
 
 export function AppSidebar({ pathname, ...props }: { pathname: string } & React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader>
+      <SidebarHeader className="py-0">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>

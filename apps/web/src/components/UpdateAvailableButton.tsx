@@ -1,4 +1,4 @@
-import { CloudArrowDown } from "@phosphor-icons/react";
+import { ArrowsClockwise, CloudArrowDown } from "@phosphor-icons/react";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import { UpdateConfirmDialog } from "@/components/UpdateConfirmDialog";
@@ -8,7 +8,20 @@ import { useKuberfyUpdate } from "@/lib/use-kuberfy-update";
 export function UpdateAvailableButton() {
   const { state, confirmOpen, setConfirmOpen, updating, restarting, update } = useKuberfyUpdate();
 
-  if (restarting || state !== "available") return null;
+  if (restarting) {
+    return (
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton disabled tooltip="Restarting…">
+            <ArrowsClockwise className="animate-spin" />
+            <span>Restarting…</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    );
+  }
+
+  if (state !== "available") return null;
 
   return (
     <SidebarMenu>
