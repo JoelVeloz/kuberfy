@@ -52,6 +52,8 @@ export interface AppSpec {
   branch?: string;
   dockerfilePath?: string;
   size?: AppSizeId;
+  volumeMountPath?: string;
+  secretKeys?: string[];
   // maps the db's real Swarm service host + the generated password to this framework's own env var names
   env: (dbHost: string, dbPassword: string) => Record<string, string>;
 }
@@ -141,6 +143,10 @@ export async function runPreset(preset: Preset) {
       .returning();
     console.log(`Created ${preset.app.name} app (${webApp!.id}, ${appSize.label})`);
   } else {
+    const existingAppEnv = JSON.parse(webApp.envVars ?? "{}") as Record<string, string>;
+    for (const key of preset.app.secretKeys ?? []) {
+      if (existingAppEnv[key]) appEnv[key] = existingAppEnv[key];
+    }
     await db
       .update(application)
       .set({
@@ -154,6 +160,15 @@ export async function runPreset(preset: Preset) {
       })
       .where(eq(application.id, webApp.id));
     console.log(`Reusing ${preset.app.name} app (${webApp.id}, ${appSize.label})`);
+  }
+
+  if (preset.app.volumeMountPath) {
+    const existingVolume = await db.query.volume.findFirst({ where: (f, { eq }) => eq(f.applicationId, webApp!.id) });
+    if (!existingVolume) {
+      const volumeId = crypto.randomUUID();
+      await db.insert(volume).values({ id: volumeId, applicationId: webApp!.id, mountPath: preset.app.volumeMountPath, volumeName: `kuberfy-vol-${volumeId}` });
+      console.log(`Created volume for ${preset.app.name} at ${preset.app.volumeMountPath}`);
+    }
   }
 
   let webDomain = await db.query.domain.findFirst({ where: (f, { eq }) => eq(f.applicationId, webApp!.id) });

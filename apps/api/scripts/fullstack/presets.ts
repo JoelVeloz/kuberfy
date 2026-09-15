@@ -105,4 +105,59 @@ export const presets: Record<string, Preset> = {
       }),
     },
   },
+
+  "n8n-postgres": {
+    projectName: "n8n + Postgres",
+    db: {
+      image: "postgres:17-alpine",
+      port: 5432,
+      volumeMountPath: "/var/lib/postgresql/data",
+      env: (password) => ({ POSTGRES_PASSWORD: password, POSTGRES_USER: "postgres", POSTGRES_DB: "app" }),
+    },
+    app: {
+      name: "n8n-app",
+      port: 5678,
+      buildType: "image",
+      image: "n8nio/n8n:latest",
+      size: "medium",
+      volumeMountPath: "/home/node/.n8n",
+      secretKeys: ["N8N_ENCRYPTION_KEY"],
+      env: (dbHost, dbPassword) => ({
+        DB_TYPE: "postgresdb",
+        DB_POSTGRESDB_HOST: dbHost,
+        DB_POSTGRESDB_PORT: "5432",
+        DB_POSTGRESDB_DATABASE: "app",
+        DB_POSTGRESDB_USER: "postgres",
+        DB_POSTGRESDB_PASSWORD: dbPassword,
+        N8N_ENCRYPTION_KEY: generateSecret(),
+      }),
+    },
+  },
+
+  "strapi-postgres": {
+    projectName: "Strapi + Postgres",
+    db: {
+      image: "postgres:17-alpine",
+      port: 5432,
+      volumeMountPath: "/var/lib/postgresql/data",
+      env: (password) => ({ POSTGRES_PASSWORD: password, POSTGRES_USER: "postgres", POSTGRES_DB: "app" }),
+    },
+    app: {
+      name: "strapi-app",
+      port: 1337,
+      buildType: "image",
+      image: "vshadbolt/strapi:latest-arm64",
+      size: "medium",
+      volumeMountPath: "/srv/app",
+      env: (dbHost, dbPassword) => ({
+        NODE_ENV: "production",
+        DATABASE_CLIENT: "postgres",
+        DATABASE_HOST: dbHost,
+        DATABASE_PORT: "5432",
+        DATABASE_NAME: "app",
+        DATABASE_USERNAME: "postgres",
+        DATABASE_PASSWORD: dbPassword,
+      }),
+    },
+  },
 };
