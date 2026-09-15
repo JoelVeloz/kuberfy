@@ -79,4 +79,30 @@ export const presets: Record<string, Preset> = {
       }),
     },
   },
+
+  "node-postgres": {
+    projectName: "Node.js + Postgres",
+    db: {
+      image: "postgres:17-alpine",
+      port: 5432,
+      volumeMountPath: "/var/lib/postgresql/data",
+      env: (password) => ({ POSTGRES_PASSWORD: password, POSTGRES_USER: "postgres", POSTGRES_DB: "app" }),
+    },
+    app: {
+      name: "node-app",
+      port: 3000,
+      buildType: "dockerfile",
+      repoUrl: "https://github.com/mucahitnezir/express-starter",
+      branch: "master",
+      dockerfilePath: "Dockerfile",
+      env: (dbHost, dbPassword) => ({
+        NODE_ENV: "production",
+        DB_HOST: dbHost,
+        DB_PORT: "5432",
+        DB_USER: "postgres",
+        DB_PASSWORD: dbPassword,
+        DB_NAME: "app",
+      }),
+    },
+  },
 };

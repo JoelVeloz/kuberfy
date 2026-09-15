@@ -143,7 +143,15 @@ export async function runPreset(preset: Preset) {
   } else {
     await db
       .update(application)
-      .set({ envVars: JSON.stringify(appEnv), memoryLimitMb: appSize.memoryLimitMb, cpuLimit: appSize.cpuLimit })
+      .set({
+        repoUrl: preset.app.buildType === "image" ? preset.app.image! : preset.app.repoUrl!,
+        branch: preset.app.branch ?? "main",
+        buildType: preset.app.buildType,
+        dockerfilePath: preset.app.dockerfilePath,
+        envVars: JSON.stringify(appEnv),
+        memoryLimitMb: appSize.memoryLimitMb,
+        cpuLimit: appSize.cpuLimit,
+      })
       .where(eq(application.id, webApp.id));
     console.log(`Reusing ${preset.app.name} app (${webApp.id}, ${appSize.label})`);
   }
