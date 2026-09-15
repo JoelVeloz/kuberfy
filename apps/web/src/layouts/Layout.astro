@@ -1,7 +1,9 @@
 ---
 import "@/styles/global.css";
 import { ClientRouter } from "astro:transitions";
-import { AppShell } from "@/components/AppShell";
+import { ChartLineUp, Cpu, FolderSimple, Gear, Users as UsersIcon } from "@phosphor-icons/react/ssr";
+import { UserMenu } from "@/components/UserMenu";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Toaster } from "@/components/ui/sonner";
 
 interface Props {
@@ -10,8 +12,11 @@ interface Props {
 }
 
 const { title, back } = Astro.props;
-const sidebarCookie = Astro.cookies.get("sidebar_state")?.value;
-const sidebarDefaultOpen = sidebarCookie !== "false";
+const isProjectsActive = Astro.url.pathname === "/" || Astro.url.pathname.startsWith("/projects");
+const isTrafficActive = Astro.url.pathname.startsWith("/traffic");
+const isSystemActive = Astro.url.pathname.startsWith("/system");
+const isUsersActive = Astro.url.pathname.startsWith("/users");
+const isSettingsActive = Astro.url.pathname.startsWith("/settings");
 ---
 
 <html lang="en">
@@ -38,9 +43,76 @@ const sidebarDefaultOpen = sidebarCookie !== "false";
     <ClientRouter />
   </head>
   <body>
-    <AppShell client:load pathname={Astro.url.pathname} defaultOpen={sidebarDefaultOpen} title={title} back={back}>
-      <slot />
-    </AppShell>
+    <div class="min-h-screen bg-background md:flex">
+      <aside class="flex items-center justify-between gap-3 border-b border-border px-4 py-3 md:fixed md:inset-y-0 md:left-0 md:w-60 md:flex-col md:items-stretch md:justify-start md:gap-0 md:border-r md:border-b-0 md:px-0 md:py-0">
+        <a href="/" class="font-heading text-sm font-medium tracking-tight md:border-b md:border-border md:px-4 md:py-4">
+          Kuberfy
+        </a>
+        <nav class="flex items-center gap-1 md:flex-1 md:flex-col md:items-stretch md:gap-0.5 md:px-2 md:py-4">
+          <a
+            href="/"
+            class={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-colors ${
+              isProjectsActive ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+            }`}
+          >
+            <FolderSimple size={16} />
+            Projects
+          </a>
+          <a
+            href="/traffic"
+            class={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-colors ${
+              isTrafficActive ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+            }`}
+          >
+            <ChartLineUp size={16} />
+            Traffic
+          </a>
+          <a
+            href="/system"
+            class={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-colors ${
+              isSystemActive ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+            }`}
+          >
+            <Cpu size={16} />
+            System
+          </a>
+          <a
+            href="/users"
+            class={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-colors ${
+              isUsersActive ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+            }`}
+          >
+            <UsersIcon size={16} />
+            Users
+          </a>
+          <a
+            href="/settings"
+            class={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-colors ${
+              isSettingsActive ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+            }`}
+          >
+            <Gear size={16} />
+            Settings
+          </a>
+        </nav>
+        <div class="flex items-center gap-2 md:flex-col md:items-stretch md:gap-1 md:border-t md:border-border md:p-3">
+          <ThemeToggle client:load transition:persist />
+          <UserMenu client:load transition:persist />
+        </div>
+      </aside>
+      <main class="flex-1 px-4 py-8 md:ml-60 md:px-8">
+        {back && (
+          <div class="mb-6 flex items-center gap-2 text-xs text-muted-foreground">
+            <a href={back.href} class="transition-colors hover:text-foreground">
+              {back.label}
+            </a>
+            <span class="text-border">/</span>
+            <span class="text-foreground">{title}</span>
+          </div>
+        )}
+        <slot />
+      </main>
+    </div>
     <Toaster client:load position="bottom-right" />
   </body>
 </html>
