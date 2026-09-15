@@ -69,9 +69,9 @@ export function ResourcesContent({ app }: { app: ApiApplicationDetail }) {
           <Card className="mt-3">
             <CardContent>
               <div className="flex flex-col gap-1.5 sm:max-w-xs">
-                <label htmlFor="app-image" className="text-xs font-medium">
+                <Label htmlFor="app-image">
                   Image
-                </label>
+                </Label>
                 <Input id="app-image" value={repoUrl} onChange={(e) => setRepoUrl(e.target.value)} placeholder="e.g. mariadb:11" />
                 <p className="text-xs text-muted-foreground">Any image/tag — Docker Hub, GHCR, or another registry. Applied on next deploy or restart.</p>
               </div>
@@ -145,9 +145,9 @@ export function ResourcesContent({ app }: { app: ApiApplicationDetail }) {
           <div className="flex flex-col gap-6 sm:flex-row sm:gap-12">
             <div>
               <div className="flex flex-col gap-1.5 sm:max-w-xs">
-                <label htmlFor="memory-limit" className="text-xs font-medium">
+                <Label htmlFor="memory-limit">
                   Memory limit (MB)
-                </label>
+                </Label>
                 <Input id="memory-limit" type="number" min={1} step={1} value={memoryLimitMb} onChange={(e) => setMemoryLimitMb(e.target.value)} />
                 <p className="text-xs text-muted-foreground">Applied on next deploy or restart.</p>
               </div>
@@ -157,9 +157,9 @@ export function ResourcesContent({ app }: { app: ApiApplicationDetail }) {
             </div>
             <div>
               <div className="flex flex-col gap-1.5 sm:max-w-xs">
-                <label htmlFor="cpu-limit" className="text-xs font-medium">
+                <Label htmlFor="cpu-limit">
                   CPU limit (cores)
-                </label>
+                </Label>
                 <Input id="cpu-limit" type="number" min={0.1} step={0.1} value={cpuLimit} onChange={(e) => setCpuLimit(e.target.value)} />
                 <p className="text-xs text-muted-foreground">Hard cap on this app's CPU usage. Applied on next deploy or restart.</p>
               </div>

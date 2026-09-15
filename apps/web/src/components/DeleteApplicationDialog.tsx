@@ -3,6 +3,7 @@ import { Trash } from "@phosphor-icons/react";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { api } from "@/lib/api";
 import { toastError } from "@/lib/toast";
@@ -43,9 +44,9 @@ export function DeleteApplicationDialog({ applicationId, applicationName, projec
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="confirm-app-name" className="text-xs font-medium">
+          <Label htmlFor="confirm-app-name">
             Type <span className="font-mono">{applicationName}</span> to confirm
-          </label>
+          </Label>
           <Input id="confirm-app-name" value={confirmText} onChange={(e) => setConfirmText(e.target.value)} autoComplete="off" />
         </div>
         <DialogFooter>
