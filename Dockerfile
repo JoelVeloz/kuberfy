@@ -19,11 +19,13 @@ WORKDIR /app
 COPY --from=api-build /app/kuberfy ./kuberfy
 COPY apps/api/drizzle ./drizzle
 COPY --from=web-build /web/dist ./public
+COPY --from=api-build /app/node_modules/geoip-lite/data/geoip-country.dat /app/node_modules/geoip-lite/data/geoip-country6.dat ./geoip-data/
 # A named volume mounted over this path inherits its ownership on first creation — pre-chown so the non-root
 # user below can write to it without an entrypoint script.
 RUN mkdir -p /data && chown -R kuberfy:kuberfy /app /data
 
 ENV DATABASE_PATH=/data/kuberfy.db
+ENV GEODATADIR=/app/geoip-data/
 VOLUME /data
 EXPOSE 3000
 USER kuberfy
