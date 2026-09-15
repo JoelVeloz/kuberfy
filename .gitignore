@@ -7,3 +7,5 @@ apps/api/public
 .env
 private/
 *.vsix
+.claude/
+CLAUDE.md
