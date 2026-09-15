@@ -199,9 +199,10 @@ const countryCache = new Map<string, string | null>();
 
 // geoip-lite reads its country database as a side effect of being imported, not lazily inside lookup() — a static
 // top-level `import geoip from "geoip-lite"` throws during module evaluation (before any request handler, or even
-// this file's own try/catch, exists to catch it) if that data file is missing from the production build, which it
-// currently is. A dynamic import defers that read to the first actual lookup, inside an async function where a
-// rejection is a normal catchable promise instead of a process-ending crash.
+// this file's own try/catch, exists to catch it) if GEODATADIR doesn't point to a real data directory (the compiled
+// binary ships without node_modules, so the Dockerfile copies just the country .dat files and points GEODATADIR at
+// them). A dynamic import defers that read to the first actual lookup, inside an async function where a rejection
+// is a normal catchable promise instead of a process-ending crash.
 let geoipModule: typeof import("geoip-lite") | null | undefined;
 async function loadGeoip() {
   if (geoipModule === undefined) {
