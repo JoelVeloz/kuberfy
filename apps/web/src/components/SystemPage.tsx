@@ -10,7 +10,7 @@ import { DeploymentStatusBadge } from "@/components/DeploymentStatusBadge";
 import { deploymentStatusLabel, deploymentStatusVariant } from "@/lib/deployment-status";
 import type { DeploymentStatus } from "@/lib/types";
 import { apiWsUrl } from "@/lib/api-url";
-import { SHORT_WINDOW_MS, computeTimeDomain, formatClock, formatTooltipLabel } from "@/lib/chart-time";
+import { SHORT_WINDOW_MS, computeTimeDomain, formatClock, formatTooltipLabel, niceCeil } from "@/lib/chart-time";
 
 interface AppRow {
   id: string;
@@ -288,7 +288,7 @@ export function SystemPage() {
                 </defs>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" />
                 <XAxis dataKey="t" type="number" domain={timeDomain} tickFormatter={formatAxisTick} tickLine={false} axisLine={false} minTickGap={40} />
-                <YAxis width={48} tickLine={false} axisLine={false} tickFormatter={formatMB} />
+                <YAxis width={48} tickLine={false} axisLine={false} domain={[0, (max: number) => niceCeil(max)]} tickFormatter={formatMB} />
                 <ChartTooltip labelFormatter={formatTooltipLabel} content={<ChartTooltipContent formatter={tooltipRow("Memory", (v) => formatMB(Number(v)))} />} />
                 <Area dataKey="memMB" name="mem" type="monotone" fill="url(#fillHostMem)" stroke="var(--color-mem)" strokeWidth={2} isAnimationActive={false} />
               </AreaChart>

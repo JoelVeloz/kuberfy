@@ -25,3 +25,13 @@ export const formatTooltipLabel = (_value: unknown, payload: unknown) => {
   const point = (payload as Array<{ payload?: { t?: number } }> | undefined)?.[0]?.payload;
   return point?.t ? formatClock(point.t, true) : "";
 };
+
+export function niceCeil(max: number, targetTicks = 4): number {
+  if (max <= 0) return targetTicks;
+  const roughStep = max / targetTicks;
+  const exponent = Math.floor(Math.log10(roughStep));
+  const fraction = roughStep / 10 ** exponent;
+  const niceFraction = fraction <= 1 ? 1 : fraction <= 2 ? 2 : fraction <= 5 ? 5 : 10;
+  const step = niceFraction * 10 ** exponent;
+  return Math.ceil(max / step) * step;
+}
