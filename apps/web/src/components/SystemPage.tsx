@@ -31,11 +31,13 @@ import { formatBytes, formatMB } from "@/lib/format-bytes";
 interface AppRow {
   id: string;
   name: string;
+  projectName: string;
   status: DeploymentStatus | null;
   cpuLimit: number;
   cpu?: number;
   memUsed?: number;
   memLimit?: number;
+  startedAt?: number;
 }
 
 interface InfraRow {
@@ -45,6 +47,7 @@ interface InfraRow {
   cpu?: number;
   memUsed?: number;
   memLimit?: number;
+  startedAt?: number;
 }
 
 interface HostStats {
@@ -59,8 +62,12 @@ interface HostStats {
 type StatsMessage =
   | { type: "host"; t: number; host: HostStats }
   | { type: "hostHistory"; samples: Array<{ t: number; cpu: number; memUsed: number }> }
-  | { type: "shell"; apps: Array<{ id: string; name: string; status: DeploymentStatus | null; cpuLimit: number }>; infra: Array<{ id: string; name: string }> }
-  | { type: "appStat"; id: string; cpu: number; memUsed: number; memLimit: number }
+  | {
+      type: "shell";
+      apps: Array<{ id: string; name: string; projectName: string; status: DeploymentStatus | null; cpuLimit: number }>;
+      infra: Array<{ id: string; name: string; startedAt: number }>;
+    }
+  | { type: "appStat"; id: string; cpu: number; memUsed: number; memLimit: number; startedAt?: number }
   | { type: "infraStat"; id: string; cpu: number; memUsed: number; memLimit: number };
 
 // Last hour at the server's 2s tick — same "no range picker, just the last hour" rule as the per-app chart.
@@ -107,6 +114,27 @@ function CpuCell({ cpu, cpuLimit }: { cpu?: number; cpuLimit?: number }) {
       </span>
     </div>
   );
+}
+
+function formatUptime(startedAt: number): string {
+  const totalSeconds = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  if (minutes > 0) return `${minutes}m`;
+  return `${totalSeconds}s`;
+}
+
+function StartedCell({ startedAt }: { startedAt?: number }) {
+  if (startedAt === undefined) return <Pending />;
+  return <span className="text-xs text-muted-foreground">{new Date(startedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>;
+}
+
+function UptimeCell({ startedAt }: { startedAt?: number }) {
+  if (startedAt === undefined) return <Pending />;
+  return <span className="font-mono text-xs tabular-nums text-muted-foreground">{formatUptime(startedAt)}</span>;
 }
 
 // Green under 75%, amber up to 90%, red above — the visual answer to "did this hit its max?"
@@ -169,6 +197,16 @@ const infraColumns = [
     header: "Memory",
     cell: (info) => <MemoryCell memUsed={info.getValue()} memLimit={info.row.original.memLimit} />,
   }),
+  infraColumnHelper.accessor("startedAt", {
+    id: "started",
+    header: "Started",
+    cell: (info) => <StartedCell startedAt={info.getValue()} />,
+  }),
+  infraColumnHelper.accessor("startedAt", {
+    id: "uptime",
+    header: "Uptime",
+    cell: (info) => <UptimeCell startedAt={info.getValue()} />,
+  }),
   infraColumnHelper.display({
     id: "actions",
     header: "",
@@ -183,8 +221,9 @@ const appColumns = [
     header: "Name",
     meta: { headerClassName: "w-2/5" },
     cell: (info) => (
-      <a href={`/applications/view?id=${info.row.original.id}`} className="block truncate font-medium hover:underline">
-        {info.getValue()}
+      <a href={`/applications/view?id=${info.row.original.id}`} className="block truncate hover:underline">
+        <span className="font-medium">{info.getValue()}</span>
+        <span className="text-muted-foreground"> / {info.row.original.projectName}</span>
       </a>
     ),
   }),
@@ -211,18 +250,33 @@ const appColumns = [
         <span className="text-xs text-muted-foreground">—</span>
       ),
   }),
+  appColumnHelper.accessor("startedAt", {
+    id: "started",
+    header: "Started",
+    cell: (info) =>
+      info.row.original.status === "running" ? <StartedCell startedAt={info.getValue()} /> : <span className="text-xs text-muted-foreground">—</span>,
+  }),
+  appColumnHelper.accessor("startedAt", {
+    id: "uptime",
+    header: "Uptime",
+    cell: (info) =>
+      info.row.original.status === "running" ? <UptimeCell startedAt={info.getValue()} /> : <span className="text-xs text-muted-foreground">—</span>,
+  }),
 ];
 
-function mergeShell<Row extends { id: string; cpu?: number; memUsed?: number; memLimit?: number }>(prev: Map<string, Row>, incoming: Row[]): Map<string, Row> {
+function mergeShell<Row extends { id: string; cpu?: number; memUsed?: number; memLimit?: number; startedAt?: number }>(
+  prev: Map<string, Row>,
+  incoming: Row[],
+): Map<string, Row> {
   const next = new Map<string, Row>();
   for (const item of incoming) {
     const existing = prev.get(item.id);
-    next.set(item.id, { ...item, cpu: existing?.cpu, memUsed: existing?.memUsed, memLimit: existing?.memLimit });
+    next.set(item.id, { ...item, cpu: existing?.cpu, memUsed: existing?.memUsed, memLimit: existing?.memLimit, startedAt: item.startedAt ?? existing?.startedAt });
   }
   return next;
 }
 
-function mergeStat<Row extends { id: string }>(prev: Map<string, Row>, id: string, stat: { cpu: number; memUsed: number; memLimit: number }): Map<string, Row> {
+function mergeStat<Row extends { id: string }>(prev: Map<string, Row>, id: string, stat: { cpu: number; memUsed: number; memLimit: number; startedAt?: number }): Map<string, Row> {
   const row = prev.get(id);
   if (!row) return prev;
   const next = new Map(prev);
