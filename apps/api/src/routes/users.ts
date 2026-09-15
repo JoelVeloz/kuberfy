@@ -84,3 +84,18 @@ users.post("/", requireAdmin, zValidator("json", createUserBody), async (c) => {
     throw new HTTPException(message.toLowerCase().includes("already exists") ? StatusCodes.CONFLICT : StatusCodes.BAD_REQUEST, { message });
   }
 });
+
+const setPasswordBody = z.object({ password: z.string().min(8) });
+
+users.post("/:id/password", requireAdmin, zValidator("json", setPasswordBody), async (c) => {
+  const { password } = c.req.valid("json");
+  await auth.api.setUserPassword({ headers: c.req.raw.headers, body: { userId: c.req.param("id"), newPassword: password } });
+  return c.json({ success: true });
+});
+
+users.delete("/:id", requireAdmin, async (c) => {
+  const id = c.req.param("id");
+  if (id === c.get("user").id) throw new HTTPException(StatusCodes.BAD_REQUEST, { message: "You can't delete your own account" });
+  await auth.api.removeUser({ headers: c.req.raw.headers, body: { userId: id } });
+  return c.json({ success: true });
+});

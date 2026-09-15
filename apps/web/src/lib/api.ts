@@ -393,6 +393,13 @@ export const api = {
   revokeUserSession: (userId: string, token: string) => request<{ success: boolean }>(`/api/users/${userId}/sessions/${token}`, { method: "DELETE" }),
   revokeAllUserSessions: (userId: string) => request<{ success: boolean }>(`/api/users/${userId}/sessions`, { method: "DELETE" }),
   deleteUserPasskey: (userId: string, passkeyId: string) => request<{ success: boolean }>(`/api/users/${userId}/passkeys/${passkeyId}`, { method: "DELETE" }),
+  setUserPassword: (userId: string, password: string) =>
+    request<{ success: boolean }>(`/api/users/${userId}/password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    }),
+  deleteUser: (userId: string) => request<{ success: boolean }>(`/api/users/${userId}`, { method: "DELETE" }),
   getTrafficSummary: (range: string, filters: TrafficFilters) => request<ApiTrafficSummary>(`/api/observability/traffic/summary?range=${range}${trafficFilterQuery(filters)}`),
   getTrafficHosts: (range: string) => request<{ hosts: Array<{ host: string; service: string | null }> }>(`/api/observability/traffic/hosts?range=${range}`),
   listTrafficEvents: (range: string, filters: TrafficFilters, page: number, pageSize: number) =>

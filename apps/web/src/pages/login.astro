@@ -1,6 +1,7 @@
 ---
 import "@/styles/global.css";
 import { ClientRouter } from "astro:transitions";
+import { KuberfyMark } from "@/components/KuberfyMark";
 import { LoginForm } from "@/components/LoginForm";
 ---
 
@@ -29,7 +30,10 @@ import { LoginForm } from "@/components/LoginForm";
         class="relative hidden overflow-hidden border-l border-border bg-foreground lg:flex lg:flex-col lg:justify-between lg:p-10"
         style="background-image: linear-gradient(color-mix(in srgb, var(--color-background) 8%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--color-background) 8%, transparent) 1px, transparent 1px); background-size: 32px 32px;"
       >
-        <span class="font-heading text-sm font-medium tracking-tight text-background">Kuberfy</span>
+        <span class="flex items-center gap-2 font-heading text-sm font-medium tracking-tight text-background">
+          <KuberfyMark className="size-4" />
+          Kuberfy
+        </span>
         <p class="max-w-xs font-heading text-2xl leading-snug text-background">Deploy applications on your own infrastructure, without the overhead.</p>
       </div>
     </div>

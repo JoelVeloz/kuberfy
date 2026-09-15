@@ -1,14 +1,11 @@
-import * as React from "react";
 import { ArrowsClockwise, CloudArrowDown } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { QueryProvider } from "@/components/QueryProvider";
-import { api } from "@/lib/api";
-import { toastError } from "@/lib/toast";
-
-type CheckState = "checking" | "up-to-date" | "available" | "unknown";
+import { UpdateConfirmDialog } from "@/components/UpdateConfirmDialog";
+import { useKuberfyUpdate } from "@/lib/use-kuberfy-update";
 
 export function UpdateCard() {
   return (
@@ -19,45 +16,7 @@ export function UpdateCard() {
 }
 
 function UpdateCardInner() {
-  const [state, setState] = React.useState<CheckState>("checking");
-  const [confirmOpen, setConfirmOpen] = React.useState(false);
-  const [updating, setUpdating] = React.useState(false);
-  const [restarting, setRestarting] = React.useState(false);
-
-  const check = React.useCallback(async () => {
-    setState("checking");
-    try {
-      const result = await api.checkKuberfyUpdate();
-      setState(result.updateAvailable === null ? "unknown" : result.updateAvailable ? "available" : "up-to-date");
-    } catch (err) {
-      toastError(err, "Failed to check for updates.");
-      setState("unknown");
-    }
-  }, []);
-
-  React.useEffect(() => {
-    check();
-  }, [check]);
-
-  async function update() {
-    setUpdating(true);
-    try {
-      await api.updateKuberfy();
-      setConfirmOpen(false);
-      setRestarting(true);
-      setTimeout(pollUntilBack, 3000);
-    } catch (err) {
-      toastError(err, "Failed to start the update.");
-      setUpdating(false);
-    }
-  }
-
-  function pollUntilBack() {
-    api
-      .getSettings()
-      .then(() => window.location.reload())
-      .catch(() => setTimeout(pollUntilBack, 2000));
-  }
+  const { state, check, confirmOpen, setConfirmOpen, updating, restarting, update } = useKuberfyUpdate();
 
   if (restarting) {
     return (
@@ -95,20 +54,7 @@ function UpdateCardInner() {
                 <CloudArrowDown /> Update
               </Button>
             </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Update kuberfy?</DialogTitle>
-                <DialogDescription>Restarts kuberfy's service. Briefly unreachable for a few seconds; deployed apps keep running.</DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button variant="outline">Cancel</Button>
-                </DialogClose>
-                <Button disabled={updating} onClick={update}>
-                  {updating ? "Starting…" : "Update now"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
+            <UpdateConfirmDialog updating={updating} onConfirm={update} />
           </Dialog>
         ) : (
           <Button size="sm" variant="outline" disabled={state === "checking"} onClick={check}>

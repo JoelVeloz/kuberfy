@@ -10,7 +10,10 @@ import { DataTable } from "@/components/ui/data-table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryProvider } from "@/components/QueryProvider";
+import { SetPasswordDialog } from "@/components/SetPasswordDialog";
+import { DeleteUserDialog } from "@/components/DeleteUserDialog";
 import { api, UnauthorizedError, NotFoundError, type ApiUserPasskey, type ApiUserSession } from "@/lib/api";
+import { authClient } from "@/lib/auth-client";
 import { getQueryParam } from "@/lib/query-params";
 import { toastError } from "@/lib/toast";
 
@@ -103,6 +106,8 @@ export function UserDetail() {
 function UserDetailInner() {
   const id = getQueryParam("id");
   const queryClient = useQueryClient();
+  const { data: session } = authClient.useSession();
+  const isSelf = session?.user.id === id;
   const user = useQuery({ queryKey: ["user", id], queryFn: () => api.getUser(id) });
 
   const revokeSession = useMutation({
@@ -162,11 +167,19 @@ function UserDetailInner() {
           <span className="text-border">/</span>
           <span>{email}</span>
         </div>
-        <div className="flex items-center gap-3">
-          <h1 className="font-heading text-lg font-medium">{email}</h1>
-          <Badge variant="outline">{role ?? "user"}</Badge>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="font-heading text-lg font-medium">{email}</h1>
+              <Badge variant="outline">{role ?? "user"}</Badge>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">Member since {formatDate(createdAt)}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <SetPasswordDialog userId={id} userEmail={email} />
+            {!isSelf && <DeleteUserDialog userId={id} userEmail={email} />}
+          </div>
         </div>
-        <p className="mt-1 text-xs text-muted-foreground">Member since {formatDate(createdAt)}</p>
       </div>
 
       <Card>

@@ -15,14 +15,7 @@ import { QueryProvider } from "@/components/QueryProvider";
 import { api, type ApiUser } from "@/lib/api";
 import { toastError } from "@/lib/toast";
 import { authClient } from "@/lib/auth-client";
-
-function generatePassword(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(18));
-  return btoa(String.fromCharCode(...bytes))
-    .replaceAll("+", "-")
-    .replaceAll("/", "_")
-    .replaceAll("=", "");
-}
+import { generatePassword } from "@/lib/utils";
 
 function NewUserDialog() {
   const [open, setOpen] = React.useState(false);
