@@ -18,6 +18,7 @@ export function NewApplicationDialog({ projectId }: { projectId: string }) {
   const [name, setName] = React.useState("");
   const [repoUrl, setRepoUrl] = React.useState("");
   const [branch, setBranch] = React.useState("main");
+  const [dockerfilePath, setDockerfilePath] = React.useState("");
   const [buildType, setBuildType] = React.useState<BuildType>("image");
   const [size, setSize] = React.useState(DEFAULT_APP_SIZE);
   const [isPrivate, setIsPrivate] = React.useState(false);
@@ -34,6 +35,7 @@ export function NewApplicationDialog({ projectId }: { projectId: string }) {
         repoUrl: repoUrl.trim(),
         branch: branch.trim() || "main",
         buildType,
+        ...(buildType === "dockerfile" && dockerfilePath.trim() ? { dockerfilePath: dockerfilePath.trim() } : {}),
         ...(selectedSize ? { memoryLimitMb: selectedSize.memoryLimitMb, cpuLimit: selectedSize.cpuLimit } : {}),
         ...(isPrivate && buildType === "image" ? { registryUsername: registryUsername.trim(), registryPassword } : {}),
       }),
@@ -44,6 +46,7 @@ export function NewApplicationDialog({ projectId }: { projectId: string }) {
       setName("");
       setRepoUrl("");
       setBranch("main");
+      setDockerfilePath("");
       setBuildType("image");
       setSize(DEFAULT_APP_SIZE);
       setIsPrivate(false);
@@ -90,10 +93,17 @@ export function NewApplicationDialog({ projectId }: { projectId: string }) {
             />
           </div>
           {buildType === "dockerfile" && (
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="app-branch">Branch</Label>
-              <Input id="app-branch" value={branch} onChange={(e) => setBranch(e.target.value)} />
-            </div>
+            <>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="app-branch">Branch</Label>
+                <Input id="app-branch" value={branch} onChange={(e) => setBranch(e.target.value)} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="app-dockerfile-path">Dockerfile path</Label>
+                <Input id="app-dockerfile-path" placeholder="Dockerfile" value={dockerfilePath} onChange={(e) => setDockerfilePath(e.target.value)} className="font-mono" />
+                <p className="text-xs text-muted-foreground">Relative to the repo root — e.g. examples/with-docker/Dockerfile. Defaults to Dockerfile at the root.</p>
+              </div>
+            </>
           )}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="app-size">Size</Label>

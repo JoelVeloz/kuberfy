@@ -1,6 +1,8 @@
 import * as React from "react";
 import { ArrowClockwise, Cube, Eye, EyeSlash, GithubLogo } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { navigate } from "astro:transitions/client";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -73,8 +75,9 @@ function ConfigureTemplate({ template, projId, onBack }: { template: ApiMarketpl
       return app;
     },
     onSuccess: () => {
+      toast.success(`"${template.name}" added.`);
       queryClient.invalidateQueries({ queryKey: ["project", projId, "apps"] });
-      window.location.href = `/projects/view?id=${projId}`;
+      navigate(`/projects/view?id=${projId}`);
     },
     onError: (err) => toastError(err, "Failed to deploy template."),
   });

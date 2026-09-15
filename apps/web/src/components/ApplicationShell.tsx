@@ -1,6 +1,7 @@
 import * as React from "react";
 import { ArrowClockwise, ArrowSquareOut, RocketLaunch, Stop as StopIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { navigate } from "astro:transitions/client";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -130,9 +131,10 @@ function ApplicationShellInner() {
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["application", id] });
   const deploy = useMutation({
     mutationFn: () => api.deploy(id),
-    onSuccess: () => {
+    onSuccess: (dep) => {
       toast.success("Deployment started.");
       invalidate();
+      navigate(`/applications/deployment?id=${id}&deploymentId=${dep.id}`);
     },
     onError: (err) => toastError(err, "Failed to start deployment."),
   });

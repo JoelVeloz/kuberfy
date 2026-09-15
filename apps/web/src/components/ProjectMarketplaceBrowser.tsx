@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Cube, GithubLogo, Stack } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { navigate } from "astro:transitions/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -44,7 +45,7 @@ function ConfigureTemplate({ template, appSizes, onBack }: { template: ApiProjec
     onSuccess: (data) => {
       toast.success(`Deploying "${projectName.trim()}"…`);
       queryClient.invalidateQueries({ queryKey: ["projects"] });
-      window.location.href = `/projects/view?id=${data.projectId}`;
+      navigate(`/projects/view?id=${data.projectId}`);
     },
     onError: (err) => toastError(err, "Failed to deploy project."),
   });

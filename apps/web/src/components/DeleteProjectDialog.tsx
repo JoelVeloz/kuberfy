@@ -1,6 +1,8 @@
 import * as React from "react";
 import { Trash } from "@phosphor-icons/react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { navigate } from "astro:transitions/client";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,11 +14,14 @@ export function DeleteProjectDialog({ projectId, projectName, applicationCount }
   const [open, setOpen] = React.useState(false);
   const [confirmText, setConfirmText] = React.useState("");
   const blocked = applicationCount > 0;
+  const queryClient = useQueryClient();
 
   const del = useMutation({
     mutationFn: () => api.deleteProject(projectId),
     onSuccess: () => {
-      window.location.href = "/";
+      toast.success(`"${projectName}" deleted.`);
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      navigate("/");
     },
     onError: (err) => toastError(err, "Failed to delete project."),
   });
