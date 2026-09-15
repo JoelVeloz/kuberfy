@@ -53,13 +53,11 @@ Runtime footprint: **~23 MB** (API) + **~14 MB** (Traefik).
 ```mermaid
 flowchart LR
     U(("Internet")) --> T["Traefik\n:80 / :443"]
-    T --> K["Kuberfy\nAPI + dashboard · SQLite"]
-    K -. docker socket .-> A["App A"]
-    K -. docker socket .-> B["App B"]
-    K -. docker socket .-> C["App C"]
-    T --> A
-    T --> B
-    T --> C
+    T --> K["Kuberfy\n~23 MB · SQLite"]
+    K --> D["Docker Swarm"]
+    D --> A["App A"]
+    D --> B["App B"]
+    D --> C["App C"]
 ```
 
 | Path | Stack |
