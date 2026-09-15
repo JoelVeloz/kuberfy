@@ -34,8 +34,8 @@ export function AppSidebar({ pathname, ...props }: { pathname: string } & React.
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <a href="/">
-                <KuberfyMark />
-                <span className="font-heading text-sm font-medium tracking-tight">Kuberfy</span>
+                <KuberfyMark className="size-5 shrink-0" />
+                <span className="font-heading text-sm font-medium tracking-tight group-data-[collapsible=icon]:hidden">Kuberfy</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
