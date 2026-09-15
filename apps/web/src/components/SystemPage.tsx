@@ -42,6 +42,7 @@ interface HostStats {
 
 type StatsMessage =
   | { type: "host"; t: number; host: HostStats }
+  | { type: "hostHistory"; samples: Array<{ t: number; cpu: number; memUsed: number }> }
   | { type: "shell"; apps: Array<{ id: string; name: string; status: DeploymentStatus | null; cpuLimit: number }>; infra: Array<{ id: string; name: string }> }
   | { type: "appStat"; id: string; cpu: number; memUsed: number; memLimit: number }
   | { type: "infraStat"; id: string; cpu: number; memUsed: number; memLimit: number };
@@ -187,6 +188,9 @@ export function SystemPage() {
         case "host":
           setHost(msg.host);
           setHostHistory((prev) => [...prev.slice(-(WINDOW_SIZE - 1)), { t: msg.t, cpu: msg.host.cpu, memMB: Math.round((msg.host.memUsed / 1024 / 1024) * 10) / 10 }]);
+          break;
+        case "hostHistory":
+          setHostHistory(msg.samples.map((s) => ({ t: s.t, cpu: s.cpu, memMB: Math.round((s.memUsed / 1024 / 1024) * 10) / 10 })));
           break;
         case "shell":
           setApps((prev) => mergeShell(prev, msg.apps));
