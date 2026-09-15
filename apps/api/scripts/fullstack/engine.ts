@@ -18,6 +18,20 @@ function resolveSize(size: AppSizeId | undefined) {
   return appSizes.find((s) => s.id === size) ?? defaultAppSize;
 }
 
+// Postgres/MySQL only ever read their *_PASSWORD env var on first-ever init of an empty data volume — a
+// reused database app keeps whatever password it was actually created with, no matter what a later run's
+// env vars say. Generating (and storing) a fresh password on every run, as an earlier version of this script
+// did, desyncs the two: the app ends up trying a password the database was never told about. Finds which key
+// in db.env()'s output is the password by calling it with a one-off marker value, so the engine never needs
+// to hardcode a per-database env var name.
+function findPasswordKey(envFn: (password: string) => Record<string, string>): string {
+  const marker = crypto.randomUUID();
+  const env = envFn(marker);
+  const key = Object.keys(env).find((k) => env[k] === marker);
+  if (!key) throw new Error("db.env() must use its password argument as one of the returned values, unchanged");
+  return key;
+}
+
 export interface DbSpec {
   image: string;
   port: number;
@@ -78,9 +92,10 @@ export async function runPreset(preset: Preset) {
   }
 
   const dbSize = resolveSize(preset.db.size);
-  const dbPassword = generateSecret();
   let dbApp = await db.query.application.findFirst({ where: (f, { and, eq }) => and(eq(f.projectId, proj!.id), eq(f.name, "database")) });
+  let dbPassword: string;
   if (!dbApp) {
+    dbPassword = generateSecret();
     [dbApp] = await db
       .insert(application)
       .values({
@@ -98,6 +113,10 @@ export async function runPreset(preset: Preset) {
     await db.insert(volume).values({ id: volumeId, applicationId: dbApp!.id, mountPath: preset.db.volumeMountPath, volumeName: `kuberfy-vol-${volumeId}` });
     console.log(`Created database app (${dbApp!.id}, ${dbSize.label})`);
   } else {
+    const existingEnv = JSON.parse(dbApp.envVars ?? "{}") as Record<string, string>;
+    const passwordKey = findPasswordKey(preset.db.env);
+    dbPassword = existingEnv[passwordKey] ?? "";
+    if (!dbPassword) throw new Error(`Reused database app has no "${passwordKey}" in its stored env vars — can't recover its real password.`);
     await db.update(application).set({ memoryLimitMb: dbSize.memoryLimitMb, cpuLimit: dbSize.cpuLimit }).where(eq(application.id, dbApp.id));
     console.log(`Reusing database app (${dbApp.id}, ${dbSize.label})`);
   }
