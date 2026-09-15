@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
 import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { cpus, tmpdir, totalmem } from "node:os";
 import { basename, dirname, join } from "node:path";
 import Docker from "dockerode";
 import { and, eq, inArray } from "drizzle-orm";
@@ -325,8 +325,14 @@ async function buildFromGit(app: typeof application.$inferSelect, imageTag: stri
     const dockerfilePath = app.dockerfilePath ?? "Dockerfile";
     const context = join(dir, dirname(dockerfilePath));
 
+    const buildCpuLimit = Math.min(cpus().length, Math.max(app.cpuLimit, cpus().length / 2));
+    const buildMemoryBytes = Math.min(totalmem(), Math.max(app.memoryLimitMb * 1024 * 1024, totalmem() / 2));
+
     log(`Building ${imageTag}`);
-    const stream = await docker.buildImage({ context, src: ["."] }, { t: imageTag, dockerfile: basename(dockerfilePath) });
+    const stream = await docker.buildImage(
+      { context, src: ["."] },
+      { t: imageTag, dockerfile: basename(dockerfilePath), memory: buildMemoryBytes, cpuperiod: 100000, cpuquota: Math.round(buildCpuLimit * 100000) },
+    );
     await new Promise<void>((resolve, reject) => {
       docker.modem.followProgress(
         stream,
