@@ -11,8 +11,12 @@ const t = strings[lang];
 const installCmd = "curl -sSL https://kuberfy.pages.dev/install.sh | sudo sh";
 const updateCmd = "curl -sSL https://kuberfy.pages.dev/update.sh | sudo sh";
 const uninstallCmd = "curl -sSL https://kuberfy.pages.dev/uninstall.sh | sudo sh";
-const otherLocales = (Object.keys(LOCALE_PATHS) as Locale[]).filter((l) => l !== lang);
-const localeLabel: Record<Locale, string> = { en: "EN", es: "ES", "pt-BR": "PT-BR" };
+const allLocales = Object.keys(LOCALE_PATHS) as Locale[];
+const localeMeta: Record<Locale, { flag: string; short: string; full: string }> = {
+  en: { flag: "🇺🇸", short: "EN", full: "English" },
+  es: { flag: "🇪🇸", short: "ES", full: "Español" },
+  "pt-BR": { flag: "🇧🇷", short: "PT-BR", full: "Português (BR)" },
+};
 ---
 
 <div class="relative overflow-hidden selection:bg-ember selection:text-ink">
@@ -36,37 +40,51 @@ const localeLabel: Record<Locale, string> = { en: "EN", es: "ES", "pt-BR": "PT-B
         </span>
       </div>
 
-      <nav class="flex items-center gap-6 text-sm text-smoke">
-        <a href="#comparison" class="hidden transition-colors hover:text-cream md:inline">
-          {t.nav.comparison}
-        </a>
-        <a href="#benchmarks" class="hidden transition-colors hover:text-cream sm:inline">
-          {t.nav.benchmarks}
-        </a>
-        <a href="#features" class="hidden transition-colors hover:text-cream sm:inline">
-          {t.nav.features}
-        </a>
-        <a href="#architecture" class="hidden transition-colors hover:text-cream lg:inline">
-          {t.nav.architecture}
-        </a>
-        <a href="#quickstart" class="hidden transition-colors hover:text-cream md:inline">
-          {t.nav.quickstart}
-        </a>
+      <nav class="flex items-center gap-4 text-sm text-smoke sm:gap-5">
+        <div class="hidden items-center gap-5 md:flex">
+          <a href="#comparison" class="transition-colors hover:text-cream">
+            {t.nav.comparison}
+          </a>
+          <a href="#benchmarks" class="transition-colors hover:text-cream">
+            {t.nav.benchmarks}
+          </a>
+          <a href="#features" class="transition-colors hover:text-cream">
+            {t.nav.features}
+          </a>
+          <a href="#architecture" class="hidden transition-colors hover:text-cream lg:inline">
+            {t.nav.architecture}
+          </a>
+          <a href="#quickstart" class="transition-colors hover:text-cream">
+            {t.nav.quickstart}
+          </a>
+        </div>
         <a href="/docs" class="font-medium text-cream transition-colors hover:text-ember">
           {t.nav.docs}
         </a>
 
         <!-- Language Switcher -->
-        <div class="flex items-center gap-1.5 border-l border-line pl-4 text-xs font-mono">
-          <span class="rounded bg-panel-2 px-1.5 py-0.5 font-bold text-ember">{localeLabel[lang]}</span>
-          {otherLocales.map((l) => (
-            <a href={LOCALE_PATHS[l]} class="px-1 text-smoke-dim transition-colors hover:text-cream">
-              {localeLabel[l]}
-            </a>
-          ))}
-        </div>
+        <details class="lang-switcher group relative">
+          <summary class="flex cursor-pointer list-none items-center gap-1.5 rounded-lg border border-line bg-panel px-2.5 py-1.5 text-xs text-smoke transition-colors hover:border-smoke-dim hover:text-cream [&::-webkit-details-marker]:hidden">
+            <span aria-hidden="true">{localeMeta[lang].flag}</span>
+            <span class="font-mono font-medium">{localeMeta[lang].short}</span>
+            <svg class="h-3 w-3 text-smoke-dim transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </summary>
+          <div class="absolute right-0 z-50 mt-2 w-44 overflow-hidden rounded-lg border border-line bg-panel py-1 shadow-xl">
+            {allLocales.map((l) => (
+              <a
+                href={LOCALE_PATHS[l]}
+                class={`flex items-center gap-2.5 px-3 py-2 text-xs transition-colors hover:bg-panel-2 ${l === lang ? "font-medium text-ember" : "text-smoke hover:text-cream"}`}
+              >
+                <span aria-hidden="true">{localeMeta[l].flag}</span>
+                <span>{localeMeta[l].full}</span>
+              </a>
+            ))}
+          </div>
+        </details>
 
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 border-l border-line pl-4">
           <a
             href="https://github.com/JoelVeloz/kuberfy"
             target="_blank"
@@ -551,6 +569,15 @@ const localeLabel: Record<Locale, string> = { en: "EN", es: "ES", "pt-BR": "PT-B
         }
       });
     });
+
+    const langSwitcher = document.querySelector<HTMLDetailsElement>(".lang-switcher");
+    if (langSwitcher) {
+      document.addEventListener("click", (e) => {
+        if (langSwitcher.open && !langSwitcher.contains(e.target as Node)) {
+          langSwitcher.open = false;
+        }
+      });
+    }
   }
 
   // Run on initial page load and after client navigation
