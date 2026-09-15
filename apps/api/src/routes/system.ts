@@ -44,20 +44,20 @@ type ContainerList = Awaited<ReturnType<typeof docker.listContainers>>;
 
 // Kuberfy's own infrastructure — Traefik plus this very process's container — reported the same way as any
 // deployed app, so you can see whether the platform itself (not just what's deployed on it) is at its limit.
-function findInfraContainers(containers: ContainerList): Array<{ id: string; name: string }> {
+function findInfraContainers(containers: ContainerList): Array<{ id: string; name: string; startedAt: number }> {
   // Docker sets HOSTNAME to the short container id by default, so this identifies whichever container is
   // actually running this API process, in dev or production, without hardcoding a container/service name.
   const selfId = os.hostname();
-  const infra: Array<{ id: string; name: string }> = [];
+  const infra: Array<{ id: string; name: string; startedAt: number }> = [];
   for (const c of containers) {
-    if (c.Image.split(":")[0] === "traefik") infra.push({ id: c.Id, name: "Traefik" });
-    else if (c.Id.startsWith(selfId)) infra.push({ id: c.Id, name: "Kuberfy" });
+    if (c.Image.split(":")[0] === "traefik") infra.push({ id: c.Id, name: "Traefik", startedAt: c.Created * 1000 });
+    else if (c.Id.startsWith(selfId)) infra.push({ id: c.Id, name: "Kuberfy", startedAt: c.Created * 1000 });
   }
   return infra;
 }
 
-function resolveServiceContainerId(containers: ContainerList, serviceId: string): string | null {
-  return containers.find((c) => c.Labels["com.docker.swarm.service.id"] === serviceId)?.Id ?? null;
+function resolveServiceContainer(containers: ContainerList, serviceId: string): ContainerList[number] | null {
+  return containers.find((c) => c.Labels["com.docker.swarm.service.id"] === serviceId) ?? null;
 }
 
 async function containerStats(containerId: string) {
@@ -270,7 +270,7 @@ system.get(
           // reruns every 2s for every application; fetching the full history each time would only get worse
           // as deployments pile up.
           const [apps, containers] = await Promise.all([
-            db.query.application.findMany({ with: { deployments: { orderBy: desc(deployment.createdAt), limit: 1 } } }),
+            db.query.application.findMany({ with: { deployments: { orderBy: desc(deployment.createdAt), limit: 1 }, project: true } }),
             docker.listContainers(),
           ]);
           const infra = findInfraContainers(containers);
@@ -278,7 +278,14 @@ system.get(
           ws.send(
             JSON.stringify({
               type: "shell",
-              apps: apps.map((app) => ({ id: app.id, name: app.name, status: app.deployments[0]?.status ?? null, cpuLimit: app.cpuLimit })),
+              apps: apps.map((app) => ({
+                id: app.id,
+                name: app.name,
+                status: app.deployments[0]?.status ?? null,
+                cpuLimit: app.cpuLimit,
+                projectId: app.projectId,
+                projectName: app.project.name,
+              })),
               infra: infra.map((c) => ({ id: c.id, name: c.name })),
             }),
           );
@@ -286,9 +293,10 @@ system.get(
           for (const app of apps) {
             void (async () => {
               const dep = app.deployments[0];
-              const containerId = dep?.status === "running" && dep.containerId ? resolveServiceContainerId(containers, dep.containerId) : null;
-              const stat = containerId ? await containerStats(containerId) : { cpu: 0, memUsed: 0, memLimit: 0 };
-              ws.send(JSON.stringify({ type: "appStat", t: Date.now(), id: app.id, ...stat }));
+              const container = dep?.status === "running" && dep.containerId ? resolveServiceContainer(containers, dep.containerId) : null;
+              const stat = container ? await containerStats(container.Id) : { cpu: 0, memUsed: 0, memLimit: 0 };
+              const startedAt = container ? container.Created * 1000 : undefined;
+              ws.send(JSON.stringify({ type: "appStat", t: Date.now(), id: app.id, ...stat, startedAt }));
             })();
           }
 
