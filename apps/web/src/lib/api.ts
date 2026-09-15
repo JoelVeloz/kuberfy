@@ -109,6 +109,23 @@ export interface ApiTrafficSummary {
   counts: Array<{ bucketStart: number; good: number; warning: number; critical: number }>;
 }
 
+export interface TrafficFilters {
+  host?: string;
+  ip?: string;
+  method?: string;
+  status?: "good" | "warning" | "critical";
+}
+
+function trafficFilterQuery(filters: TrafficFilters) {
+  const { host, ip, method, status } = filters;
+  return [
+    host && host !== "all" ? `&host=${encodeURIComponent(host)}` : "",
+    ip ? `&ip=${encodeURIComponent(ip)}` : "",
+    method && method !== "all" ? `&method=${encodeURIComponent(method)}` : "",
+    status ? `&status=${status}` : "",
+  ].join("");
+}
+
 export interface ApiTrafficIp {
   clientIp: string;
   country: string | null;
@@ -376,15 +393,10 @@ export const api = {
   revokeUserSession: (userId: string, token: string) => request<{ success: boolean }>(`/api/users/${userId}/sessions/${token}`, { method: "DELETE" }),
   revokeAllUserSessions: (userId: string) => request<{ success: boolean }>(`/api/users/${userId}/sessions`, { method: "DELETE" }),
   deleteUserPasskey: (userId: string, passkeyId: string) => request<{ success: boolean }>(`/api/users/${userId}/passkeys/${passkeyId}`, { method: "DELETE" }),
-  getTrafficSummary: (range: string, host?: string) =>
-    request<ApiTrafficSummary>(`/api/observability/traffic/summary?range=${range}${host && host !== "all" ? `&host=${encodeURIComponent(host)}` : ""}`),
+  getTrafficSummary: (range: string, filters: TrafficFilters) => request<ApiTrafficSummary>(`/api/observability/traffic/summary?range=${range}${trafficFilterQuery(filters)}`),
   getTrafficHosts: (range: string) => request<{ hosts: Array<{ host: string; service: string | null }> }>(`/api/observability/traffic/hosts?range=${range}`),
-  listTrafficEvents: (range: string, host: string | undefined, page: number, pageSize: number) =>
-    request<ApiPage<ApiTrafficEvent>>(
-      `/api/observability/traffic/events?range=${range}&page=${page}&pageSize=${pageSize}${host && host !== "all" ? `&host=${encodeURIComponent(host)}` : ""}`,
-    ),
-  listTrafficIps: (range: string, host: string | undefined, page: number, pageSize: number) =>
-    request<ApiPage<ApiTrafficIp>>(
-      `/api/observability/traffic/ips?range=${range}&page=${page}&pageSize=${pageSize}${host && host !== "all" ? `&host=${encodeURIComponent(host)}` : ""}`,
-    ),
+  listTrafficEvents: (range: string, filters: TrafficFilters, page: number, pageSize: number) =>
+    request<ApiPage<ApiTrafficEvent>>(`/api/observability/traffic/events?range=${range}&page=${page}&pageSize=${pageSize}${trafficFilterQuery(filters)}`),
+  listTrafficIps: (range: string, filters: TrafficFilters, page: number, pageSize: number) =>
+    request<ApiPage<ApiTrafficIp>>(`/api/observability/traffic/ips?range=${range}&page=${page}&pageSize=${pageSize}${trafficFilterQuery(filters)}`),
 };

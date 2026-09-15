@@ -8,7 +8,7 @@ import { TablePagination } from "@/components/ui/table-pagination";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type ChartConfig, ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { QueryProvider } from "@/components/QueryProvider";
-import { api, type ApiTrafficEvent, type ApiTrafficIp } from "@/lib/api";
+import { api, type ApiTrafficEvent, type ApiTrafficIp, type TrafficFilters } from "@/lib/api";
 import { apiWsUrl } from "@/lib/api-url";
 
 function statusColor(status: number) {
@@ -85,6 +85,15 @@ type Range = keyof typeof RANGES;
 
 const TICK_INTERVAL: Record<Range, number> = { "1h": 4, "24h": 2, "7d": 0, "30d": 2 };
 
+const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
+
+const STATUS_FILTERS = {
+  good: "2xx/3xx",
+  warning: "4xx",
+  critical: "5xx",
+} as const;
+type StatusFilter = keyof typeof STATUS_FILTERS | "all";
+
 function StatusTotal({ label, value, dotClassName }: { label: string; value: number; dotClassName: string }) {
   return (
     <span className="flex items-center gap-1.5 text-xs">
@@ -130,6 +139,10 @@ function TrafficChart({ counts, range }: { counts: Array<{ bucketStart: number; 
 
 function TrafficPageInner() {
   const [hostFilter, setHostFilter] = React.useState("all");
+  const [ipInput, setIpInput] = React.useState("");
+  const [ipFilter, setIpFilter] = React.useState("");
+  const [methodFilter, setMethodFilter] = React.useState("all");
+  const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all");
   const [range, setRange] = React.useState<Range>("1h");
   const [tab, setTab] = React.useState<"events" | "ips">("events");
   const [page, setPage] = React.useState(1);
@@ -138,26 +151,38 @@ function TrafficPageInner() {
   const [connected, setConnected] = React.useState(false);
   const [wsError, setWsError] = React.useState<string | null>(null);
 
-  React.useEffect(() => setPage(1), [range, hostFilter]);
-  React.useEffect(() => setIpsPage(1), [range, hostFilter]);
+  React.useEffect(() => {
+    const timer = setTimeout(() => setIpFilter(ipInput.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [ipInput]);
+
+  const filters: TrafficFilters = {
+    host: hostFilter,
+    ip: ipFilter,
+    method: methodFilter,
+    status: statusFilter === "all" ? undefined : statusFilter,
+  };
+
+  React.useEffect(() => setPage(1), [range, hostFilter, ipFilter, methodFilter, statusFilter]);
+  React.useEffect(() => setIpsPage(1), [range, hostFilter, ipFilter, methodFilter, statusFilter]);
 
   const summary = useQuery({
-    queryKey: ["traffic-summary", range, hostFilter],
-    queryFn: () => api.getTrafficSummary(range, hostFilter),
+    queryKey: ["traffic-summary", range, filters],
+    queryFn: () => api.getTrafficSummary(range, filters),
     refetchInterval: 30_000,
   });
 
   const hostsQuery = useQuery({ queryKey: ["traffic-hosts", range], queryFn: () => api.getTrafficHosts(range) });
 
   const eventsQuery = useQuery({
-    queryKey: ["traffic-events", range, hostFilter, page],
-    queryFn: () => api.listTrafficEvents(range, hostFilter, page, PAGE_SIZE),
+    queryKey: ["traffic-events", range, filters, page],
+    queryFn: () => api.listTrafficEvents(range, filters, page, PAGE_SIZE),
     placeholderData: keepPreviousData,
   });
 
   const ipsQuery = useQuery({
-    queryKey: ["traffic-ips", range, hostFilter, ipsPage],
-    queryFn: () => api.listTrafficIps(range, hostFilter, ipsPage, PAGE_SIZE),
+    queryKey: ["traffic-ips", range, filters, ipsPage],
+    queryFn: () => api.listTrafficIps(range, filters, ipsPage, PAGE_SIZE),
     placeholderData: keepPreviousData,
     refetchInterval: 30_000,
   });
@@ -235,6 +260,39 @@ function TrafficPageInner() {
                 ))}
               </select>
             )}
+            <select
+              value={methodFilter}
+              onChange={(e) => setMethodFilter(e.target.value)}
+              className="rounded-md border border-border bg-background px-2 py-1 text-xs"
+              aria-label="Filter by method"
+            >
+              <option value="all">All methods</option>
+              {METHODS.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+              className="rounded-md border border-border bg-background px-2 py-1 text-xs"
+              aria-label="Filter by status"
+            >
+              <option value="all">All statuses</option>
+              {Object.entries(STATUS_FILTERS).map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <input
+              value={ipInput}
+              onChange={(e) => setIpInput(e.target.value)}
+              placeholder="Filter by IP…"
+              className="w-32 rounded-md border border-border bg-background px-2 py-1 text-xs font-mono placeholder:font-sans"
+              aria-label="Filter by client IP"
+            />
           </div>
           {total > 0 && (
             <div className="flex items-center gap-3 rounded-md border border-border px-2.5 py-1">

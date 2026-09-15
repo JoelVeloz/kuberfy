@@ -1,5 +1,6 @@
 import { PassThrough } from "node:stream";
 import { zValidator } from "@hono/zod-validator";
+import type { Context } from "hono";
 import { Hono } from "hono";
 import { upgradeWebSocket } from "hono/bun";
 import { and, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
@@ -61,6 +62,21 @@ function parseAccessLogLine(line: string): TrafficEvent | null {
   } catch {
     return null;
   }
+}
+
+function statusClassCondition(status: string | undefined) {
+  if (status === "good") return sql`${requestLog.status} < 400`;
+  if (status === "warning") return and(gte(requestLog.status, 400), lt(requestLog.status, 500));
+  if (status === "critical") return gte(requestLog.status, 500);
+  return undefined;
+}
+
+// ip/method/status filters shared by summary, events and ips — host and the time-range condition differ per
+// endpoint, so those stay inline at each call site.
+function extraTrafficConditions(c: Context) {
+  const ip = c.req.query("ip")?.trim();
+  const method = c.req.query("method")?.trim().toUpperCase();
+  return [ip ? sql`${requestLog.clientIp} LIKE ${`%${ip}%`}` : undefined, method ? eq(requestLog.method, method) : undefined, statusClassCondition(c.req.query("status"))];
 }
 
 async function findTraefikContainerId(): Promise<string | null> {
@@ -144,7 +160,7 @@ observability.get("/traffic/summary", async (c) => {
       critical: sql<number>`sum(case when ${requestLog.status} >= 500 then 1 else 0 end)`,
     })
     .from(requestLog)
-    .where(and(gte(requestLog.time, new Date(firstBucket * 1000)), host ? eq(requestLog.host, host) : undefined))
+    .where(and(gte(requestLog.time, new Date(firstBucket * 1000)), host ? eq(requestLog.host, host) : undefined, ...extraTrafficConditions(c)))
     .groupBy(bucketExpr);
 
   const rowsByBucket = new Map(rows.map((r) => [r.bucket, r]));
@@ -239,8 +255,11 @@ observability.get("/traffic/ips", zValidator("query", paginationQuery), async (c
   if (!config) return c.json({ error: "Invalid range" }, 400);
   const pagination = c.req.valid("query");
 
-  const where = and(gte(requestLog.time, new Date(Date.now() - config.ms)), host ? eq(requestLog.host, host) : undefined);
+  const where = and(gte(requestLog.time, new Date(Date.now() - config.ms)), host ? eq(requestLog.host, host) : undefined, ...extraTrafficConditions(c));
   const countExpr = sql<number>`count(*)`;
+  // COUNT(DISTINCT client_ip) drops NULL rows, but GROUP BY client_ip still emits a group for them (shown below as
+  // "Unknown") — coalescing to '' first keeps this total in sync with the number of groups the page query returns.
+  const distinctIpExpr = sql`coalesce(${requestLog.clientIp}, '')`;
 
   const [rows, [totalRow]] = await Promise.all([
     db
@@ -259,7 +278,7 @@ observability.get("/traffic/ips", zValidator("query", paginationQuery), async (c
       .limit(pagination.pageSize)
       .offset(paginationOffset(pagination)),
     db
-      .select({ total: sql<number>`count(distinct ${requestLog.clientIp})` })
+      .select({ total: sql<number>`count(distinct ${distinctIpExpr})` })
       .from(requestLog)
       .where(where),
   ]);
@@ -286,7 +305,7 @@ observability.get("/traffic/events", zValidator("query", paginationQuery), async
   if (!config) return c.json({ error: "Invalid range" }, 400);
   const pagination = c.req.valid("query");
 
-  const where = and(gte(requestLog.time, new Date(Date.now() - config.ms)), host ? eq(requestLog.host, host) : undefined);
+  const where = and(gte(requestLog.time, new Date(Date.now() - config.ms)), host ? eq(requestLog.host, host) : undefined, ...extraTrafficConditions(c));
   const [rows, total] = await Promise.all([
     db.query.requestLog.findMany({ where, orderBy: desc(requestLog.time), limit: pagination.pageSize, offset: paginationOffset(pagination) }),
     db.$count(requestLog, where),
