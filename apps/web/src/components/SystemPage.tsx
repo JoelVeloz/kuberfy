@@ -89,6 +89,17 @@ function sumUsage(rows: Iterable<{ cpu?: number; memUsed?: number }>) {
   return { cpuCores, memUsedBytes };
 }
 
+function estimateRemainingCapacity(host: HostStats, appsUsage: { cpuCores: number; memUsedBytes: number }, runningCount: number): number | null {
+  if (runningCount === 0) return null;
+  const avgCpu = appsUsage.cpuCores / runningCount;
+  const avgMem = appsUsage.memUsedBytes / runningCount;
+  if (avgMem <= 0) return null;
+  const freeCpu = host.cpuCount - (host.cpu / 100) * host.cpuCount;
+  const freeMem = host.memTotal - host.memUsed;
+  const estimate = Math.min(avgCpu > 0 ? freeCpu / avgCpu : Infinity, freeMem / avgMem);
+  return Number.isFinite(estimate) ? Math.max(0, Math.floor(estimate)) : null;
+}
+
 function MemoryCell({ memUsed, memLimit }: { memUsed?: number; memLimit?: number }) {
   if (memUsed === undefined || memLimit === undefined) return <Pending />;
   const percent = memLimit > 0 ? (memUsed / memLimit) * 100 : 0;
@@ -222,8 +233,8 @@ const appColumns = [
     meta: { headerClassName: "w-2/5" },
     cell: (info) => (
       <a href={`/applications/view?id=${info.row.original.id}`} className="block truncate hover:underline">
+        <span className="text-muted-foreground">{info.row.original.projectName} / </span>
         <span className="font-medium">{info.getValue()}</span>
-        <span className="text-muted-foreground"> / {info.row.original.projectName}</span>
       </a>
     ),
   }),
@@ -341,6 +352,8 @@ export function SystemPage() {
 
   const infraUsage = sumUsage(infra.values());
   const appsUsage = sumUsage(apps.values());
+  const runningAppCount = statusCounts.running ?? 0;
+  const estimatedCapacity = estimateRemainingCapacity(host, appsUsage, runningAppCount);
   const timeDomain = computeTimeDomain(hostHistory);
   const formatAxisTick = (t: number) => formatClock(t, timeDomain[1] - timeDomain[0] <= SHORT_WINDOW_MS);
   const memPercent = host.memTotal > 0 ? (host.memUsed / host.memTotal) * 100 : 0;
@@ -433,6 +446,11 @@ export function SystemPage() {
               </Badge>
             ))}
         </div>
+        {estimatedCapacity !== null && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            Estimated room for ~{estimatedCapacity} more app{estimatedCapacity === 1 ? "" : "s"} at current average usage.
+          </p>
+        )}
         <Card className="mt-3">
           <CardContent className="px-0">
             <DataTable columns={appColumns} data={Array.from(apps.values())} getRowId={(app) => app.id} sorting={appSorting} onSortingChange={setAppSorting} fixedLayout />
