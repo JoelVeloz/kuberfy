@@ -11,6 +11,8 @@ curl -sSL https://kuberfy.pages.dev/install.sh | sudo sh
 
 [kuberfy.pages.dev](https://kuberfy.pages.dev)
 
+![Kuberfy dashboard](apps/landing/public/screenshots/dashboard-projects.png)
+
 ## Comparison
 
 |                  | Dokploy         | Coolify               | CapRover  | Kuberfy             |
@@ -30,13 +32,13 @@ curl -sSL https://kuberfy.pages.dev/install.sh | sudo sh
 
 ## Requirements
 
-| | |
-| --- | --- |
-| OS | Linux, x86_64 or arm64 |
-| CPU | 1 vCPU |
-| RAM | 1 GB |
-| Disk | 10 GB |
-| Ports | 80, 443 |
+| Resource | Minimum | Recommended |
+| --- | --- | --- |
+| OS | Ubuntu 22.04+ / Debian 12+ (x86_64 or arm64) | Ubuntu 24.04 LTS |
+| CPU | 1 vCPU | 2+ vCPU |
+| RAM | 512 MB | 1 GB+ |
+| Disk | 5 GB SSD | 10 GB+ SSD |
+| Ports | `80`, `443` | `80`, `443`, `3000` (dashboard) |
 
 Runtime footprint: **~23 MB** (API) + **~14 MB** (Traefik).
 

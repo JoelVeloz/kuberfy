@@ -1,0 +1,20 @@
+# Kuberfy
+
+> Kuberfy is an ultra-lightweight, self-hosted Platform-as-a-Service (PaaS) — the lightest self-hosted alternative to Heroku, Vercel, and Netlify. It runs on Bun, Hono, and an embedded SQLite database, and orchestrates deployments with Docker Swarm and Traefik. Install with a single command on any Linux VPS with 512 MB of RAM.
+
+Kuberfy deploys applications from a Git repository or a Docker image, provisions automatic HTTPS via Let's Encrypt, and provides projects, custom domains, deployment history, live logs, and role-based auth — all from a ~23 MB API binary with no Postgres or Redis dependency.
+
+## Docs
+
+- [Introduction](https://kuberfy.pages.dev/docs): What Kuberfy is, why it exists, and how it compares to Dokploy, Coolify, and CapRover.
+- [Installation](https://kuberfy.pages.dev/docs/installation): System requirements and the one-command install script.
+- [Architecture & Stack](https://kuberfy.pages.dev/docs/architecture): How the API, dashboard, Traefik, and Docker Swarm fit together.
+- [Deploying Applications](https://kuberfy.pages.dev/docs/deployments): Deploying from Git or a Docker image, environment variables, and logs.
+- [Custom Domains & SSL](https://kuberfy.pages.dev/docs/domains): Attaching domains and configuring DNS with automatic Let's Encrypt certificates.
+- [Marketplace Templates](https://kuberfy.pages.dev/docs/marketplace): One-click deploys for pre-configured open-source applications.
+- [Updating & Maintenance](https://kuberfy.pages.dev/docs/updating): Updating Kuberfy and managing backups with zero downtime.
+- [Host CLI Reference](https://kuberfy.pages.dev/docs/cli): Command reference for the `kuberfy` host CLI.
+
+## Source
+
+- [GitHub repository](https://github.com/JoelVeloz/kuberfy): Source code, issues, and the BUSL 1.1 license.
