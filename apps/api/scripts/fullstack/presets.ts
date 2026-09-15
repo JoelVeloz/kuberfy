@@ -55,6 +55,9 @@ export const presets: Record<string, Preset> = {
       port: 3306,
       volumeMountPath: "/var/lib/mysql",
       env: (password) => ({ MYSQL_ROOT_PASSWORD: generateSecret(), MYSQL_DATABASE: "wordpress", MYSQL_USER: "wordpress", MYSQL_PASSWORD: password }),
+      // confirmed empirically: at kuberfy's default 256MB, mysqld hangs mid-initialization forever (pegged at
+      // 256MiB/256MiB, no OOM kill, no error) — 9.x's InnoDB setup genuinely needs more headroom than that
+      memoryLimitMb: 512,
     },
     app: {
       name: "wordpress-app",

@@ -18,6 +18,9 @@ export interface DbSpec {
   port: number;
   volumeMountPath: string;
   env: (password: string) => Record<string, string>;
+  // kuberfy's own default (256) — override for engines that hang rather than crash when starved (confirmed
+  // empirically: MySQL 9.x on this default never finishes initializing, pegged at 256MiB/256MiB, no OOM kill)
+  memoryLimitMb?: number;
 }
 
 export interface AppSpec {
@@ -72,12 +75,21 @@ export async function runPreset(preset: Preset) {
   if (!dbApp) {
     [dbApp] = await db
       .insert(application)
-      .values({ projectId: proj!.id, name: "database", repoUrl: preset.db.image, branch: "main", buildType: "image", envVars: JSON.stringify(preset.db.env(dbPassword)) })
+      .values({
+        projectId: proj!.id,
+        name: "database",
+        repoUrl: preset.db.image,
+        branch: "main",
+        buildType: "image",
+        envVars: JSON.stringify(preset.db.env(dbPassword)),
+        memoryLimitMb: preset.db.memoryLimitMb ?? 256,
+      })
       .returning();
     const volumeId = crypto.randomUUID();
     await db.insert(volume).values({ id: volumeId, applicationId: dbApp!.id, mountPath: preset.db.volumeMountPath, volumeName: `kuberfy-vol-${volumeId}` });
     console.log(`Created database app (${dbApp!.id})`);
   } else {
+    await db.update(application).set({ memoryLimitMb: preset.db.memoryLimitMb ?? 256 }).where(eq(application.id, dbApp.id));
     console.log(`Reusing database app (${dbApp.id})`);
   }
 
