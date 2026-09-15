@@ -1,11 +1,11 @@
 import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
-import { desc } from "drizzle-orm";
+import { asc, desc, gte, lt } from "drizzle-orm";
 import { Hono } from "hono";
 import { upgradeWebSocket } from "hono/bun";
 import { db } from "../db";
-import { deployment } from "../db/schema/app";
+import { deployment, hostMetric } from "../db/schema/app";
 import { env } from "../lib/env";
 import { requireAuth } from "../lib/auth-middleware";
 import { docker, parseDockerStats, pullImage, type DockerStatsSample } from "../services/deploy";
@@ -199,13 +199,24 @@ system.get(
   }),
 );
 
+const HOST_METRIC_RETENTION_MS = 60 * 60_000;
+const HOST_METRIC_SAVE_EVERY_N_TICKS = 5;
+
 system.get(
   "/stats",
   upgradeWebSocket(() => {
     let prevCpu = cpuSnapshot();
     let interval: ReturnType<typeof setInterval> | null = null;
+    let tickCount = 0;
     return {
-      onOpen: (_evt, ws) => {
+      onOpen: async (_evt, ws) => {
+        const history = await db
+          .select({ time: hostMetric.time, cpu: hostMetric.cpu, memUsed: hostMetric.memUsed })
+          .from(hostMetric)
+          .where(gte(hostMetric.time, new Date(Date.now() - HOST_METRIC_RETENTION_MS)))
+          .orderBy(asc(hostMetric.time));
+        ws.send(JSON.stringify({ type: "hostHistory", samples: history.map((r) => ({ t: r.time.getTime(), cpu: r.cpu, memUsed: r.memUsed })) }));
+
         const tick = async () => {
           const t = Date.now();
 
@@ -222,6 +233,17 @@ system.get(
           const diskUsed = diskTotal - diskInfo.bavail * diskInfo.bsize;
 
           ws.send(JSON.stringify({ type: "host", t, host: { cpu: hostCpu, cpuCount: CPU_COUNT, memUsed, memTotal, diskUsed, diskTotal } }));
+
+          tickCount++;
+          if (tickCount % HOST_METRIC_SAVE_EVERY_N_TICKS === 0) {
+            db.insert(hostMetric)
+              .values({ time: new Date(t), cpu: hostCpu, memUsed })
+              .catch(() => {});
+            if (Math.random() < 0.05)
+              db.delete(hostMetric)
+                .where(lt(hostMetric.time, new Date(Date.now() - HOST_METRIC_RETENTION_MS)))
+                .catch(() => {});
+          }
 
           // limit: 1 — only the latest deployment's status/containerId matters here, and this query already
           // reruns every 2s for every application; fetching the full history each time would only get worse

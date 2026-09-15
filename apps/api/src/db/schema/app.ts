@@ -287,6 +287,21 @@ export const requestLog = sqliteTable(
 );
 
 // ---------------------------------------------------------------------------
+// hostMetric
+// ---------------------------------------------------------------------------
+
+export const hostMetric = sqliteTable(
+  "host_metrics",
+  {
+    id: id(),
+    time: integer("time", { mode: "timestamp" }).notNull(),
+    cpu: real("cpu").notNull(),
+    memUsed: integer("mem_used").notNull(),
+  },
+  (table) => [index("host_metrics_time_idx").on(table.time)],
+);
+
+// ---------------------------------------------------------------------------
 // setting — single row holding kuberfy's own instance-level settings
 // ---------------------------------------------------------------------------
 
