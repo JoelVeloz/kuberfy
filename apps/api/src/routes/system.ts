@@ -286,7 +286,7 @@ system.get(
                 projectId: app.projectId,
                 projectName: app.project.name,
               })),
-              infra: infra.map((c) => ({ id: c.id, name: c.name })),
+              infra: infra.map((c) => ({ id: c.id, name: c.name, startedAt: c.startedAt })),
             }),
           );
 
