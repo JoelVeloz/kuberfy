@@ -3,6 +3,8 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createColumnHelper } from "@tanstack/react-table";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { DataTable } from "@/components/ui/data-table";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { TablePagination } from "@/components/ui/table-pagination";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -233,64 +235,64 @@ function TrafficPageInner() {
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
-            <select
-              value={range}
-              onChange={(e) => setRange(e.target.value as Range)}
-              className="rounded-md border border-border bg-background px-2 py-1 text-xs"
-              aria-label="Time range"
-            >
-              {Object.entries(RANGES).map(([key, r]) => (
-                <option key={key} value={key}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
-            {hosts.length > 0 && (
-              <select
-                value={hostFilter}
-                onChange={(e) => setHostFilter(e.target.value)}
-                className="rounded-md border border-border bg-background px-2 py-1 text-xs"
-                aria-label="Filter by domain"
-              >
-                <option value="all">All domains</option>
-                {hosts.map((h) => (
-                  <option key={h.host} value={h.host}>
-                    {h.service ? `${h.host} (${h.service})` : h.host}
-                  </option>
+            <Select value={range} onValueChange={(v) => setRange(v as Range)}>
+              <SelectTrigger size="sm" aria-label="Time range">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(RANGES).map(([key, r]) => (
+                  <SelectItem key={key} value={key}>
+                    {r.label}
+                  </SelectItem>
                 ))}
-              </select>
+              </SelectContent>
+            </Select>
+            {hosts.length > 0 && (
+              <Select value={hostFilter} onValueChange={setHostFilter}>
+                <SelectTrigger size="sm" aria-label="Filter by domain">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All domains</SelectItem>
+                  {hosts.map((h) => (
+                    <SelectItem key={h.host} value={h.host}>
+                      {h.service ? `${h.host} (${h.service})` : h.host}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
-            <select
-              value={methodFilter}
-              onChange={(e) => setMethodFilter(e.target.value)}
-              className="rounded-md border border-border bg-background px-2 py-1 text-xs"
-              aria-label="Filter by method"
-            >
-              <option value="all">All methods</option>
-              {METHODS.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-              className="rounded-md border border-border bg-background px-2 py-1 text-xs"
-              aria-label="Filter by status"
-            >
-              <option value="all">All statuses</option>
-              {Object.entries(STATUS_FILTERS).map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              ))}
-            </select>
-            <input
+            <Select value={methodFilter} onValueChange={setMethodFilter}>
+              <SelectTrigger size="sm" aria-label="Filter by method">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All methods</SelectItem>
+                {METHODS.map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+              <SelectTrigger size="sm" aria-label="Filter by status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                {Object.entries(STATUS_FILTERS).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
               value={ipInput}
               onChange={(e) => setIpInput(e.target.value)}
               placeholder="Filter by IP…"
-              className="w-32 rounded-md border border-border bg-background px-2 py-1 text-xs font-mono placeholder:font-sans"
+              className="h-7 w-32 font-mono placeholder:font-sans"
               aria-label="Filter by client IP"
             />
           </div>

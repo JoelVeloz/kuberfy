@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { QueryProvider } from "@/components/QueryProvider";
 import { api } from "@/lib/api";
@@ -42,9 +43,9 @@ function NewProjectDialogInner() {
           <DialogDescription>Create a project to group related applications.</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="project-name" className="text-xs font-medium">
+          <Label htmlFor="project-name">
             Name
-          </label>
+          </Label>
           <Input id="project-name" placeholder="e.g. Marketing site" value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         <DialogFooter>

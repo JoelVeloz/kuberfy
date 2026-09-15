@@ -3,6 +3,7 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import { apiWsUrl } from "@/lib/api-url";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type Shell = "auto" | "bash" | "sh";
 const SHELLS: Array<{ value: Shell; label: string }> = [
@@ -52,17 +53,18 @@ export function ExecTerminal({ applicationId }: { applicationId: string }) {
           <span className={`size-1.5 rounded-full ${connected ? "bg-success" : "bg-muted-foreground/40"}`} />
           {connected ? "Connected" : "Disconnected"}
         </div>
-        <select
-          value={shell}
-          onChange={(e) => setShell(e.target.value as Shell)}
-          className="rounded-md border border-border bg-background px-2 py-1 text-xs text-muted-foreground"
-        >
-          {SHELLS.map((s) => (
-            <option key={s.value} value={s.value}>
-              {s.label}
-            </option>
-          ))}
-        </select>
+        <Select value={shell} onValueChange={(v) => setShell(v as Shell)}>
+          <SelectTrigger size="sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SHELLS.map((s) => (
+              <SelectItem key={s.value} value={s.value}>
+                {s.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <div ref={containerRef} className="h-96 rounded-md border border-border bg-black p-2" />
     </div>

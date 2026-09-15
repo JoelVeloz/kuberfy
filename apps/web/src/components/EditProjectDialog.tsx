@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { api } from "@/lib/api";
 import { toastError } from "@/lib/toast";
@@ -42,9 +43,9 @@ export function EditProjectDialog({ projectId, currentName }: { projectId: strin
           <DialogDescription>Update the name shown across the dashboard.</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="edit-project-name" className="text-xs font-medium">
+          <Label htmlFor="edit-project-name">
             Name
-          </label>
+          </Label>
           <Input id="edit-project-name" value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         <DialogFooter>

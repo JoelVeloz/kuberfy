@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -49,9 +50,9 @@ export function AddDomainDialog({ applicationId }: { applicationId: string }) {
         </DialogHeader>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="domain-host" className="text-xs font-medium">
+            <Label htmlFor="domain-host">
               Host
-            </label>
+            </Label>
             <div className="flex gap-2">
               <Input id="domain-host" placeholder="app.example.com" value={host} onChange={(e) => setHost(e.target.value)} className="flex-1" />
               <Button type="button" variant="outline" size="sm" disabled={suggest.isPending} onClick={() => suggest.mutate()}>
@@ -61,9 +62,9 @@ export function AddDomainDialog({ applicationId }: { applicationId: string }) {
             <p className="text-xs text-muted-foreground">Generates a free public domain with HTTPS.</p>
           </div>
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="domain-port" className="text-xs font-medium">
+            <Label htmlFor="domain-port">
               Port
-            </label>
+            </Label>
             <Input id="domain-port" type="number" min={1} placeholder="e.g. 3000" value={port} onChange={(e) => setPort(e.target.value)} />
           </div>
         </div>
@@ -205,16 +206,14 @@ function DomainRow({
                 </DialogDescription>
               </DialogHeader>
               <div className="flex flex-col gap-1.5">
-                <label htmlFor={`domain-port-${domain.id}`} className="text-xs font-medium">
-                  Port
-                </label>
+                <Label htmlFor={`domain-port-${domain.id}`}>Port</Label>
                 <Input id={`domain-port-${domain.id}`} type="number" min={1} value={port} onChange={(e) => setPort(e.target.value)} />
                 <p className="text-xs text-muted-foreground">Internal port this domain routes to inside the container.</p>
               </div>
-              <label className="flex items-center justify-between gap-2 text-xs font-medium">
+              <Label className="justify-between font-medium">
                 SSL (HTTPS via Let's Encrypt)
                 <Switch checked={isLocalhostHost ? false : sslEnabled} disabled={isLocalhostHost} onCheckedChange={setSslEnabled} />
-              </label>
+              </Label>
               <p className="text-xs text-muted-foreground">
                 {isLocalhostHost ? "`.localhost` domains can't get SSL." : "Provisioned automatically."}
               </p>

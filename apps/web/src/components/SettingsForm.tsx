@@ -72,7 +72,7 @@ function SettingsFormInner() {
           <div className="flex flex-col gap-1.5">
             <Label>Server IP</Label>
             <div className="flex max-w-sm items-center gap-2">
-              <code className="rounded-md border border-border bg-muted px-2 py-1.5 font-mono text-sm">{query.data.serverIp}</code>
+              <Input readOnly value={query.data.serverIp} className="flex-1 font-mono" />
               <Button
                 type="button"
                 variant="outline"

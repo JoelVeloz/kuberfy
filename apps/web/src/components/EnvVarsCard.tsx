@@ -3,6 +3,7 @@ import { Eye, EyeSlash, Pencil, Trash } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -122,15 +123,15 @@ export function AddVariableDialog({ applicationId, envVars }: { applicationId: s
         </DialogHeader>
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="env-key" className="text-xs font-medium">
+            <Label htmlFor="env-key">
               Key
-            </label>
+            </Label>
             <Input id="env-key" placeholder="NODE_ENV" className="font-mono" value={key} onChange={(e) => setKey(e.target.value)} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="env-value" className="text-xs font-medium">
+            <Label htmlFor="env-value">
               Value
-            </label>
+            </Label>
             <Input id="env-value" placeholder="production" className="font-mono" value={value} onChange={(e) => setValue(e.target.value)} />
           </div>
         </div>
@@ -258,15 +259,11 @@ function EnvVarRow({
             </DialogHeader>
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-1.5">
-                <label htmlFor={`env-key-${envKey}`} className="text-xs font-medium">
-                  Key
-                </label>
+                <Label htmlFor={`env-key-${envKey}`}>Key</Label>
                 <Input id={`env-key-${envKey}`} className="font-mono" value={key} onChange={(e) => setKey(e.target.value)} />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label htmlFor={`env-value-${envKey}`} className="text-xs font-medium">
-                  Value
-                </label>
+                <Label htmlFor={`env-value-${envKey}`}>Value</Label>
                 <Input id={`env-value-${envKey}`} className="font-mono" value={editValue} onChange={(e) => setEditValue(e.target.value)} />
               </div>
             </div>
