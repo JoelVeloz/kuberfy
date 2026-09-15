@@ -55,6 +55,16 @@ function Pending() {
   return <span className="text-muted-foreground">…</span>;
 }
 
+function sumUsage(rows: Iterable<{ cpu?: number; memUsed?: number }>) {
+  let cpuCores = 0;
+  let memUsedBytes = 0;
+  for (const row of rows) {
+    cpuCores += (row.cpu ?? 0) / 100;
+    memUsedBytes += row.memUsed ?? 0;
+  }
+  return { cpuCores, memUsedBytes };
+}
+
 function MemoryCell({ memUsed, memLimit }: { memUsed?: number; memLimit?: number }) {
   if (memUsed === undefined || memLimit === undefined) return <Pending />;
   const percent = memLimit > 0 ? (memUsed / memLimit) * 100 : 0;
@@ -209,6 +219,8 @@ export function SystemPage() {
     return acc;
   }, {});
 
+  const infraUsage = sumUsage(infra.values());
+  const appsUsage = sumUsage(apps.values());
   const timeDomain = computeTimeDomain(hostHistory);
   const formatAxisTick = (t: number) => formatClock(t, timeDomain[1] - timeDomain[0] <= SHORT_WINDOW_MS);
   const memPercent = host.memTotal > 0 ? (host.memUsed / host.memTotal) * 100 : 0;
@@ -269,7 +281,12 @@ export function SystemPage() {
       </div>
 
       <div>
-        <h2 className="font-heading text-sm font-medium">Infrastructure</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="font-heading text-sm font-medium">Infrastructure</h2>
+          <span className="text-xs text-muted-foreground">
+            {infra.size} total · {infraUsage.cpuCores.toFixed(2)} cores · {formatBytes(infraUsage.memUsedBytes)}
+          </span>
+        </div>
         <p className="mt-1 text-xs text-muted-foreground">Kuberfy's own containers, not anything deployed on it.</p>
         <Card className="mt-3">
           <CardContent className="px-0">
@@ -289,7 +306,9 @@ export function SystemPage() {
       <div>
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="font-heading text-sm font-medium">Applications</h2>
-          <span className="text-xs text-muted-foreground">{apps.size} total</span>
+          <span className="text-xs text-muted-foreground">
+            {apps.size} total · {appsUsage.cpuCores.toFixed(2)} cores · {formatBytes(appsUsage.memUsedBytes)}
+          </span>
           {statusOrder
             .filter((status) => statusCounts[status])
             .map((status) => (
