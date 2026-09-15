@@ -56,8 +56,10 @@ flowchart LR
     T --> K["Kuberfy\nAPI + dashboard · SQLite"]
     K -. docker socket .-> A["App A"]
     K -. docker socket .-> B["App B"]
+    K -. docker socket .-> C["App C"]
     T --> A
     T --> B
+    T --> C
 ```
 
 | Path | Stack |
