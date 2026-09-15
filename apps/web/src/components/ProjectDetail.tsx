@@ -8,6 +8,7 @@ import { TablePagination } from "@/components/ui/table-pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryProvider } from "@/components/QueryProvider";
 import { EditProjectDialog } from "@/components/EditProjectDialog";
+import { DeleteProjectDialog } from "@/components/DeleteProjectDialog";
 import { NewApplicationDialog } from "@/components/NewApplicationDialog";
 import { DeploymentStatusBadge } from "@/components/DeploymentStatusBadge";
 import { api, UnauthorizedError, NotFoundError, type ApiApplicationWithStatus, type ApiProject } from "@/lib/api";
@@ -99,6 +100,7 @@ function ProjectDetailInner() {
       <div className="flex items-center gap-3">
         <h1 className="font-heading text-lg font-medium">{name}</h1>
         <EditProjectDialog projectId={projId} currentName={name} />
+        {apps.data && <DeleteProjectDialog projectId={projId} projectName={name} applicationCount={apps.data.total} />}
       </div>
       <p className="mt-1 text-xs text-muted-foreground">Applications deployed as part of this project.</p>
 

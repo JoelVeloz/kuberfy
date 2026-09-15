@@ -7,7 +7,6 @@ import { requireAuth } from "../lib/auth-middleware";
 import { db, schema } from "../db";
 import { apiCreateProject, apiUpdateProject } from "../db/schema/app";
 import { paginationOffset, paginationQuery } from "../lib/pagination";
-import { removeExisting } from "../services/deploy";
 
 const app = new Hono<{ Variables: { user: { id: string } } }>();
 
@@ -66,8 +65,12 @@ app.patch("/:id", zValidator("json", apiUpdateProject), async (c) => {
 
 app.delete("/:id", async (c) => {
   const id = c.req.param("id");
-  const apps = await db.query.application.findMany({ where: eq(schema.application.projectId, id) });
-  await Promise.all(apps.map((a) => removeExisting(`kuberfy-${a.id}`)));
+  const applicationCount = await db.$count(schema.application, eq(schema.application.projectId, id));
+  if (applicationCount > 0) {
+    throw new HTTPException(StatusCodes.CONFLICT, {
+      message: `Remove all ${applicationCount} application${applicationCount === 1 ? "" : "s"} from this project before deleting it.`,
+    });
+  }
 
   const [deleted] = await db.delete(schema.project).where(eq(schema.project.id, id)).returning();
   if (!deleted) throw new HTTPException(StatusCodes.NOT_FOUND, { message: "Project not found" });

@@ -246,6 +246,7 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name }),
     }),
+  deleteProject: (id: string) => request<ApiProject>(`/api/projects/${id}`, { method: "DELETE" }),
   listProjectApplications: (id: string, page = 1, pageSize = 20) =>
     request<ApiPage<ApiApplicationWithStatus>>(`/api/projects/${id}/applications?page=${page}&pageSize=${pageSize}`),
   getApplication: (id: string) => request<ApiApplicationDetail>(`/api/applications/${id}`),
