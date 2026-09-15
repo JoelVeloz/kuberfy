@@ -7,20 +7,26 @@ import { eq } from "drizzle-orm";
 import { db } from "../../src/db";
 import { application, domain, project, volume } from "../../src/db/schema/app";
 import { suggestDomainHost } from "../../src/lib/auto-domain";
+import { appSizes, defaultAppSize, type AppSizeId } from "../../src/lib/app-sizes";
 import { latestDeployment, runDeployment } from "../../src/services/deploy";
 
 const ALPHANUMERIC = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 export const generateSecret = () =>
   Array.from(crypto.getRandomValues(new Uint8Array(20)), (b) => ALPHANUMERIC[b % ALPHANUMERIC.length]).join("");
 
+function resolveSize(size: AppSizeId | undefined) {
+  return appSizes.find((s) => s.id === size) ?? defaultAppSize;
+}
+
 export interface DbSpec {
   image: string;
   port: number;
   volumeMountPath: string;
   env: (password: string) => Record<string, string>;
-  // kuberfy's own default (256) — override for engines that hang rather than crash when starved (confirmed
-  // empirically: MySQL 9.x on this default never finishes initializing, pegged at 256MiB/256MiB, no OOM kill)
-  memoryLimitMb?: number;
+  // kuberfy's own default tier (micro, 256MB) — override for engines that hang rather than crash when
+  // starved (confirmed empirically: MySQL 9.x on the default never finishes initializing, pegged at
+  // 256MiB/256MiB, no OOM kill). Same size tiers the dashboard's own app-size picker offers.
+  size?: AppSizeId;
 }
 
 export interface AppSpec {
@@ -31,6 +37,7 @@ export interface AppSpec {
   repoUrl?: string;
   branch?: string;
   dockerfilePath?: string;
+  size?: AppSizeId;
   // maps the db's real Swarm service host + the generated password to this framework's own env var names
   env: (dbHost: string, dbPassword: string) => Record<string, string>;
 }
@@ -70,6 +77,7 @@ export async function runPreset(preset: Preset) {
     console.log(`Reusing project (${proj.id})`);
   }
 
+  const dbSize = resolveSize(preset.db.size);
   const dbPassword = generateSecret();
   let dbApp = await db.query.application.findFirst({ where: (f, { and, eq }) => and(eq(f.projectId, proj!.id), eq(f.name, "database")) });
   if (!dbApp) {
@@ -82,17 +90,19 @@ export async function runPreset(preset: Preset) {
         branch: "main",
         buildType: "image",
         envVars: JSON.stringify(preset.db.env(dbPassword)),
-        memoryLimitMb: preset.db.memoryLimitMb ?? 256,
+        memoryLimitMb: dbSize.memoryLimitMb,
+        cpuLimit: dbSize.cpuLimit,
       })
       .returning();
     const volumeId = crypto.randomUUID();
     await db.insert(volume).values({ id: volumeId, applicationId: dbApp!.id, mountPath: preset.db.volumeMountPath, volumeName: `kuberfy-vol-${volumeId}` });
-    console.log(`Created database app (${dbApp!.id})`);
+    console.log(`Created database app (${dbApp!.id}, ${dbSize.label})`);
   } else {
-    await db.update(application).set({ memoryLimitMb: preset.db.memoryLimitMb ?? 256 }).where(eq(application.id, dbApp.id));
-    console.log(`Reusing database app (${dbApp.id})`);
+    await db.update(application).set({ memoryLimitMb: dbSize.memoryLimitMb, cpuLimit: dbSize.cpuLimit }).where(eq(application.id, dbApp.id));
+    console.log(`Reusing database app (${dbApp.id}, ${dbSize.label})`);
   }
 
+  const appSize = resolveSize(preset.app.size);
   const appEnv = preset.app.env(`kuberfy-${dbApp!.id}`, dbPassword);
   let webApp = await db.query.application.findFirst({ where: (f, { and, eq }) => and(eq(f.projectId, proj!.id), eq(f.name, preset.app.name)) });
   if (!webApp) {
@@ -106,12 +116,17 @@ export async function runPreset(preset: Preset) {
         buildType: preset.app.buildType,
         dockerfilePath: preset.app.dockerfilePath,
         envVars: JSON.stringify(appEnv),
+        memoryLimitMb: appSize.memoryLimitMb,
+        cpuLimit: appSize.cpuLimit,
       })
       .returning();
-    console.log(`Created ${preset.app.name} app (${webApp!.id})`);
+    console.log(`Created ${preset.app.name} app (${webApp!.id}, ${appSize.label})`);
   } else {
-    await db.update(application).set({ envVars: JSON.stringify(appEnv) }).where(eq(application.id, webApp.id));
-    console.log(`Reusing ${preset.app.name} app (${webApp.id})`);
+    await db
+      .update(application)
+      .set({ envVars: JSON.stringify(appEnv), memoryLimitMb: appSize.memoryLimitMb, cpuLimit: appSize.cpuLimit })
+      .where(eq(application.id, webApp.id));
+    console.log(`Reusing ${preset.app.name} app (${webApp.id}, ${appSize.label})`);
   }
 
   let webDomain = await db.query.domain.findFirst({ where: (f, { eq }) => eq(f.applicationId, webApp!.id) });
