@@ -1,4 +1,6 @@
 ---
+import KuberfyMark from "@/components/KuberfyMark.astro";
+
 interface Props {
   currentPath?: string;
 }
@@ -21,6 +23,7 @@ const { currentPath = "/docs" } = Astro.props;
     </button>
 
     <a href="/" class="flex items-center gap-2 font-display text-base font-semibold tracking-tight text-cream">
+      <KuberfyMark class="size-5" />
       <span>
         kuberfy<span class="text-ember">.</span>
       </span>

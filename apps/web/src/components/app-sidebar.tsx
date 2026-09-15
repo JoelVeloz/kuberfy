@@ -2,7 +2,9 @@
 
 import type * as React from "react";
 import { ChartLineUp, Cpu, FolderSimple, Gear, Users as UsersIcon } from "@phosphor-icons/react";
+import { KuberfyMark } from "@/components/KuberfyMark";
 import { NavUser } from "@/components/nav-user";
+import { UpdateAvailableButton } from "@/components/UpdateAvailableButton";
 import {
   Sidebar,
   SidebarContent,
@@ -32,6 +34,7 @@ export function AppSidebar({ pathname, ...props }: { pathname: string } & React.
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <a href="/">
+                <KuberfyMark />
                 <span className="font-heading text-sm font-medium tracking-tight">Kuberfy</span>
               </a>
             </SidebarMenuButton>
@@ -57,6 +60,7 @@ export function AppSidebar({ pathname, ...props }: { pathname: string } & React.
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
+        <UpdateAvailableButton />
         <NavUser />
       </SidebarFooter>
       <SidebarRail />
