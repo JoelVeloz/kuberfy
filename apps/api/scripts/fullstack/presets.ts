@@ -15,6 +15,10 @@ export const presets: Record<string, Preset> = {
       buildType: "image",
       // bootstraps a real Laravel app on first boot if none exists yet — no repo/build needed
       image: "shinsenter/laravel:php8-nginx",
+      // confirmed empirically on a resource-constrained host: at the default "micro" tier (256MB), the first-boot
+      // composer+npm+webpack bootstrap pegs memory at ~249MiB/256MiB and crawls for many minutes instead of the
+      // ~1-2 min it takes with headroom. Same class of issue as MySQL's — "small" (512MB) is enough.
+      size: "small",
       env: (dbHost, dbPassword) => ({
         DB_CONNECTION: "pgsql",
         DB_HOST: dbHost,
