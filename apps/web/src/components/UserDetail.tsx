@@ -1,10 +1,9 @@
 import * as React from "react";
-import { Desktop, DeviceMobile, DeviceTablet, Fingerprint, Trash } from "@phosphor-icons/react";
+import { Fingerprint, Trash } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createColumnHelper } from "@tanstack/react-table";
-import { UAParser } from "ua-parser-js";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -15,25 +14,8 @@ import { DeleteUserDialog } from "@/components/DeleteUserDialog";
 import { api, UnauthorizedError, NotFoundError, type ApiUserPasskey, type ApiUserSession } from "@/lib/api";
 import { authClient } from "@/lib/auth-client";
 import { getQueryParam } from "@/lib/query-params";
+import { describeDevice, formatDate, formatDateTime } from "@/lib/session-display";
 import { toastError } from "@/lib/toast";
-
-function formatDate(value: string) {
-  return new Date(value).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
-}
-
-function formatDateTime(value: string) {
-  return new Date(value).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-}
-
-const deviceIconByType = { mobile: DeviceMobile, tablet: DeviceTablet } as const;
-
-function describeDevice(userAgent: string | null) {
-  if (!userAgent) return { label: "Unknown device", Icon: Desktop };
-  const { browser, os, device } = UAParser(userAgent);
-  const label = [browser.name, os.name].filter(Boolean).join(" on ") || userAgent;
-  const Icon = deviceIconByType[device.type as keyof typeof deviceIconByType] ?? Desktop;
-  return { label, Icon };
-}
 
 const passkeyColumnHelper = createColumnHelper<ApiUserPasskey>();
 function usePasskeyColumns(onDelete: (id: string) => void, deleting: boolean) {
@@ -60,7 +42,7 @@ function usePasskeyColumns(onDelete: (id: string) => void, deleting: boolean) {
 }
 
 const sessionColumnHelper = createColumnHelper<ApiUserSession>();
-function useSessionColumns(onRevoke: (token: string) => void, revoking: boolean) {
+function useSessionColumns(userId: string, onRevoke: (token: string) => void, revoking: boolean) {
   return React.useMemo(
     () => [
       sessionColumnHelper.accessor("userAgent", {
@@ -82,15 +64,20 @@ function useSessionColumns(onRevoke: (token: string) => void, revoking: boolean)
       }),
       sessionColumnHelper.display({
         id: "actions",
-        meta: { className: "w-8" },
+        meta: { className: "text-right" },
         cell: (info) => (
-          <Button type="button" variant="ghost" size="sm" disabled={revoking} onClick={() => onRevoke(info.row.original.token)}>
-            Revoke
-          </Button>
+          <div className="flex items-center justify-end gap-1">
+            <a href={`/users/session?userId=${userId}&sessionId=${info.row.original.id}`} className={buttonVariants({ size: "sm", variant: "ghost" })}>
+              Details
+            </a>
+            <Button type="button" variant="ghost" size="sm" disabled={revoking} onClick={() => onRevoke(info.row.original.token)}>
+              Revoke
+            </Button>
+          </div>
         ),
       }),
     ],
-    [onRevoke, revoking],
+    [userId, onRevoke, revoking],
   );
 }
 
@@ -129,7 +116,7 @@ function UserDetailInner() {
   });
 
   const passkeyColumns = usePasskeyColumns((passkeyId) => deletePasskey.mutate(passkeyId), deletePasskey.isPending);
-  const sessionColumns = useSessionColumns((token) => revokeSession.mutate(token), revokeSession.isPending);
+  const sessionColumns = useSessionColumns(id, (token) => revokeSession.mutate(token), revokeSession.isPending);
 
   if (user.isPending) {
     return (
