@@ -239,6 +239,7 @@ docker service create \
   --replicas 1 \
   --network kuberfy-network \
   --limit-memory 256m \
+  --reserve-cpu 0.25 \
   --group "$DOCKER_SOCK_GID" \
   --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
   --mount type=volume,source=kuberfy-data,target=/data \
