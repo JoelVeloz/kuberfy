@@ -1323,7 +1323,7 @@
       "/var/lib/mysql"
     ],
     "category": "database",
-    "defaultSize": "small"
+    "defaultSize": "medium"
   },
   {
     "id": "n8n",

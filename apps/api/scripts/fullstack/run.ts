@@ -1,5 +1,4 @@
-// Usage: bun run scripts/fullstack/run.ts <preset>
-// Presets: laravel-postgres, nextjs-postgres, wordpress-mysql, node-postgres, n8n-postgres, strapi-postgres (see presets.ts)
+// Usage: bun run scripts/fullstack/run.ts <preset> — see presets.ts for the available presets
 import { runPreset } from "./engine";
 import { presets } from "./presets";
 
