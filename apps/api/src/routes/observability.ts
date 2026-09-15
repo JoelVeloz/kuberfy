@@ -125,8 +125,6 @@ observability.get(
   }),
 );
 
-// Chart data: counts per bucket, computed in SQL — the table can hold months of rows, but this response always
-// stays small (at most `buckets` rows), regardless of how much traffic the range actually covers.
 observability.get("/traffic/summary", async (c) => {
   const range = (c.req.query("range") ?? "24h") as TrafficRange;
   const host = c.req.query("host");
@@ -134,9 +132,8 @@ observability.get("/traffic/summary", async (c) => {
   if (!config) return c.json({ error: "Invalid range" }, 400);
 
   const bucketSec = Math.floor(config.bucketMs / 1000);
-  const since = new Date(Date.now() - config.ms);
-  // `requestLog.time` is stored as unix epoch seconds — this buckets rows by dividing/re-multiplying by the
-  // bucket width (integer division truncates), the same trick `date_trunc` does for other databases.
+  const nowBucket = Math.floor(Date.now() / 1000 / bucketSec) * bucketSec;
+  const firstBucket = nowBucket - (config.buckets - 1) * bucketSec;
   const bucketExpr = sql<number>`(${requestLog.time} / ${bucketSec}) * ${bucketSec}`;
 
   const rows = await db
@@ -147,10 +144,15 @@ observability.get("/traffic/summary", async (c) => {
       critical: sql<number>`sum(case when ${requestLog.status} >= 500 then 1 else 0 end)`,
     })
     .from(requestLog)
-    .where(and(gte(requestLog.time, since), host ? eq(requestLog.host, host) : undefined))
+    .where(and(gte(requestLog.time, new Date(firstBucket * 1000)), host ? eq(requestLog.host, host) : undefined))
     .groupBy(bucketExpr);
 
-  const counts = rows.map((r) => ({ bucketStart: r.bucket * 1000, good: r.good, warning: r.warning, critical: r.critical }));
+  const rowsByBucket = new Map(rows.map((r) => [r.bucket, r]));
+  const counts = Array.from({ length: config.buckets }, (_, i) => {
+    const bucketStart = firstBucket + i * bucketSec;
+    const row = rowsByBucket.get(bucketStart);
+    return { bucketStart: bucketStart * 1000, good: row?.good ?? 0, warning: row?.warning ?? 0, critical: row?.critical ?? 0 };
+  });
   return c.json({ range, buckets: config.buckets, bucketMs: config.bucketMs, counts });
 });
 

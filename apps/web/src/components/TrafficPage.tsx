@@ -83,6 +83,8 @@ const RANGES = {
 } as const;
 type Range = keyof typeof RANGES;
 
+const TICK_INTERVAL: Record<Range, number> = { "1h": 4, "24h": 2, "7d": 0, "30d": 2 };
+
 function StatusTotal({ label, value, dotClassName }: { label: string; value: number; dotClassName: string }) {
   return (
     <span className="flex items-center gap-1.5 text-xs">
@@ -110,7 +112,7 @@ function TrafficChart({ counts, range }: { counts: Array<{ bucketStart: number; 
           tickLine={false}
           axisLine={{ stroke: "var(--border)" }}
           tickMargin={8}
-          interval={0}
+          interval={TICK_INTERVAL[range]}
           angle={-45}
           textAnchor="end"
           height={50}
