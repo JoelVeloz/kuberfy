@@ -1,4 +1,5 @@
 import * as React from "react";
+import { Cube, GithubLogo } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createColumnHelper } from "@tanstack/react-table";
 import { buttonVariants } from "@/components/ui/button";
@@ -23,7 +24,12 @@ const columns = [
   columnHelper.accessor("name", {
     header: "Name",
     cell: (info) => (
-      <a href={`/applications/view?id=${info.row.original.id}`} className="font-medium after:absolute after:inset-0">
+      <a href={`/applications/view?id=${info.row.original.id}`} className="flex items-center gap-2 font-medium after:absolute after:inset-0">
+        {info.row.original.buildType === "image" ? (
+          <Cube weight="bold" className="size-3.5 shrink-0 text-blue-500" title="Deploys a prebuilt Docker image" />
+        ) : (
+          <GithubLogo weight="bold" className="size-3.5 shrink-0 text-foreground" title="Builds from a Git repository" />
+        )}
         {info.getValue()}
       </a>
     ),
