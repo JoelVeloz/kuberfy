@@ -196,6 +196,13 @@ export interface ApiMarketplaceTemplate {
   category: "application" | "database" | "boilerplate";
 }
 
+export interface ApiAppSize {
+  id: "nano" | "micro" | "small" | "medium" | "large";
+  label: string;
+  cpuLimit: number;
+  memoryLimitMb: number;
+}
+
 export class UnauthorizedError extends Error {}
 export class NotFoundError extends Error {}
 
@@ -262,6 +269,8 @@ export const api = {
     buildType: BuildType;
     dockerfilePath?: string;
     envVars?: string;
+    memoryLimitMb?: number;
+    cpuLimit?: number;
     registryUsername?: string;
     registryPassword?: string;
   }) =>
@@ -327,6 +336,7 @@ export const api = {
   restartApplication: (applicationId: string) => request<ApiDeployment>(`/api/applications/${applicationId}/restart`, { method: "POST" }),
   stopApplication: (applicationId: string) => request<ApiDeployment>(`/api/applications/${applicationId}/stop`, { method: "POST" }),
   listMarketplaceTemplates: () => request<ApiMarketplaceTemplate[]>("/api/marketplace/templates"),
+  listAppSizes: () => request<ApiAppSize[]>("/api/app-sizes"),
   getSettings: () => request<ApiSettings>("/api/settings"),
   suggestKuberfyDomain: () => request<{ host: string }>("/api/settings/suggest-domain"),
   updateSettings: (kuberfyDomain: string) =>

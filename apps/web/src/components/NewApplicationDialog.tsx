@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,16 +11,21 @@ import { api } from "@/lib/api";
 import { toastError } from "@/lib/toast";
 import type { BuildType } from "@/lib/types";
 
+const DEFAULT_APP_SIZE = "nano";
+
 export function NewApplicationDialog({ projectId }: { projectId: string }) {
   const [open, setOpen] = React.useState(false);
   const [name, setName] = React.useState("");
   const [repoUrl, setRepoUrl] = React.useState("");
   const [branch, setBranch] = React.useState("main");
   const [buildType, setBuildType] = React.useState<BuildType>("image");
+  const [size, setSize] = React.useState(DEFAULT_APP_SIZE);
   const [isPrivate, setIsPrivate] = React.useState(false);
   const [registryUsername, setRegistryUsername] = React.useState("");
   const [registryPassword, setRegistryPassword] = React.useState("");
   const queryClient = useQueryClient();
+  const appSizes = useQuery({ queryKey: ["app-sizes"], queryFn: api.listAppSizes });
+  const selectedSize = appSizes.data?.find((s) => s.id === size);
   const { mutate, isPending } = useMutation({
     mutationFn: () =>
       api.createApplication({
@@ -29,6 +34,7 @@ export function NewApplicationDialog({ projectId }: { projectId: string }) {
         repoUrl: repoUrl.trim(),
         branch: branch.trim() || "main",
         buildType,
+        ...(selectedSize ? { memoryLimitMb: selectedSize.memoryLimitMb, cpuLimit: selectedSize.cpuLimit } : {}),
         ...(isPrivate && buildType === "image" ? { registryUsername: registryUsername.trim(), registryPassword } : {}),
       }),
     onSuccess: () => {
@@ -39,6 +45,7 @@ export function NewApplicationDialog({ projectId }: { projectId: string }) {
       setRepoUrl("");
       setBranch("main");
       setBuildType("image");
+      setSize(DEFAULT_APP_SIZE);
       setIsPrivate(false);
       setRegistryUsername("");
       setRegistryPassword("");
@@ -88,6 +95,21 @@ export function NewApplicationDialog({ projectId }: { projectId: string }) {
               <Input id="app-branch" value={branch} onChange={(e) => setBranch(e.target.value)} />
             </div>
           )}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="app-size">Size</Label>
+            <Select value={size} onValueChange={setSize}>
+              <SelectTrigger id="app-size" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(appSizes.data ?? []).map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.label} · {s.cpuLimit} {s.cpuLimit === 1 ? "core" : "cores"} / {s.memoryLimitMb} MB
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           {buildType === "image" && (
             <>
               <div className="flex items-center justify-between">
