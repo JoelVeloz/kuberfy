@@ -172,6 +172,27 @@ system.post("/update", async (c) => {
   return c.json({ ok: true });
 });
 
+system.post("/infra/:id/restart", async (c) => {
+  const id = c.req.param("id");
+  const containers = await docker.listContainers();
+  const container = containers.find((ct) => ct.Id === id);
+  if (!container) return c.json({ error: "Container not found" }, 404);
+
+  const serviceId = container.Labels["com.docker.swarm.service.id"];
+  if (serviceId) {
+    const service = docker.getService(serviceId);
+    const info = await service.inspect();
+    await service.update({
+      version: info.Version.Index,
+      ...info.Spec,
+      TaskTemplate: { ...info.Spec.TaskTemplate, ForceUpdate: (info.Spec.TaskTemplate?.ForceUpdate ?? 0) + 1 },
+    });
+  } else {
+    await docker.getContainer(id).restart();
+  }
+  return c.json({ ok: true });
+});
+
 system.get(
   "/processes",
   upgradeWebSocket(() => {

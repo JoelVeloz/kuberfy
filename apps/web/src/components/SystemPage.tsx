@@ -1,14 +1,30 @@
 import * as React from "react";
+import { ArrowClockwise } from "@phosphor-icons/react";
 import { createColumnHelper, type SortingState } from "@tanstack/react-table";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { DataTable } from "@/components/ui/data-table";
 import { DeploymentStatusBadge } from "@/components/DeploymentStatusBadge";
 import { UsageAreaChart } from "@/components/UsageAreaChart";
 import { deploymentStatusLabel, deploymentStatusVariant } from "@/lib/deployment-status";
 import type { DeploymentStatus } from "@/lib/types";
 import { apiWsUrl } from "@/lib/api-url";
+import { api } from "@/lib/api";
+import { toastError } from "@/lib/toast";
 import { SHORT_WINDOW_MS, computeTimeDomain, formatClock, niceCeil } from "@/lib/chart-time";
 import { formatBytes, formatMB } from "@/lib/format-bytes";
 
@@ -101,6 +117,46 @@ function levelColor(percent: number) {
   return "";
 }
 
+function InfraRestartAction({ id, name }: { id: string; name: string }) {
+  const [restarting, setRestarting] = React.useState(false);
+
+  async function restart() {
+    setRestarting(true);
+    try {
+      await api.restartInfraContainer(id);
+      toast.success(`${name} restarted.`);
+    } catch (err) {
+      toastError(err, `Failed to restart ${name}.`);
+    } finally {
+      setRestarting(false);
+    }
+  }
+
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button size="sm" variant="outline" disabled={restarting}>
+          <ArrowClockwise /> {restarting ? "Restarting…" : "Restart"}
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Restart {name}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {name === "Traefik"
+              ? "Traefik routes every request to Kuberfy and to every deployed app. Restarting it drops in-flight connections for a few seconds."
+              : "Restarts Kuberfy's own service. The dashboard briefly disconnects and reconnects on its own; deployed apps keep running."}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={restart}>Restart</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 const infraColumnHelper = createColumnHelper<InfraRow>();
 const infraColumns = [
   infraColumnHelper.accessor("name", { header: "Name", meta: { headerClassName: "w-2/5" }, cell: (info) => <span className="truncate font-medium">{info.getValue()}</span> }),
@@ -112,6 +168,12 @@ const infraColumns = [
   infraColumnHelper.accessor("memUsed", {
     header: "Memory",
     cell: (info) => <MemoryCell memUsed={info.getValue()} memLimit={info.row.original.memLimit} />,
+  }),
+  infraColumnHelper.display({
+    id: "actions",
+    header: "",
+    meta: { headerClassName: "w-28" },
+    cell: (info) => <InfraRestartAction id={info.row.original.id} name={info.row.original.name} />,
   }),
 ];
 
@@ -237,10 +299,6 @@ export function SystemPage() {
         <UsageCard title="Memory" percent={memPercent} detail={`${formatBytes(host.memUsed)} / ${formatBytes(host.memTotal)}`} />
         <UsageCard title="Disk" percent={diskPercent} detail={`${formatBytes(host.diskUsed)} / ${formatBytes(host.diskTotal)}`} />
       </div>
-      <p className="-mt-4 text-xs text-muted-foreground">
-        Applications and Infrastructure below show CPU as cores used out of each container's own limit — directly comparable across rows even when limits differ, the same way
-        the Memory column already works. This host has {host.cpuCount} cores total.
-      </p>
 
       <div className="grid gap-6 sm:grid-cols-2">
         <Card>
