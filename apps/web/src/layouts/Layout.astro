@@ -3,6 +3,7 @@ import "@/styles/global.css";
 import { ClientRouter } from "astro:transitions";
 import { ChartLineUp, Cpu, FolderSimple, Gear, Users as UsersIcon } from "@phosphor-icons/react/ssr";
 import { UserMenu } from "@/components/UserMenu";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Toaster } from "@/components/ui/sonner";
 
 interface Props {
@@ -21,6 +22,13 @@ const isSettingsActive = Astro.url.pathname.startsWith("/settings");
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <script is:inline>
+      (function () {
+        var stored = localStorage.getItem("theme");
+        var dark = stored === "dark" || (stored !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.classList.toggle("dark", dark);
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width" />
     <meta name="generator" content={Astro.generator} />
@@ -80,7 +88,8 @@ const isSettingsActive = Astro.url.pathname.startsWith("/settings");
             Settings
           </a>
         </nav>
-        <div class="md:border-t md:border-border md:p-3">
+        <div class="flex items-center gap-2 md:flex-col md:items-stretch md:gap-1 md:border-t md:border-border md:p-3">
+          <ThemeToggle client:load transition:persist />
           <UserMenu client:load transition:persist />
         </div>
       </aside>
