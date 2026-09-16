@@ -7,17 +7,13 @@ import { TablePagination } from "@/components/ui/table-pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryProvider } from "@/components/QueryProvider";
 import { DeploymentStatusBadge } from "@/components/DeploymentStatusBadge";
-import { api, UnauthorizedError, type ApiProjectWithCount, type ApiApplicationWithStatus } from "@/lib/api";
+import { api, UnauthorizedError, type ApiProjectWithApplications, type ApiApplicationWithStatus } from "@/lib/api";
 
 const PAGE_SIZE = 20;
 const PREVIEW_SIZE = 5;
 
-async function fetchProjects(page: number): Promise<{ items: ApiProjectWithCount[]; total: number }> {
-  return api.listProjects(page, PAGE_SIZE);
-}
-
-async function fetchPreviewApps(projectId: string) {
-  return api.listProjectApplications(projectId, 1, PREVIEW_SIZE);
+async function fetchProjects(page: number): Promise<{ items: ApiProjectWithApplications[]; total: number }> {
+  return api.listProjectsWithApplications(page, PAGE_SIZE);
 }
 
 function AppTypeIcon({ buildType }: { buildType: ApiApplicationWithStatus["buildType"] }) {
@@ -28,28 +24,14 @@ function AppTypeIcon({ buildType }: { buildType: ApiApplicationWithStatus["build
   );
 }
 
-function ProjectApplications({ projectId, total }: { projectId: string; total: number }) {
-  const { data, isPending } = useQuery({
-    queryKey: ["project", projectId, "apps", "preview"],
-    queryFn: () => fetchPreviewApps(projectId),
-  });
-
-  if (isPending) {
-    return (
-      <div className="flex flex-col gap-2 border-t border-border bg-muted/20 px-4 py-3">
-        <Skeleton className="h-6 w-full" />
-        <Skeleton className="h-6 w-full" />
-      </div>
-    );
-  }
-
-  if (!data || data.items.length === 0) {
+function ProjectApplications({ projectId, applications, total }: { projectId: string; applications: ApiApplicationWithStatus[]; total: number }) {
+  if (applications.length === 0) {
     return <p className="border-t border-border bg-muted/20 px-4 py-3 text-xs text-muted-foreground">No applications yet.</p>;
   }
 
   return (
     <ul className="flex flex-col border-t border-border bg-muted/20">
-      {data.items.map((app) => (
+      {applications.slice(0, PREVIEW_SIZE).map((app) => (
         <li key={app.id} className="flex items-center justify-between gap-2 border-b border-border/60 px-4 py-2 last:border-b-0">
           <a href={`/applications/view?id=${app.id}`} className="flex min-w-0 items-center gap-2 font-medium hover:underline">
             <AppTypeIcon buildType={app.buildType} />
@@ -69,7 +51,7 @@ function ProjectApplications({ projectId, total }: { projectId: string; total: n
   );
 }
 
-function ProjectRow({ project }: { project: ApiProjectWithCount }) {
+function ProjectRow({ project }: { project: ApiProjectWithApplications }) {
   return (
     <>
       <TableRow className="relative">
@@ -88,7 +70,7 @@ function ProjectRow({ project }: { project: ApiProjectWithCount }) {
       </TableRow>
       <TableRow className="hover:bg-transparent">
         <TableCell colSpan={3} className="p-0">
-          <ProjectApplications projectId={project.id} total={project.applicationCount} />
+          <ProjectApplications projectId={project.id} applications={project.applications} total={project.applicationCount} />
         </TableCell>
       </TableRow>
     </>

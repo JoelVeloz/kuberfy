@@ -64,6 +64,10 @@ export interface ApiApplicationWithStatus extends ApiApplication {
   latestStatus: DeploymentStatus | null;
 }
 
+export interface ApiProjectWithApplications extends ApiProjectWithCount {
+  applications: ApiApplicationWithStatus[];
+}
+
 export interface ApiApplicationDetail extends ApiApplication {
   // only the latest — the full history is fetched separately, paginated, via api.listDeployments
   deployments: ApiDeployment[];
@@ -273,6 +277,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   listProjects: (page = 1, pageSize = 20) => request<ApiPage<ApiProjectWithCount>>(`/api/projects?page=${page}&pageSize=${pageSize}`),
+  listProjectsWithApplications: (page = 1, pageSize = 20) =>
+    request<ApiPage<ApiProjectWithApplications>>(`/api/projects?page=${page}&pageSize=${pageSize}&populate=applications`),
   createProject: (name: string) =>
     request<ApiProject>("/api/projects", {
       method: "POST",
