@@ -1,0 +1,67 @@
+---
+import DocsLayout from "@/layouts/DocsLayout.astro";
+
+const lastUpdated = "September 16, 2026";
+---
+
+<DocsLayout title="Privacy Policy — Kuberfy" description="Kuberfy's privacy policy for the dashboard, mobile app, and self-hosted server.">
+  <h1>Privacy Policy</h1>
+
+  <p><em>Last updated: {lastUpdated}</em></p>
+
+  <p>
+    Kuberfy is self-hosted software. The Kuberfy mobile app and web dashboard connect directly to a Kuberfy server that you install and control on your own infrastructure.
+    FasteryDev, LLC ("we", "us"), the maker of Kuberfy, does not operate, have access to, or receive any data from your Kuberfy server.
+  </p>
+
+  <h2>Data We Do Not Collect</h2>
+
+  <p>We do not have a backend of our own for the app or dashboard. As a result, we do not collect, store, process, or have access to:</p>
+  <ul>
+    <li>Your account credentials, email, or password</li>
+    <li>The projects, applications, deployments, or logs you manage in Kuberfy</li>
+    <li>Your server's IP address, domain names, or traffic data</li>
+    <li>Any analytics, usage tracking, or advertising identifiers</li>
+  </ul>
+
+  <p>The mobile app does not include any analytics, advertising, or crash-reporting SDKs.</p>
+
+  <h2>Data Stored on Your Device</h2>
+
+  <p>The Kuberfy mobile app stores the following locally, on your device only, using the operating system's secure storage:</p>
+  <ul>
+    <li>The URL of the Kuberfy server you connect to</li>
+    <li>Your authenticated session token</li>
+  </ul>
+
+  <p>
+    This information never leaves your device except to communicate directly with the Kuberfy server you configured. If your device supports Face ID or Touch ID, the app
+    may use it to lock local access to the app; biometric data is handled entirely by your device's operating system and is never accessible to us or transmitted anywhere.
+  </p>
+
+  <h2>Data Handled by Your Kuberfy Server</h2>
+
+  <p>
+    Your Kuberfy server (which you install and administer) stores account credentials, project configuration, deployment history, and logs in its own embedded database, on
+    infrastructure you control. Because you operate that server, you are the data controller for any information it stores. Refer to your own organization's policies for
+    how that data is handled.
+  </p>
+
+  <h2>Third-Party Sharing</h2>
+
+  <p>We do not sell, rent, or share any data with third parties, because we do not collect any in the first place.</p>
+
+  <h2>Children's Privacy</h2>
+
+  <p>Kuberfy is a developer/operations tool and is not directed at children. We do not knowingly collect information from children.</p>
+
+  <h2>Changes to This Policy</h2>
+
+  <p>If this policy changes, we will update this page and revise the "Last updated" date above.</p>
+
+  <h2>Contact</h2>
+
+  <p>
+    Questions about this policy can be sent via <a href="https://github.com/JoelVeloz/kuberfy/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a>.
+  </p>
+</DocsLayout>
