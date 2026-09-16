@@ -9,9 +9,9 @@ export const deploymentStatusLabel: Record<DeploymentStatus, string> = {
   stopped: "Stopped",
 };
 
-export const deploymentStatusVariant: Record<DeploymentStatus, "secondary" | "success" | "destructive" | "outline"> = {
+export const deploymentStatusVariant: Record<DeploymentStatus, "secondary" | "success" | "destructive" | "outline" | "warning"> = {
   pending: "outline",
-  building: "secondary",
+  building: "warning",
   running: "success",
   failed: "destructive",
   stopped: "outline",
