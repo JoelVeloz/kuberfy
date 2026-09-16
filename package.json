@@ -3,7 +3,8 @@
   "private": true,
   "license": "BUSL-1.1",
   "workspaces": [
-    "apps/*"
+    "apps/*",
+    "!apps/mobile"
   ],
   "scripts": {
     "test:install": "bash scripts/test-install-vm.sh"
