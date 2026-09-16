@@ -8,6 +8,7 @@
     "user:set-password": "bun run scripts/set-password.ts"
   },
   "dependencies": {
+    "@better-auth/expo": "^1.7.5",
     "@better-auth/passkey": "^1.7.4",
     "@hono/mcp": "^0.3.2",
     "@hono/zod-validator": "^0.9.1",
