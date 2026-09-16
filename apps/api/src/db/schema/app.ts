@@ -52,28 +52,34 @@ export const apiUpdateProject = apiCreateProject.partial();
 export const buildTypes = ["image", "dockerfile"] as const;
 export type BuildType = (typeof buildTypes)[number];
 
-export const application = sqliteTable("applications", {
-  id: id(),
-  projectId: text("project_id")
-    .notNull()
-    .references(() => project.id, { onDelete: "cascade" }),
-  name: text("name").notNull(),
-  repoUrl: text("repo_url").notNull(),
-  branch: text("branch").notNull().default("main"),
-  buildType: text("build_type", { enum: buildTypes }).notNull(),
-  // only used when buildType === "dockerfile"
-  dockerfilePath: text("dockerfile_path"),
-  // TODO: encrypt before the deploy pipeline writes to this (plain JSON for now)
-  envVars: text("env_vars"),
-  // only used when buildType === "image" and the image is in a private registry — registry host itself is
-  // derived from the image reference at pull time (deriveRegistryServer in deploy.ts), not stored separately
-  registryUsername: text("registry_username"),
-  registryPassword: text("registry_password"),
-  // hard cap passed to Docker as HostConfig.Memory — keeps one runaway service from starving the host
-  memoryLimitMb: integer("memory_limit_mb").notNull().default(defaultAppSize.memoryLimitMb),
-  cpuLimit: real("cpu_limit").notNull().default(defaultAppSize.cpuLimit),
-  ...timestamps,
-});
+export const application = sqliteTable(
+  "applications",
+  {
+    id: id(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    repoUrl: text("repo_url").notNull(),
+    branch: text("branch").notNull().default("main"),
+    buildType: text("build_type", { enum: buildTypes }).notNull(),
+    // only used when buildType === "dockerfile"
+    dockerfilePath: text("dockerfile_path"),
+    // TODO: encrypt before the deploy pipeline writes to this (plain JSON for now)
+    envVars: text("env_vars"),
+    // only used when buildType === "image" and the image is in a private registry — registry host itself is
+    // derived from the image reference at pull time (deriveRegistryServer in deploy.ts), not stored separately
+    registryUsername: text("registry_username"),
+    registryPassword: text("registry_password"),
+    // hard cap passed to Docker as HostConfig.Memory — keeps one runaway service from starving the host
+    memoryLimitMb: integer("memory_limit_mb").notNull().default(defaultAppSize.memoryLimitMb),
+    cpuLimit: real("cpu_limit").notNull().default(defaultAppSize.cpuLimit),
+    ...timestamps,
+  },
+  // SQLite doesn't index foreign keys on its own — every "this project's applications" lookup (the projects
+  // list, the reconcile loop, statsTick) filters on this column, so without it each one is a full table scan.
+  (table) => [index("applications_project_id_idx").on(table.projectId)],
+);
 
 export const applicationRelations = relations(application, ({ one, many }) => ({
   project: one(project, {
@@ -116,19 +122,26 @@ export const apiUpdateApplication = apiCreateApplication
 export const deploymentStatuses = ["pending", "building", "running", "failed", "stopped"] as const;
 export type DeploymentStatus = (typeof deploymentStatuses)[number];
 
-export const deployment = sqliteTable("deployments", {
-  id: id(),
-  // stays required for now; goes nullable + gets a sibling composeId once compose apps exist (Dokploy-style)
-  applicationId: text("application_id")
-    .notNull()
-    .references(() => application.id, { onDelete: "cascade" }),
-  status: text("status", { enum: deploymentStatuses }).notNull().default("pending"),
-  commitSha: text("commit_sha"),
-  imageTag: text("image_tag"),
-  containerId: text("container_id"),
-  logs: text("logs"),
-  ...timestamps,
-});
+export const deployment = sqliteTable(
+  "deployments",
+  {
+    id: id(),
+    // stays required for now; goes nullable + gets a sibling composeId once compose apps exist (Dokploy-style)
+    applicationId: text("application_id")
+      .notNull()
+      .references(() => application.id, { onDelete: "cascade" }),
+    status: text("status", { enum: deploymentStatuses }).notNull().default("pending"),
+    commitSha: text("commit_sha"),
+    imageTag: text("image_tag"),
+    containerId: text("container_id"),
+    logs: text("logs"),
+    ...timestamps,
+  },
+  // Every "latest deployment for this app" lookup (statsTick every 2s, the 30s reconcile loop, every app
+  // detail page) filters by applicationId and orders by createdAt desc — without this, each one is a full
+  // table scan that only gets slower as deployment history grows (nothing ever prunes old rows here).
+  (table) => [index("deployments_application_id_created_at_idx").on(table.applicationId, table.createdAt)],
+);
 
 export const deploymentRelations = relations(deployment, ({ one, many }) => ({
   application: one(application, {

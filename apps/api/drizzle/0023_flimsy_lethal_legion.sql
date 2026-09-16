@@ -1,0 +1,2 @@
+CREATE INDEX `applications_project_id_idx` ON `applications` (`project_id`);--> statement-breakpoint
+CREATE INDEX `deployments_application_id_created_at_idx` ON `deployments` (`application_id`,`created_at`);
