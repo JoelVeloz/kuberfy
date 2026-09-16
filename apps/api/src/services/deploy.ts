@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { cpus, tmpdir, totalmem } from "node:os";
 import { basename, dirname, join } from "node:path";
 import Docker from "dockerode";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import simpleGit from "simple-git";
 import { db } from "../db";
 import { application, deployment, domain, volume } from "../db/schema/app";
@@ -70,10 +70,12 @@ export async function reconcileDeploymentStatuses() {
   // "running" row per app by stopping any other before setting a new one; touching older rows here (a bug that
   // shipped earlier tonight) breaks that guarantee; e.g. two old rows with no containerId both fall back to the
   // same deterministic service name below and can both get flipped to "running" at once.
-  const apps = await db.query.application.findMany();
-  const rows = (await Promise.all(apps.map((a) => latestDeployment(a.id)))).filter(
-    (d): d is NonNullable<typeof d> => d !== undefined && ["failed", "building", "running"].includes(d.status),
-  );
+  // One query with a per-app latest-deployment join, not one query per app — this runs every 30s regardless
+  // of whether anyone's looking, so it used to mean 1 + (app count) DB round trips on a timer, forever.
+  const apps = await db.query.application.findMany({ with: { deployments: { orderBy: desc(deployment.createdAt), limit: 1 } } });
+  const rows = apps
+    .map((a) => a.deployments[0])
+    .filter((d): d is NonNullable<typeof d> => d !== undefined && ["failed", "building", "running"].includes(d.status));
   for (const dep of rows) {
     if (dep.status === "building" && Date.now() - dep.updatedAt.getTime() < STALE_BUILDING_MS) continue;
 
