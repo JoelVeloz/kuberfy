@@ -3,6 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { upgradeWebSocket } from "hono/bun";
+import type { WSContext } from "hono/ws";
 import { and, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { db } from "../db";
 import { application, requestLog } from "../db/schema/app";
@@ -85,60 +86,104 @@ async function findTraefikContainerId(): Promise<string | null> {
   return match?.Id ?? null;
 }
 
+// One shared Traefik log stream/DB-insert pipeline for every connected Traffic-page tab, instead of each
+// connection opening its own — the old per-connection version meant every real request got written to
+// requestLog once per open tab, silently duplicating traffic stats whenever more than one tab (or viewer)
+// had the page open at the same time. The frontend only ever uses these messages as a "something changed,
+// refetch" signal (see TrafficPage.tsx), so a fresh subscriber needs no history replay to catch up on.
+type LogStream = { destroy(): void };
+const trafficSubscribers = new Set<WSContext>();
+let trafficStream: LogStream | null = null;
+let startingTraffic: Promise<void> | null = null;
+
+function broadcastTraffic(message: unknown) {
+  const text = JSON.stringify(message);
+  for (const ws of trafficSubscribers) {
+    try {
+      ws.send(text);
+    } catch {
+      trafficSubscribers.delete(ws);
+    }
+  }
+}
+
+function ensureTrafficStreaming(): Promise<void> {
+  if (trafficStream) return Promise.resolve();
+  if (startingTraffic) return startingTraffic;
+
+  startingTraffic = (async () => {
+    const containerId = await findTraefikContainerId();
+    if (!containerId) {
+      broadcastTraffic({ error: "No Traefik container found — is the proxy running?" });
+      return;
+    }
+    const logStream = (await docker.getContainer(containerId).logs({ follow: true, stdout: true, stderr: false, tail: 200 })) as unknown as LogStream;
+    if (trafficSubscribers.size === 0) {
+      // every viewer disconnected while the stream was still opening — don't leave it running for no one
+      logStream.destroy();
+      return;
+    }
+    trafficStream = logStream;
+    const stdout = new PassThrough();
+    docker.modem.demuxStream(logStream, stdout, new PassThrough());
+    let buffered = "";
+    stdout.on("data", (chunk: Buffer) => {
+      buffered += chunk.toString("utf-8");
+      let newlineIndex: number;
+      while ((newlineIndex = buffered.indexOf("\n")) !== -1) {
+        const line = buffered.slice(0, newlineIndex);
+        buffered = buffered.slice(newlineIndex + 1);
+        const event = parseAccessLogLine(line);
+        if (!event) continue;
+        broadcastTraffic(event);
+        db.insert(requestLog)
+          .values({
+            time: new Date(event.time),
+            method: event.method,
+            host: event.host,
+            path: event.path,
+            status: event.status,
+            durationMs: event.durationMs,
+            service: event.service,
+            clientIp: event.clientIp,
+            userAgent: event.userAgent,
+            protocol: event.protocol,
+            originStatus: event.originStatus,
+            requestContentSize: event.requestContentSize,
+            downstreamContentSize: event.downstreamContentSize,
+          })
+          .catch(() => {});
+        if (Math.random() < 0.01)
+          db.delete(requestLog)
+            .where(lt(requestLog.time, new Date(Date.now() - RETENTION_MS)))
+            .catch(() => {});
+      }
+    });
+  })();
+
+  return startingTraffic.finally(() => {
+    startingTraffic = null;
+  });
+}
+
+function stopTrafficStreamingIfIdle() {
+  if (trafficSubscribers.size > 0) return;
+  trafficStream?.destroy();
+  trafficStream = null;
+}
+
 observability.get(
   "/traffic",
-  upgradeWebSocket(() => {
-    type LogStream = { destroy(): void };
-    let stream: LogStream | null = null;
-    return {
-      onOpen: async (_evt, ws) => {
-        const containerId = await findTraefikContainerId();
-        if (!containerId) {
-          ws.send(JSON.stringify({ error: "No Traefik container found — is the proxy running?" }));
-          ws.close();
-          return;
-        }
-        const logStream = (await docker.getContainer(containerId).logs({ follow: true, stdout: true, stderr: false, tail: 200 })) as unknown as LogStream;
-        stream = logStream;
-        const stdout = new PassThrough();
-        docker.modem.demuxStream(logStream, stdout, new PassThrough());
-        let buffered = "";
-        stdout.on("data", (chunk: Buffer) => {
-          buffered += chunk.toString("utf-8");
-          let newlineIndex: number;
-          while ((newlineIndex = buffered.indexOf("\n")) !== -1) {
-            const line = buffered.slice(0, newlineIndex);
-            buffered = buffered.slice(newlineIndex + 1);
-            const event = parseAccessLogLine(line);
-            if (!event) continue;
-            ws.send(JSON.stringify(event));
-            db.insert(requestLog)
-              .values({
-                time: new Date(event.time),
-                method: event.method,
-                host: event.host,
-                path: event.path,
-                status: event.status,
-                durationMs: event.durationMs,
-                service: event.service,
-                clientIp: event.clientIp,
-                userAgent: event.userAgent,
-                protocol: event.protocol,
-                originStatus: event.originStatus,
-                requestContentSize: event.requestContentSize,
-                downstreamContentSize: event.downstreamContentSize,
-              })
-              .catch(() => {});
-            if (Math.random() < 0.01)
-              db.delete(requestLog)
-                .where(lt(requestLog.time, new Date(Date.now() - RETENTION_MS)))
-                .catch(() => {});
-          }
-        });
-      },
-      onClose: () => stream?.destroy(),
-    };
-  }),
+  upgradeWebSocket(() => ({
+    onOpen: async (_evt, ws) => {
+      trafficSubscribers.add(ws);
+      await ensureTrafficStreaming();
+    },
+    onClose: (_evt, ws) => {
+      trafficSubscribers.delete(ws);
+      stopTrafficStreamingIfIdle();
+    },
+  })),
 );
 
 observability.get("/traffic/summary", async (c) => {
