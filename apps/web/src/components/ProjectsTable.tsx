@@ -1,42 +1,130 @@
 import * as React from "react";
+import { ArrowSquareOut, CaretRight, Cube, FolderSimple, GithubLogo } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { createColumnHelper } from "@tanstack/react-table";
+import { cn } from "cn";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { DataTable } from "@/components/ui/data-table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TablePagination } from "@/components/ui/table-pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryProvider } from "@/components/QueryProvider";
-import { api, UnauthorizedError, type ApiProjectWithCount } from "@/lib/api";
+import { NewApplicationDialog } from "@/components/NewApplicationDialog";
+import { DeploymentStatusBadge } from "@/components/DeploymentStatusBadge";
+import { api, UnauthorizedError, type ApiProjectWithCount, type ApiApplicationWithStatus } from "@/lib/api";
 
 const PAGE_SIZE = 20;
+const PREVIEW_SIZE = 5;
 
-type Row = ApiProjectWithCount;
-
-async function fetchRows(page: number): Promise<{ items: Row[]; total: number }> {
+async function fetchProjects(page: number): Promise<{ items: ApiProjectWithCount[]; total: number }> {
   return api.listProjects(page, PAGE_SIZE);
 }
 
-const columnHelper = createColumnHelper<Row>();
-const columns = [
-  columnHelper.accessor("name", {
-    header: "Name",
-    cell: (info) => (
-      <a href={`/projects/view?id=${info.row.original.id}`} className="font-medium after:absolute after:inset-0">
-        {info.getValue()}
-      </a>
-    ),
-  }),
-  columnHelper.accessor("applicationCount", {
-    header: "Applications",
-    cell: (info) => <span className="text-muted-foreground">{`${info.getValue()} ${info.getValue() === 1 ? "application" : "applications"}`}</span>,
-  }),
-  columnHelper.accessor("createdAt", {
-    header: "Created",
-    cell: (info) => (
-      <span className="text-muted-foreground">{new Date(info.getValue()).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</span>
-    ),
-  }),
-];
+async function fetchPreviewApps(projectId: string) {
+  return api.listProjectApplications(projectId, 1, PREVIEW_SIZE);
+}
+
+function AppTypeIcon({ buildType }: { buildType: ApiApplicationWithStatus["buildType"] }) {
+  return buildType === "image" ? (
+    <Cube weight="bold" className="size-3.5 shrink-0 text-blue-500" title="Deploys a prebuilt Docker image" />
+  ) : (
+    <GithubLogo weight="bold" className="size-3.5 shrink-0 text-foreground" title="Builds from a Git repository" />
+  );
+}
+
+function ProjectApplications({ projectId, total }: { projectId: string; total: number }) {
+  const { data, isPending } = useQuery({
+    queryKey: ["project", projectId, "apps", "preview"],
+    queryFn: () => fetchPreviewApps(projectId),
+  });
+
+  return (
+    <div className="flex flex-col gap-3 border-t border-border bg-muted/20 px-4 py-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-foreground">Applications</span>
+        <div className="flex items-center gap-2">
+          <a href={`/marketplace?project=${projectId}`} className="text-xs text-muted-foreground transition-colors hover:text-foreground">
+            Marketplace
+          </a>
+          <NewApplicationDialog projectId={projectId} />
+        </div>
+      </div>
+
+      {isPending ? (
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-6 w-full" />
+          <Skeleton className="h-6 w-full" />
+        </div>
+      ) : !data || data.items.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No applications yet.</p>
+      ) : (
+        <ul className="flex flex-col">
+          {data.items.map((app) => (
+            <li key={app.id} className="flex items-center justify-between gap-2 border-b border-border/60 py-2 last:border-b-0">
+              <a href={`/applications/view?id=${app.id}`} className="flex min-w-0 items-center gap-2 font-medium hover:underline">
+                <AppTypeIcon buildType={app.buildType} />
+                <span className="truncate">{app.name}</span>
+              </a>
+              {app.latestStatus ? <DeploymentStatusBadge status={app.latestStatus} /> : <span className="text-xs text-muted-foreground">No deployments</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {total > PREVIEW_SIZE && (
+        <a href={`/projects/view?id=${projectId}`} className="text-xs text-foreground underline underline-offset-2">
+          View all {total} applications →
+        </a>
+      )}
+    </div>
+  );
+}
+
+function ProjectRow({ project, isOpen, onToggle }: { project: ApiProjectWithCount; isOpen: boolean; onToggle: () => void }) {
+  return (
+    <>
+      <TableRow className="cursor-pointer" onClick={onToggle}>
+        <TableCell>
+          <button
+            type="button"
+            aria-expanded={isOpen}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggle();
+            }}
+            className="flex items-center gap-2 font-medium"
+          >
+            <CaretRight weight="bold" className={cn("size-3 shrink-0 text-muted-foreground transition-transform", isOpen && "rotate-90")} aria-hidden />
+            <FolderSimple weight="bold" className="size-3.5 shrink-0 text-muted-foreground" />
+            {project.name}
+          </button>
+        </TableCell>
+        <TableCell className="text-muted-foreground">
+          {project.applicationCount} {project.applicationCount === 1 ? "application" : "applications"}
+        </TableCell>
+        <TableCell className="text-muted-foreground">
+          {new Date(project.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+        </TableCell>
+        <TableCell className="w-8">
+          <a
+            href={`/projects/view?id=${project.id}`}
+            onClick={(e) => e.stopPropagation()}
+            className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
+            title="Open project"
+          >
+            <ArrowSquareOut />
+          </a>
+        </TableCell>
+      </TableRow>
+      {isOpen && (
+        <TableRow className="hover:bg-transparent">
+          <TableCell colSpan={4} className="p-0">
+            <ProjectApplications projectId={project.id} total={project.applicationCount} />
+          </TableCell>
+        </TableRow>
+      )}
+    </>
+  );
+}
 
 // Client island: real ids/counts don't exist at build time, so the list fetches from the API on mount
 export function ProjectsTable() {
@@ -49,7 +137,17 @@ export function ProjectsTable() {
 
 function ProjectsTableInner() {
   const [page, setPage] = React.useState(1);
-  const { data, error } = useQuery({ queryKey: ["projects", page], queryFn: () => fetchRows(page), placeholderData: keepPreviousData });
+  const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
+  const { data, error } = useQuery({ queryKey: ["projects", page], queryFn: () => fetchProjects(page), placeholderData: keepPreviousData });
+
+  function toggle(id: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   if (error) return <p className="mt-6 text-xs text-muted-foreground">{error instanceof UnauthorizedError ? "Not signed in." : "Failed to load projects."}</p>;
 
@@ -64,7 +162,21 @@ function ProjectsTableInner() {
         ) : data.items.length === 0 ? (
           <p className="px-4 py-6 text-xs text-muted-foreground">No projects yet.</p>
         ) : (
-          <DataTable columns={columns} data={data.items} getRowId={(p) => p.id} rowClassName={() => "relative cursor-pointer"} />
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Applications</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.items.map((project) => (
+                <ProjectRow key={project.id} project={project} isOpen={expanded.has(project.id)} onToggle={() => toggle(project.id)} />
+              ))}
+            </TableBody>
+          </Table>
         )}
         {data && data.items.length > 0 && <TablePagination page={page} pageSize={PAGE_SIZE} total={data.total} onPageChange={setPage} />}
       </CardContent>
