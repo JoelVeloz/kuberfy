@@ -185,31 +185,61 @@ system.post("/infra/:id/restart", async (c) => {
   return c.json({ ok: true });
 });
 
+// Same shared-ticker reasoning as /stats below — one 2s loop over the host's /proc regardless of how many
+// Processes tabs are open, instead of each connection re-scanning every PID on its own.
+const processesSubscribers = new Set<WSContext>();
+let processesInterval: ReturnType<typeof setInterval> | null = null;
+let prevProcessTicks = new Map<number, number>();
+let prevProcessTime = Date.now();
+
+function broadcastProcesses(message: unknown) {
+  const text = JSON.stringify(message);
+  for (const ws of processesSubscribers) {
+    try {
+      ws.send(text);
+    } catch {
+      processesSubscribers.delete(ws);
+    }
+  }
+}
+
+async function processesTick() {
+  const now = Date.now();
+  const elapsedSeconds = (now - prevProcessTime) / 1000;
+  const { processes, ticks } = await readHostProcesses(prevProcessTicks, elapsedSeconds);
+  prevProcessTicks = ticks;
+  prevProcessTime = now;
+  broadcastProcesses({ t: now, cpuCount: CPU_COUNT, processes });
+}
+
+function ensureProcessesTicking() {
+  if (processesInterval) return;
+  prevProcessTicks = new Map();
+  prevProcessTime = Date.now();
+  // Fire once immediately so the page isn't sitting blank for a full tick before its first sample —
+  // the CPU% on this first message reads 0 (no elapsed window yet) and corrects itself 2s later.
+  void processesTick();
+  processesInterval = setInterval(processesTick, 2000);
+}
+
+function stopProcessesTickingIfIdle() {
+  if (processesSubscribers.size > 0 || !processesInterval) return;
+  clearInterval(processesInterval);
+  processesInterval = null;
+}
+
 system.get(
   "/processes",
-  upgradeWebSocket(() => {
-    let prevTicks = new Map<number, number>();
-    let prevTime = Date.now();
-    let interval: ReturnType<typeof setInterval> | null = null;
-    return {
-      onOpen: (_evt, ws) => {
-        const tick = async () => {
-          const now = Date.now();
-          const elapsedSeconds = (now - prevTime) / 1000;
-          const { processes, ticks } = await readHostProcesses(prevTicks, elapsedSeconds);
-          prevTicks = ticks;
-          prevTime = now;
-          ws.send(JSON.stringify({ t: now, cpuCount: CPU_COUNT, processes }));
-        };
-        // Same "fire once immediately" reasoning as /stats — first tick's cpu reads 0 (no prior sample yet) and corrects 2s later.
-        void tick();
-        interval = setInterval(tick, 2000);
-      },
-      onClose: () => {
-        if (interval) clearInterval(interval);
-      },
-    };
-  }),
+  upgradeWebSocket(() => ({
+    onOpen: (_evt, ws) => {
+      processesSubscribers.add(ws);
+      ensureProcessesTicking();
+    },
+    onClose: (_evt, ws) => {
+      processesSubscribers.delete(ws);
+      stopProcessesTickingIfIdle();
+    },
+  })),
 );
 
 const HOST_METRIC_RETENTION_MS = 60 * 60_000;
