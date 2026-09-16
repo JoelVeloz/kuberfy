@@ -1,8 +1,10 @@
-import { ArrowSquareOut, Copy } from "@phosphor-icons/react";
+import type * as React from "react";
+import { Copy, Robot } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryProvider } from "@/components/QueryProvider";
 import { api } from "@/lib/api";
@@ -70,6 +72,50 @@ function CopyBlock({ text }: { text: string }) {
   );
 }
 
+const tileClass =
+  "flex flex-col items-center justify-center gap-2 border border-border bg-background px-3 py-4 text-xs font-medium text-foreground transition-colors hover:bg-muted";
+
+function ConnectLinkTile({ icon, label, href }: { icon: React.ReactNode; label: string; href: string }) {
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className={tileClass}>
+      {icon}
+      {label}
+    </a>
+  );
+}
+
+function ConnectDialogTile({
+  icon,
+  label,
+  title,
+  description,
+  children,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <button type="button" className={tileClass}>
+          {icon}
+          {label}
+        </button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        {children}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function McpPageInner() {
   const settings = useQuery({ queryKey: ["settings"], queryFn: api.getSettings });
   const token = useQuery({ queryKey: ["mcp-token"], queryFn: api.getMcpToken });
@@ -99,35 +145,30 @@ function McpPageInner() {
             <p className="text-xs text-muted-foreground">This instance's own MCP endpoint — runs as part of kuberfy itself, nothing to install or clone.</p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline" size="sm">
-              <a href={cursorInstallUrl(mcpUrl, bearerToken)} target="_blank" rel="noopener noreferrer">
-                <CursorIcon />
-                Add to Cursor
-                <ArrowSquareOut data-icon="inline-end" />
-              </a>
-            </Button>
-            <Button asChild variant="outline" size="sm">
-              <a href={vscodeInstallUrl(mcpUrl, bearerToken)} target="_blank" rel="noopener noreferrer">
-                <VsCodeIcon />
-                Add to VS Code
-                <ArrowSquareOut data-icon="inline-end" />
-              </a>
-            </Button>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <ConnectLinkTile icon={<CursorIcon />} label="Cursor" href={cursorInstallUrl(mcpUrl, bearerToken)} />
+            <ConnectLinkTile icon={<VsCodeIcon />} label="VS Code" href={vscodeInstallUrl(mcpUrl, bearerToken)} />
+            <ConnectDialogTile icon={<ClaudeIcon />} label="Claude Code" title="Claude Code" description="Run this in your terminal.">
+              <CopyBlock text={command} />
+            </ConnectDialogTile>
+            <ConnectDialogTile
+              icon={<Robot className="size-4" />}
+              label="Other"
+              title="Any other MCP client"
+              description="Point it at this URL, with this header."
+            >
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-xs font-medium text-foreground">Server URL</span>
+                  <CopyBlock text={mcpUrl} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-xs font-medium text-foreground">Header</span>
+                  <CopyBlock text={`Authorization: Bearer ${bearerToken}`} />
+                </div>
+              </div>
+            </ConnectDialogTile>
           </div>
-
-          <div className="flex flex-col gap-1.5 border-t border-border pt-3">
-            <span className="flex items-center gap-1.5 text-xs font-medium text-foreground">
-              <ClaudeIcon />
-              Claude Code
-            </span>
-            <CopyBlock text={command} />
-          </div>
-
-          <p className="text-xs text-muted-foreground">
-            For a different MCP client, point it at <span className="font-mono text-foreground">{mcpUrl}</span> with header{" "}
-            <span className="font-mono text-foreground">Authorization: Bearer {bearerToken}</span>.
-          </p>
         </CardContent>
       </Card>
 
