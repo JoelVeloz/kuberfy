@@ -4,11 +4,13 @@ import * as os from "node:os";
 import { asc, desc, gte, lt } from "drizzle-orm";
 import { Hono } from "hono";
 import { upgradeWebSocket } from "hono/bun";
+import type { WSContext } from "hono/ws";
 import { db } from "../db";
 import { deployment, hostMetric } from "../db/schema/app";
 import { env } from "../lib/env";
 import { requireAuth } from "../lib/auth-middleware";
-import { docker, parseDockerStats, pullImage, type DockerStatsSample } from "../services/deploy";
+import { docker, pullImage } from "../services/deploy";
+import { getLiveStat, syncTrackedContainers } from "../services/container-stats-hub";
 
 export const system = new Hono();
 
@@ -58,16 +60,6 @@ function findInfraContainers(containers: ContainerList): Array<{ id: string; nam
 
 function resolveServiceContainer(containers: ContainerList, serviceId: string): ContainerList[number] | null {
   return containers.find((c) => c.Labels["com.docker.swarm.service.id"] === serviceId) ?? null;
-}
-
-async function containerStats(containerId: string) {
-  try {
-    const raw = (await docker.getContainer(containerId).stats({ stream: false })) as unknown as DockerStatsSample;
-    return parseDockerStats(raw);
-  } catch {
-    // container gone/unreachable between listing it and this tick — report it as idle rather than failing the whole batch
-    return { cpu: 0, memUsed: 0, memLimit: 0 };
-  }
 }
 
 const CLK_TCK = 100; // USER_HZ — universal on every Linux arch we target, so not worth shelling out to `getconf` for
@@ -223,98 +215,132 @@ system.get(
 const HOST_METRIC_RETENTION_MS = 60 * 60_000;
 const HOST_METRIC_SAVE_EVERY_N_TICKS = 5;
 
+// One shared 2s ticker for every connected dashboard tab, instead of each connection running its own — with N
+// tabs open the old per-connection loop meant N× the DB queries, N× the host-metric rows, and (via
+// container-stats-hub) N× the per-container Docker API calls, all repeating forever as long as anything was open.
+const statsSubscribers = new Set<WSContext>();
+let statsInterval: ReturnType<typeof setInterval> | null = null;
+let prevHostCpu = cpuSnapshot();
+let statsTickCount = 0;
+
+function broadcastStats(message: unknown) {
+  const text = JSON.stringify(message);
+  for (const ws of statsSubscribers) {
+    try {
+      ws.send(text);
+    } catch {
+      statsSubscribers.delete(ws);
+    }
+  }
+}
+
+async function statsTick() {
+  const t = Date.now();
+
+  const nextCpu = cpuSnapshot();
+  const hostCpu = hostCpuPercent(prevHostCpu, nextCpu);
+  prevHostCpu = nextCpu;
+
+  const { memTotal, memUsed } = hostMemory();
+
+  // Reads the container's own root mount — under Docker's default overlay2 storage driver (no dedicated
+  // volume backing it) this reports the host disk's real capacity/free space, since overlay2 isn't its own device.
+  const diskInfo = fs.statfsSync("/");
+  const diskTotal = diskInfo.blocks * diskInfo.bsize;
+  const diskUsed = diskTotal - diskInfo.bavail * diskInfo.bsize;
+
+  broadcastStats({ type: "host", t, host: { cpu: hostCpu, cpuCount: CPU_COUNT, memUsed, memTotal, diskUsed, diskTotal } });
+
+  statsTickCount++;
+  if (statsTickCount % HOST_METRIC_SAVE_EVERY_N_TICKS === 0) {
+    db.insert(hostMetric)
+      .values({ time: new Date(t), cpu: hostCpu, memUsed })
+      .catch(() => {});
+    if (Math.random() < 0.05)
+      db.delete(hostMetric)
+        .where(lt(hostMetric.time, new Date(Date.now() - HOST_METRIC_RETENTION_MS)))
+        .catch(() => {});
+  }
+
+  // limit: 1 — only the latest deployment's status/containerId matters here, and this query already
+  // reruns every 2s, so fetching the full history each time would only get worse as deployments pile up.
+  const [apps, containers] = await Promise.all([
+    db.query.application.findMany({ with: { deployments: { orderBy: desc(deployment.createdAt), limit: 1 }, project: true } }),
+    docker.listContainers(),
+  ]);
+  const infra = findInfraContainers(containers);
+
+  broadcastStats({
+    type: "shell",
+    apps: apps.map((app) => ({
+      id: app.id,
+      name: app.name,
+      status: app.deployments[0]?.status ?? null,
+      cpuLimit: app.cpuLimit,
+      projectId: app.projectId,
+      projectName: app.project.name,
+    })),
+    infra: infra.map((c) => ({ id: c.id, name: c.name, startedAt: c.startedAt })),
+  });
+
+  const appContainers = new Map<string, { id: string; startedAt: number }>();
+  for (const app of apps) {
+    const dep = app.deployments[0];
+    const container = dep?.status === "running" && dep.containerId ? resolveServiceContainer(containers, dep.containerId) : null;
+    if (container) appContainers.set(app.id, { id: container.Id, startedAt: container.Created * 1000 });
+  }
+
+  // Keeps exactly one live stats stream open per container that currently matters — starts one for anything
+  // new, closes one for anything gone (stopped, removed, or replaced by a redeploy).
+  const wantedContainerIds = [...appContainers.values()].map((c) => c.id);
+  for (const c of infra) wantedContainerIds.push(c.id);
+  syncTrackedContainers(wantedContainerIds);
+
+  for (const app of apps) {
+    const mapped = appContainers.get(app.id);
+    const stat = mapped ? getLiveStat(mapped.id) : { cpu: 0, memUsed: 0, memLimit: 0 };
+    broadcastStats({ type: "appStat", t: Date.now(), id: app.id, ...stat, startedAt: mapped?.startedAt });
+  }
+
+  for (const c of infra) {
+    broadcastStats({ type: "infraStat", t: Date.now(), id: c.id, ...getLiveStat(c.id) });
+  }
+}
+
+function ensureStatsTicking() {
+  if (statsInterval) return;
+  statsTickCount = 0;
+  prevHostCpu = cpuSnapshot();
+  // Fire once immediately so the page isn't sitting blank for a full tick before its first sample —
+  // the CPU% on this first message reads 0 (no elapsed window yet) and corrects itself 2s later.
+  void statsTick();
+  statsInterval = setInterval(statsTick, 2000);
+}
+
+function stopStatsTickingIfIdle() {
+  if (statsSubscribers.size > 0 || !statsInterval) return;
+  clearInterval(statsInterval);
+  statsInterval = null;
+  syncTrackedContainers([]); // nobody's watching — close every open per-container stream too
+}
+
 system.get(
   "/stats",
-  upgradeWebSocket(() => {
-    let prevCpu = cpuSnapshot();
-    let interval: ReturnType<typeof setInterval> | null = null;
-    let tickCount = 0;
-    return {
-      onOpen: async (_evt, ws) => {
-        const history = await db
-          .select({ time: hostMetric.time, cpu: hostMetric.cpu, memUsed: hostMetric.memUsed })
-          .from(hostMetric)
-          .where(gte(hostMetric.time, new Date(Date.now() - HOST_METRIC_RETENTION_MS)))
-          .orderBy(asc(hostMetric.time));
-        ws.send(JSON.stringify({ type: "hostHistory", samples: history.map((r) => ({ t: r.time.getTime(), cpu: r.cpu, memUsed: r.memUsed })) }));
+  upgradeWebSocket(() => ({
+    onOpen: async (_evt, ws) => {
+      const history = await db
+        .select({ time: hostMetric.time, cpu: hostMetric.cpu, memUsed: hostMetric.memUsed })
+        .from(hostMetric)
+        .where(gte(hostMetric.time, new Date(Date.now() - HOST_METRIC_RETENTION_MS)))
+        .orderBy(asc(hostMetric.time));
+      ws.send(JSON.stringify({ type: "hostHistory", samples: history.map((r) => ({ t: r.time.getTime(), cpu: r.cpu, memUsed: r.memUsed })) }));
 
-        const tick = async () => {
-          const t = Date.now();
-
-          const nextCpu = cpuSnapshot();
-          const hostCpu = hostCpuPercent(prevCpu, nextCpu);
-          prevCpu = nextCpu;
-
-          const { memTotal, memUsed } = hostMemory();
-
-          // Reads the container's own root mount — under Docker's default overlay2 storage driver (no dedicated
-          // volume backing it) this reports the host disk's real capacity/free space, since overlay2 isn't its own device.
-          const diskInfo = fs.statfsSync("/");
-          const diskTotal = diskInfo.blocks * diskInfo.bsize;
-          const diskUsed = diskTotal - diskInfo.bavail * diskInfo.bsize;
-
-          ws.send(JSON.stringify({ type: "host", t, host: { cpu: hostCpu, cpuCount: CPU_COUNT, memUsed, memTotal, diskUsed, diskTotal } }));
-
-          tickCount++;
-          if (tickCount % HOST_METRIC_SAVE_EVERY_N_TICKS === 0) {
-            db.insert(hostMetric)
-              .values({ time: new Date(t), cpu: hostCpu, memUsed })
-              .catch(() => {});
-            if (Math.random() < 0.05)
-              db.delete(hostMetric)
-                .where(lt(hostMetric.time, new Date(Date.now() - HOST_METRIC_RETENTION_MS)))
-                .catch(() => {});
-          }
-
-          // limit: 1 — only the latest deployment's status/containerId matters here, and this query already
-          // reruns every 2s for every application; fetching the full history each time would only get worse
-          // as deployments pile up.
-          const [apps, containers] = await Promise.all([
-            db.query.application.findMany({ with: { deployments: { orderBy: desc(deployment.createdAt), limit: 1 }, project: true } }),
-            docker.listContainers(),
-          ]);
-          const infra = findInfraContainers(containers);
-
-          ws.send(
-            JSON.stringify({
-              type: "shell",
-              apps: apps.map((app) => ({
-                id: app.id,
-                name: app.name,
-                status: app.deployments[0]?.status ?? null,
-                cpuLimit: app.cpuLimit,
-                projectId: app.projectId,
-                projectName: app.project.name,
-              })),
-              infra: infra.map((c) => ({ id: c.id, name: c.name, startedAt: c.startedAt })),
-            }),
-          );
-
-          for (const app of apps) {
-            void (async () => {
-              const dep = app.deployments[0];
-              const container = dep?.status === "running" && dep.containerId ? resolveServiceContainer(containers, dep.containerId) : null;
-              const stat = container ? await containerStats(container.Id) : { cpu: 0, memUsed: 0, memLimit: 0 };
-              const startedAt = container ? container.Created * 1000 : undefined;
-              ws.send(JSON.stringify({ type: "appStat", t: Date.now(), id: app.id, ...stat, startedAt }));
-            })();
-          }
-
-          for (const c of infra) {
-            void (async () => {
-              const stat = await containerStats(c.id);
-              ws.send(JSON.stringify({ type: "infraStat", t: Date.now(), id: c.id, ...stat }));
-            })();
-          }
-        };
-        // Fire once immediately so the page isn't sitting blank for a full tick before its first sample —
-        // the CPU% on this first message reads 0 (no elapsed window yet) and corrects itself 2s later.
-        void tick();
-        interval = setInterval(tick, 2000);
-      },
-      onClose: () => {
-        if (interval) clearInterval(interval);
-      },
-    };
-  }),
+      statsSubscribers.add(ws);
+      ensureStatsTicking();
+    },
+    onClose: (_evt, ws) => {
+      statsSubscribers.delete(ws);
+      stopStatsTickingIfIdle();
+    },
+  })),
 );
