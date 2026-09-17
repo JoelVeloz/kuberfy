@@ -37,6 +37,7 @@ const TOOLS = [
   { name: "list_projects", description: "List every project, with each one's id." },
   { name: "create_project", description: "Create a new, empty project." },
   { name: "list_app_sizes", description: "List the CPU/memory tiers available for an application." },
+  { name: "delete_project", description: "Permanently delete an empty project — fails if it still has applications in it." },
   { name: "create_application", description: "Create an application inside a project, from an image or a git repository." },
   { name: "deploy_application", description: "Start or redeploy an application that was already created." },
   { name: "delete_application", description: "Permanently delete an application and its Swarm service. Its data volumes are left in place unless asked to remove them too." },

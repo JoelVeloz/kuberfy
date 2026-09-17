@@ -45,6 +45,21 @@ server.registerTool("list_app_sizes", { description: "List the CPU/memory tiers 
 );
 
 server.registerTool(
+  "delete_project",
+  {
+    description: "Permanently delete an empty project. Fails if it still has applications in it — delete those with delete_application first.",
+    inputSchema: { projectId: z.string().min(1) },
+  },
+  async ({ projectId }) => {
+    const applicationCount = await db.$count(application, eq(application.projectId, projectId));
+    if (applicationCount > 0) throw new Error(`Remove all ${applicationCount} application(s) from this project before deleting it.`);
+    const [deleted] = await db.delete(project).where(eq(project.id, projectId)).returning();
+    if (!deleted) throw new Error("Project not found");
+    return textResult(deleted);
+  },
+);
+
+server.registerTool(
   "create_application",
   {
     description:
