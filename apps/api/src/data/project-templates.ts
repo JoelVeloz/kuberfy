@@ -62,11 +62,14 @@ const nodeAppInstance = (index: number): ApplicationSpec => ({
 
 // Same idea as nodeAppInstance, but pulled from an image — no build step, so this stresses deployment
 // orchestration (Docker API calls, DB writes) in isolation from build/pull time.
+// nodered/node-red (not kornkitti/express-hello-world, which is amd64-only — confirmed via the registry API,
+// and crashes with "exec format error" on an arm64 host like Oracle's free-tier Ampere instances) — a real
+// Node.js app, published for both amd64 and arm64, so this template actually runs regardless of host CPU.
 const nodeImageAppInstance = (index: number): ApplicationSpec => ({
   id: `node-app-${index}`,
   name: `node-app-${index}`,
-  port: 8080,
-  image: "kornkitti/express-hello-world:latest",
+  port: 1880,
+  image: "nodered/node-red:latest",
   exposeDomain: true,
   envVars: [
     { key: "DB_HOST", default: "${database.host}", secret: false },
@@ -176,14 +179,14 @@ export const projectTemplates: ProjectTemplate[] = [
   {
     id: "node-image-postgres",
     projectName: "Node.js (image) + Postgres",
-    description: "A Node.js app pulled straight from a Docker image, next to a Postgres instance — no build step, unlike the source-based Node.js + Postgres template. The demo image doesn't read the database env vars itself; wire your own image's variable names once you swap it in.",
+    description: "A Node.js app (Node-RED) pulled straight from a Docker image, next to a Postgres instance — no build step, unlike the source-based Node.js + Postgres template. Node-RED doesn't read the database env vars itself; wire your own image's variable names once you swap it in.",
     apps: [
       postgresDb(),
       {
         id: "node-app",
         name: "node-app",
-        port: 8080,
-        image: "kornkitti/express-hello-world:latest",
+        port: 1880,
+        image: "nodered/node-red:latest",
         exposeDomain: true,
         envVars: [
           { key: "DB_HOST", default: "${database.host}", secret: false },
