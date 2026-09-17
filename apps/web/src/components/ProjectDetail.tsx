@@ -113,13 +113,15 @@ function BulkDeleteDialog({ projectId, selected, names, onDeleted }: { projectId
             undone.
           </DialogDescription>
         </DialogHeader>
-        <ul className="flex max-h-40 flex-col gap-0.5 overflow-y-auto border border-border bg-muted px-3 py-2 font-mono text-xs">
-          {names.map((name, i) => (
-            <li key={i} className="truncate">
-              {name}
-            </li>
-          ))}
-        </ul>
+        {names.length > 0 && (
+          <ul className="flex max-h-40 flex-col gap-0.5 overflow-y-auto border border-border bg-muted px-3 py-2 font-mono text-xs">
+            {names.map((name, i) => (
+              <li key={i} className="truncate">
+                {name}
+              </li>
+            ))}
+          </ul>
+        )}
         <label className="flex items-start gap-2 text-xs">
           <Checkbox checked={deleteVolumes} onCheckedChange={(v) => setDeleteVolumes(v === true)} className="mt-0.5" />
           <span>
