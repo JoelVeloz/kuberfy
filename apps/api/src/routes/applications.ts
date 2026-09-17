@@ -6,7 +6,7 @@ import { Hono } from "hono";
 import { upgradeWebSocket } from "hono/bun";
 import { HTTPException } from "hono/http-exception";
 import { db } from "../db";
-import { apiCreateApplication, apiUpdateApplication, application, deployment } from "../db/schema/app";
+import { apiCreateApplication, apiUpdateApplication, application, deployment, volume } from "../db/schema/app";
 import { requireAuth } from "../lib/auth-middleware";
 import { paginationOffset, paginationQuery } from "../lib/pagination";
 import {
@@ -82,13 +82,34 @@ applications.patch("/:id", zValidator("json", apiUpdateApplication), async (c) =
   return c.json(omitRegistryPassword(updated));
 });
 
+// ?deleteVolumes=true also removes the app's actual Docker volumes, not just their DB rows (which cascade away
+// with the application regardless). Opt-in and off by default — a volume can hold a database's only copy of its
+// data, so silently wiping it alongside the service would turn an app deletion into a data-loss surprise.
 applications.delete("/:id", async (c) => {
   const id = c.req.param("id");
+  const deleteVolumes = c.req.query("deleteVolumes") === "true";
+
   // By deterministic name, not deployment.containerId — that column is only written once a deploy finishes,
   // so deleting an app mid-deploy (still pulling/building) would otherwise orphan the service it goes on to create.
   await removeExisting(`kuberfy-${id}`);
+
+  // Looked up before the delete below, since the application row's ON DELETE CASCADE takes these rows with it.
+  const appVolumes = deleteVolumes ? await db.query.volume.findMany({ where: eq(volume.applicationId, id) }) : [];
+
   const [deleted] = await db.delete(application).where(eq(application.id, id)).returning();
   if (!deleted) throw new HTTPException(StatusCodes.NOT_FOUND, { message: "Application not found" });
+
+  // Never touches the image this app ran from — it's identified by tag, not owned by this app, and other apps
+  // (we've seen a dozen deployed from the exact same tag) or a future redeploy may still need it. Only
+  // `docker image prune` (Settings) ever removes an image, and only once nothing running references it.
+  for (const v of appVolumes) {
+    try {
+      await docker.getVolume(v.volumeName).remove();
+    } catch {
+      // never created (app was never actually deployed with this volume attached) — nothing to clean up
+    }
+  }
+
   return c.json(deleted);
 });
 

@@ -342,7 +342,8 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
     }),
-  deleteApplication: (id: string) => request<ApiApplication>(`/api/applications/${id}`, { method: "DELETE" }),
+  deleteApplication: (id: string, opts?: { deleteVolumes?: boolean }) =>
+    request<ApiApplication>(`/api/applications/${id}${opts?.deleteVolumes ? "?deleteVolumes=true" : ""}`, { method: "DELETE" }),
   createDomain: (applicationId: string, host: string, port: number) =>
     request<ApiDomain>("/api/domains", {
       method: "POST",

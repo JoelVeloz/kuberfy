@@ -70,10 +70,11 @@ function buildColumns(rowIds: string[], selected: Set<string>, onToggle: (id: st
 function BulkDeleteDialog({ projectId, selected, names, onDeleted }: { projectId: string; selected: Set<string>; names: string[]; onDeleted: () => void }) {
   const [open, setOpen] = React.useState(false);
   const [confirmText, setConfirmText] = React.useState("");
+  const [deleteVolumes, setDeleteVolumes] = React.useState(false);
   const queryClient = useQueryClient();
 
   const del = useMutation({
-    mutationFn: () => Promise.all([...selected].map((id) => api.deleteApplication(id))),
+    mutationFn: () => Promise.all([...selected].map((id) => api.deleteApplication(id, { deleteVolumes }))),
     onSuccess: () => {
       toast.success(`Deleted ${selected.size} ${selected.size === 1 ? "application" : "applications"}.`);
       setOpen(false);
@@ -91,6 +92,7 @@ function BulkDeleteDialog({ projectId, selected, names, onDeleted }: { projectId
         setOpen(next);
         if (!next) {
           setConfirmText("");
+          setDeleteVolumes(false);
           del.reset();
         }
       }}
@@ -107,7 +109,8 @@ function BulkDeleteDialog({ projectId, selected, names, onDeleted }: { projectId
           </DialogTitle>
           <DialogDescription>
             Permanently deletes {selected.size === 1 ? "this application" : "these applications"} and everything deployed for{" "}
-            {selected.size === 1 ? "it" : "them"}. This cannot be undone.
+            {selected.size === 1 ? "it" : "them"}. Docker images are never touched — other apps or a future redeploy may still use them. This cannot be
+            undone.
           </DialogDescription>
         </DialogHeader>
         <ul className="flex max-h-40 flex-col gap-0.5 overflow-y-auto border border-border bg-muted px-3 py-2 font-mono text-xs">
@@ -117,6 +120,12 @@ function BulkDeleteDialog({ projectId, selected, names, onDeleted }: { projectId
             </li>
           ))}
         </ul>
+        <label className="flex items-start gap-2 text-xs">
+          <Checkbox checked={deleteVolumes} onCheckedChange={(v) => setDeleteVolumes(v === true)} className="mt-0.5" />
+          <span>
+            Also delete their data volumes. <span className="text-muted-foreground">Leave this off to keep the data and remove it manually later.</span>
+          </span>
+        </label>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="confirm-bulk-delete">
             Type <span className="font-mono">{DELETE_CONFIRM_WORD}</span> to confirm
