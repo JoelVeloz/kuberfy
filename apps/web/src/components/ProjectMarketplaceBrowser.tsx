@@ -65,21 +65,20 @@ function ConfigureTemplate({ template, appSizes, onBack }: { template: ApiProjec
         <Input id="project-template-name" value={projectName} onChange={(e) => setProjectName(e.target.value)} />
       </div>
 
-      <div className="flex flex-col gap-3">
-        {template.apps.map((a) => {
-          const selectedSize = appSizes?.find((s) => s.id === sizes[a.id]);
-          return (
-            <Card key={a.id}>
-              <CardContent className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <Card>
+        <CardContent className="max-h-112 overflow-y-auto px-0">
+          <ul className="flex flex-col">
+            {template.apps.map((a) => (
+              <li key={a.id} className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-2 last:border-b-0">
                 <div className="flex min-w-0 items-center gap-2">
-                  {a.image ? <Cube weight="bold" className="size-4 shrink-0 text-blue-500" /> : <GithubLogo weight="bold" className="size-4 shrink-0" />}
+                  {a.image ? <Cube weight="bold" className="size-3.5 shrink-0 text-blue-500" /> : <GithubLogo weight="bold" className="size-3.5 shrink-0" />}
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{a.name}</p>
+                    <p className="truncate text-xs font-medium">{a.name}</p>
                     <p className="truncate font-mono text-[11px] text-muted-foreground">{a.image ?? a.repoUrl}</p>
                   </div>
                 </div>
                 <Select value={sizes[a.id]} onValueChange={(v) => setSizes((prev) => ({ ...prev, [a.id]: v }))}>
-                  <SelectTrigger size="sm" className="sm:w-56">
+                  <SelectTrigger size="sm" className="h-7 w-48 shrink-0 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -90,12 +89,11 @@ function ConfigureTemplate({ template, appSizes, onBack }: { template: ApiProjec
                     ))}
                   </SelectContent>
                 </Select>
-                {selectedSize && <p className="hidden text-[11px] text-muted-foreground sm:hidden">{selectedSize.label}</p>}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
 
       <div>
         <Button disabled={projectName.trim().length === 0 || isPending} onClick={() => mutate()}>
