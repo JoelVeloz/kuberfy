@@ -84,28 +84,18 @@
     "defaultSize": "micro"
   },
   {
-    "id": "anonupload",
-    "name": "AnonUpload",
-    "description": "AnonUpload is a secure, anonymous file sharing application that does not require a database. It is built with privacy as a priority, ensuring that the direct filename used is not displayed.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/anonupload",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/anonupload/logo.png",
-    "image": "ghcr.io/supernova3339/anonfiles:1",
-    "port": 80,
+    "id": "pingvin-share",
+    "name": "Pingvin Share",
+    "description": "A self-hosted file sharing platform and WeTransfer alternative \u2014 share files by link, with expiration dates, passwords and visitor limits.",
+    "source": "official",
+    "sourceUrl": "https://github.com/stonith404/pingvin-share",
+    "logo": "https://raw.githubusercontent.com/stonith404/pingvin-share/main/frontend/public/img/icon-192.png",
+    "image": "stonith404/pingvin-share:latest",
+    "port": 3000,
     "envVars": [
       {
-        "key": "ADMIN_EMAIL",
-        "default": null,
-        "secret": false
-      },
-      {
-        "key": "ADMIN_PASSWORD",
-        "default": null,
-        "secret": true
-      },
-      {
-        "key": "CONTACT_EMAIL",
-        "default": null,
+        "key": "TRUST_PROXY",
+        "default": "true",
         "secret": false
       }
     ],
@@ -114,7 +104,8 @@
       "privacy"
     ],
     "volumes": [
-      "/var/www/html/uploads"
+      "/opt/app/backend/data",
+      "/opt/app/frontend/public/img"
     ],
     "category": "application",
     "defaultSize": "nano"
@@ -604,20 +595,20 @@
   {
     "id": "directory-lister",
     "name": "Directory Lister",
-    "description": "Directory Lister is a simple PHP application that lists the contents of any web-accessible directory and allows navigation there within.",
-    "source": "dokploy",
-    "sourceUrl": "https://github.com/Dokploy/templates/tree/main/blueprints/directory-lister",
-    "logo": "https://raw.githubusercontent.com/Dokploy/templates/main/blueprints/directory-lister/logo.png",
-    "image": "directorylister/directorylister:latest",
-    "port": 80,
+    "description": "A tiny static file server that lists the contents of any web-accessible directory, configured entirely through environment variables.",
+    "source": "official",
+    "sourceUrl": "https://github.com/halverneus/static-file-server",
+    "logo": "https://cdn.simpleicons.org/go/00ADD8",
+    "image": "halverneus/static-file-server:latest",
+    "port": 8080,
     "envVars": [],
     "tags": [
       "file-manager",
       "directory-listing",
-      "php"
+      "static-files"
     ],
     "volumes": [
-      "/data"
+      "/web"
     ],
     "category": "application",
     "defaultSize": "nano"
@@ -1422,23 +1413,25 @@
     "defaultSize": "small"
   },
   {
-    "id": "node-express",
-    "name": "Node.js (Express)",
-    "description": "A minimal Express.js hello-world app \u2014 serves a welcome page on port 8080, ready to extend with your own routes.",
+    "id": "node-red",
+    "name": "Node-RED",
+    "description": "Low-code, flow-based programming for event-driven applications, built on Node.js \u2014 wire up automations visually in the browser.",
     "source": "official",
-    "sourceUrl": "https://hub.docker.com/r/kornkitti/express-hello-world",
-    "logo": "https://cdn.simpleicons.org/nodedotjs/5FA04E",
-    "image": "kornkitti/express-hello-world:latest",
-    "port": 8080,
+    "sourceUrl": "https://hub.docker.com/r/nodered/node-red",
+    "logo": "https://cdn.simpleicons.org/nodered/8F0000",
+    "image": "nodered/node-red:latest",
+    "port": 1880,
     "envVars": [],
     "tags": [
-      "boilerplate",
       "node",
-      "express",
+      "automation",
+      "low-code",
       "javascript",
       "backend"
     ],
-    "volumes": [],
+    "volumes": [
+      "/data"
+    ],
     "category": "boilerplate",
     "defaultSize": "nano"
   },
