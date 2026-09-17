@@ -8,6 +8,7 @@ import { db } from "../db";
 import { apiCreateDomain, apiUpdateDomain, application, domain } from "../db/schema/app";
 import { suggestDomainHost } from "../lib/auto-domain";
 import { requireAuth } from "../lib/auth-middleware";
+import { applyApplicationDomains } from "../services/deploy";
 
 export const domains = new Hono();
 
@@ -30,6 +31,7 @@ domains.post("/", zValidator("json", apiCreateDomain), async (c) => {
     .insert(domain)
     .values({ ...input, isPrimary: siblingCount === 0 })
     .returning();
+  await applyApplicationDomains(created!.applicationId);
   return c.json(created, StatusCodes.CREATED);
 });
 
@@ -47,6 +49,7 @@ domains.patch("/:id", zValidator("json", apiUpdateDomain), async (c) => {
     .where(eq(domain.id, c.req.param("id")))
     .returning();
   if (!updated) throw new HTTPException(StatusCodes.NOT_FOUND, { message: "Domain not found" });
+  await applyApplicationDomains(updated.applicationId);
   return c.json(updated);
 });
 
@@ -73,5 +76,6 @@ domains.delete("/:id", async (c) => {
     if (nextPrimary) await db.update(domain).set({ isPrimary: true }).where(eq(domain.id, nextPrimary.id));
   }
 
+  await applyApplicationDomains(deleted.applicationId);
   return c.json(deleted);
 });

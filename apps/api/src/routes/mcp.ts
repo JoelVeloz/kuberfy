@@ -8,7 +8,7 @@ import { db } from "../db";
 import { application, domain, project, setting, volume } from "../db/schema/app";
 import { appSizes, defaultAppSize } from "../lib/app-sizes";
 import { suggestDomainHost } from "../lib/auto-domain";
-import { docker, removeExisting, runDeployment } from "../services/deploy";
+import { applyApplicationDomains, docker, removeExisting, runDeployment } from "../services/deploy";
 
 // Deliberately minimal — create, deploy, and delete projects/applications, nothing to reconfigure a running one
 // beyond that. Runs in-process as part of the API server (calling the same functions the REST routes do),
@@ -162,6 +162,7 @@ server.registerTool(
       .insert(domain)
       .values({ applicationId, host, port, isPrimary: siblingCount === 0 })
       .returning();
+    await applyApplicationDomains(applicationId);
     return textResult(created);
   },
 );

@@ -121,6 +121,43 @@ function finishBuildLog(deploymentId: string) {
   buildLogEvents.emit("done", deploymentId);
 }
 
+export function buildDomainLabels(applicationId: string, domains: (typeof domain.$inferSelect)[]): Record<string, string> {
+  const labels: Record<string, string> = { "kuberfy.application": applicationId };
+  if (domains.length === 0) return labels;
+
+  labels["traefik.enable"] = "true";
+  for (const d of domains) {
+    const routerName = `${applicationId}-${d.id}`;
+    const isLocalhost = d.host === "localhost" || d.host.endsWith(".localhost");
+    const tlsRouter = d.sslEnabled && !isLocalhost;
+    labels[`traefik.http.routers.${routerName}.rule`] = `Host(\`${d.host}\`)`;
+    labels[`traefik.http.routers.${routerName}.entrypoints`] = "web";
+    labels[`traefik.http.routers.${routerName}.service`] = routerName;
+    labels[`traefik.http.services.${routerName}.loadbalancer.server.port`] = String(d.port);
+    if (tlsRouter) {
+      const tlsRouterName = `${routerName}-tls`;
+      labels[`traefik.http.routers.${tlsRouterName}.rule`] = `Host(\`${d.host}\`)`;
+      labels[`traefik.http.routers.${tlsRouterName}.entrypoints`] = "websecure";
+      labels[`traefik.http.routers.${tlsRouterName}.service`] = routerName;
+      labels[`traefik.http.routers.${tlsRouterName}.tls.certresolver`] = "le";
+    }
+  }
+  return labels;
+}
+
+export async function applyApplicationDomains(applicationId: string) {
+  const service = docker.getService(`kuberfy-${applicationId}`);
+  let info: Awaited<ReturnType<typeof service.inspect>>;
+  try {
+    info = await service.inspect();
+  } catch {
+    return;
+  }
+  const domains = await db.query.domain.findMany({ where: eq(domain.applicationId, applicationId) });
+  const labels = buildDomainLabels(applicationId, domains);
+  await service.update({ version: info.Version.Index, ...info.Spec, Labels: labels });
+}
+
 async function deploy(app: typeof application.$inferSelect, deploymentId: string) {
   const logs: string[] = [];
   activeBuildLogs.set(deploymentId, logs);
@@ -142,27 +179,10 @@ async function deploy(app: typeof application.$inferSelect, deploymentId: string
   await removeExisting(serviceName);
 
   const domains = await db.query.domain.findMany({ where: eq(domain.applicationId, app.id) });
-  const labels: Record<string, string> = { "kuberfy.application": app.id };
-  if (domains.length > 0) {
-    labels["traefik.enable"] = "true";
-    // one router+service per domain (not one shared router) — different domains of the same app can point at different ports
-    for (const d of domains) {
-      const routerName = `${app.id}-${d.id}`;
-      const isLocalhost = d.host === "localhost" || d.host.endsWith(".localhost");
-      const tlsRouter = d.sslEnabled && !isLocalhost;
-      labels[`traefik.http.routers.${routerName}.rule`] = `Host(\`${d.host}\`)`;
-      labels[`traefik.http.routers.${routerName}.entrypoints`] = "web";
-      labels[`traefik.http.routers.${routerName}.service`] = routerName;
-      labels[`traefik.http.services.${routerName}.loadbalancer.server.port`] = String(d.port);
-      if (tlsRouter) {
-        const tlsRouterName = `${routerName}-tls`;
-        labels[`traefik.http.routers.${tlsRouterName}.rule`] = `Host(\`${d.host}\`)`;
-        labels[`traefik.http.routers.${tlsRouterName}.entrypoints`] = "websecure";
-        labels[`traefik.http.routers.${tlsRouterName}.service`] = routerName;
-        labels[`traefik.http.routers.${tlsRouterName}.tls.certresolver`] = "le";
-      }
-      log(`Routing ${d.host} → internal port ${d.port} via Traefik${tlsRouter ? " (HTTP + HTTPS via Let's Encrypt)" : ""}`);
-    }
+  const labels = buildDomainLabels(app.id, domains);
+  for (const d of domains) {
+    const isLocalhost = d.host === "localhost" || d.host.endsWith(".localhost");
+    log(`Routing ${d.host} → internal port ${d.port} via Traefik${d.sslEnabled && !isLocalhost ? " (HTTP + HTTPS via Let's Encrypt)" : ""}`);
   }
 
   const env = app.envVars ? Object.entries(JSON.parse(app.envVars) as Record<string, string>).map(([k, v]) => `${k}=${v}`) : undefined;
