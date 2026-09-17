@@ -180,7 +180,13 @@ async function deploy(app: typeof application.$inferSelect, deploymentId: string
     Labels: labels,
     TaskTemplate: {
       ContainerSpec: { Image: imageTag, Env: env, Mounts: mounts, TTY: true },
-      RestartPolicy: { Condition: "any" },
+      // Caps retries instead of the previous unbounded default — a container that crash-loops (bad image,
+      // missing env var, wrong start command) would otherwise get relaunched every few seconds forever, even
+      // after this function's own 30s readiness check below already gave up and reported the deployment as
+      // failed. The 2-minute window only caps genuine crash-loops: an app that's been running fine for hours
+      // and crashes once (e.g. a transient DB disconnect) is outside any prior attempt's window, so it still
+      // gets its own fresh set of restart attempts — the resilience a long-running service actually needs.
+      RestartPolicy: { Condition: "any", MaxAttempts: 3, Delay: 5_000_000_000, Window: 120_000_000_000 },
       Resources: { Limits: { MemoryBytes: app.memoryLimitMb * 1024 * 1024, NanoCPUs: Math.round(app.cpuLimit * 1_000_000_000) } },
       Networks: [{ Target: DEPLOY_NETWORK }],
     },
