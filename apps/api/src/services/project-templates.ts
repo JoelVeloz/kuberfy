@@ -67,6 +67,15 @@ function referencedAppIds(spec: ApplicationSpec): string[] {
 // Deploy order derived from the dependency graph the ${appId.field} references form, not from array position —
 // each app comes after every app it references. Kahn's algorithm; throws on a reference cycle or an unknown id.
 export function topoSort(apps: ApplicationSpec[]): ApplicationSpec[] {
+  // A duplicate id collapses every Map below to one entry per id, silently under-counting references and making
+  // this throw a misleading "circular reference" for a template that was never actually cyclic — check the real
+  // problem first, since `id` doubles as the Application's name and must be unique within a template regardless.
+  const seenIds = new Set<string>();
+  for (const spec of apps) {
+    if (seenIds.has(spec.id)) throw new Error(`Template has more than one app with id "${spec.id}" — ids must be unique within a template.`);
+    seenIds.add(spec.id);
+  }
+
   const byId = new Map(apps.map((a) => [a.id, a]));
   const dependencyCounts = new Map(apps.map((a) => [a.id, 0]));
   const dependents = new Map<string, string[]>(apps.map((a) => [a.id, []]));
