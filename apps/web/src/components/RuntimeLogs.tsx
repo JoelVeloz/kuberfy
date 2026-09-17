@@ -1,11 +1,13 @@
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AnsiLog } from "@/components/AnsiLog";
+import { ConnectionIndicator } from "@/components/ConnectionIndicator";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { QueryProvider } from "@/components/QueryProvider";
 import { api, type ApiServiceTask } from "@/lib/api";
 import { apiWsUrl } from "@/lib/api-url";
+import { useLogStream } from "@/lib/use-log-stream";
 
 const LIVE = "live";
 
@@ -37,9 +39,6 @@ export function RuntimeLogs({ applicationId }: { applicationId: string }) {
 
 function RuntimeLogsInner({ applicationId }: { applicationId: string }) {
   const [selected, setSelected] = React.useState<string>(LIVE);
-  const [lines, setLines] = React.useState<string[]>([]);
-  const [connected, setConnected] = React.useState(false);
-  const preRef = React.useRef<HTMLPreElement>(null);
 
   const tasksQuery = useQuery({
     queryKey: ["application-tasks", applicationId],
@@ -53,20 +52,12 @@ function RuntimeLogsInner({ applicationId }: { applicationId: string }) {
 
   const containerId = selected === LIVE ? undefined : selected;
 
-  React.useEffect(() => {
-    setLines([]);
-    const url = new URL(apiWsUrl(`/api/applications/${applicationId}/runtime-logs`));
-    if (containerId) url.searchParams.set("containerId", containerId);
-    const ws = new WebSocket(url);
-    ws.onopen = () => setConnected(true);
-    ws.onmessage = (evt) => setLines((prev) => [...prev, String(evt.data)]);
-    ws.onclose = () => setConnected(false);
-    return () => ws.close();
+  const url = React.useMemo(() => {
+    const u = new URL(apiWsUrl(`/api/applications/${applicationId}/runtime-logs`));
+    if (containerId) u.searchParams.set("containerId", containerId);
+    return u;
   }, [applicationId, containerId]);
-
-  React.useEffect(() => {
-    preRef.current?.scrollTo({ top: preRef.current.scrollHeight });
-  }, [lines]);
+  const { text, connected, preRef } = useLogStream(url, "");
 
   return (
     <div className="mt-3">
@@ -86,18 +77,15 @@ function RuntimeLogsInner({ applicationId }: { applicationId: string }) {
             </SelectContent>
           </Select>
         )}
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <span className={`size-1.5 rounded-full ${connected ? "bg-success" : "bg-muted-foreground/40"}`} />
-          {connected ? (containerId ? "Reading past logs" : "Connected") : "Disconnected"}
-        </div>
+        <ConnectionIndicator connected={connected} label={connected ? (containerId ? "Reading past logs" : "Connected") : "Disconnected"} />
         {containerId && taskStateBadge(selectableTasks.find((t) => t.containerId === containerId)?.state ?? "unknown")}
       </div>
-      {lines.length === 0 ? (
+      {text.length === 0 ? (
         <div className="flex h-40 items-center justify-center border border-dashed border-border bg-muted/30">
           <p className="text-xs text-muted-foreground">{connected ? "Waiting for output…" : "No running container to stream from."}</p>
         </div>
       ) : (
-        <AnsiLog ref={preRef} text={lines.join("")} className="max-h-80" />
+        <AnsiLog ref={preRef} text={text} className="max-h-80" />
       )}
     </div>
   );

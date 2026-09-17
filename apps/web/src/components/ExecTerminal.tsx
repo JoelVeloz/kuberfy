@@ -3,6 +3,7 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import { apiWsUrl } from "@/lib/api-url";
+import { ConnectionIndicator } from "@/components/ConnectionIndicator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type Shell = "auto" | "bash" | "sh";
@@ -49,10 +50,7 @@ export function ExecTerminal({ applicationId }: { applicationId: string }) {
   return (
     <div className="mt-3">
       <div className="mb-1.5 flex items-center justify-between gap-1.5">
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <span className={`size-1.5 rounded-full ${connected ? "bg-success" : "bg-muted-foreground/40"}`} />
-          {connected ? "Connected" : "Disconnected"}
-        </div>
+        <ConnectionIndicator connected={connected} label={connected ? "Connected" : "Disconnected"} />
         <Select value={shell} onValueChange={(v) => setShell(v as Shell)}>
           <SelectTrigger size="sm">
             <SelectValue />
@@ -66,7 +64,7 @@ export function ExecTerminal({ applicationId }: { applicationId: string }) {
           </SelectContent>
         </Select>
       </div>
-      <div ref={containerRef} className="h-96 rounded-md border border-border bg-black p-2" />
+      <div ref={containerRef} className="h-96 border border-border bg-black p-2" />
     </div>
   );
 }

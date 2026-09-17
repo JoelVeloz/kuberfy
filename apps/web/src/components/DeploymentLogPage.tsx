@@ -1,4 +1,3 @@
-import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { buttonVariants } from "@/components/ui/button";
@@ -7,11 +6,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { QueryProvider } from "@/components/QueryProvider";
 import { DeploymentStatusBadge } from "@/components/DeploymentStatusBadge";
 import { AnsiLog } from "@/components/AnsiLog";
+import { ConnectionIndicator } from "@/components/ConnectionIndicator";
 import { api, UnauthorizedError, NotFoundError, type ApiApplicationDetail } from "@/lib/api";
 import { isDeploymentInProgress } from "@/lib/deployment-status";
 import { getQueryParam } from "@/lib/query-params";
 import type { DeploymentStatus } from "@/lib/types";
 import { apiWsUrl } from "@/lib/api-url";
+import { useLogStream } from "@/lib/use-log-stream";
 
 async function fetchApp(id: string): Promise<ApiApplicationDetail> {
   const app = await api.getApplication(id);
@@ -127,32 +128,17 @@ function DeploymentLogPageInner() {
 
 function BuildLog({ applicationId, deploymentId, status, snapshot }: { applicationId: string; deploymentId: string; status: DeploymentStatus; snapshot: string | null }) {
   const live = isDeploymentInProgress(status);
-  const [lines, setLines] = React.useState<string[]>([]);
-  const [connected, setConnected] = React.useState(false);
-  const preRef = React.useRef<HTMLPreElement>(null);
-
-  React.useEffect(() => {
-    if (!live) return;
-    const ws = new WebSocket(apiWsUrl(`/api/applications/${applicationId}/deployments/${deploymentId}/build-logs`));
-    ws.onopen = () => setConnected(true);
-    ws.onmessage = (evt) => setLines((prev) => [...prev, String(evt.data)]);
-    ws.onclose = () => setConnected(false);
-    return () => ws.close();
-  }, [live, applicationId, deploymentId]);
-
-  React.useEffect(() => {
-    preRef.current?.scrollTo({ top: preRef.current.scrollHeight });
-  }, [lines]);
+  const url = live ? apiWsUrl(`/api/applications/${applicationId}/deployments/${deploymentId}/build-logs`) : null;
+  const { text, connected, preRef } = useLogStream(url, "\n");
 
   if (!live) return <AnsiLog text={snapshot ?? ""} className="max-h-[70vh] break-all" />;
 
   return (
     <div>
-      <div className="mb-1.5 flex items-center gap-1.5 px-4 text-xs text-muted-foreground">
-        <span className={`size-1.5 rounded-full ${connected ? "bg-success animate-pulse" : "bg-muted-foreground/40"}`} />
-        {connected ? "Streaming live" : "Connecting…"}
+      <div className="mb-1.5 px-4">
+        <ConnectionIndicator connected={connected} label={connected ? "Streaming live" : "Connecting…"} pulse />
       </div>
-      <AnsiLog ref={preRef} text={lines.join("\n")} className="max-h-[70vh] break-all" />
+      <AnsiLog ref={preRef} text={text} className="max-h-[70vh] break-all" />
     </div>
   );
 }
