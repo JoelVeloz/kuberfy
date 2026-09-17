@@ -39,6 +39,9 @@ const TOOLS = [
   { name: "list_app_sizes", description: "List the CPU/memory tiers available for an application." },
   { name: "create_application", description: "Create an application inside a project, from an image or a git repository." },
   { name: "deploy_application", description: "Start or redeploy an application that was already created." },
+  { name: "delete_application", description: "Permanently delete an application and its Swarm service. Its data volumes are left in place unless asked to remove them too." },
+  { name: "suggest_domain", description: "Suggest a ready-to-use hostname for an application, with zero DNS setup needed." },
+  { name: "create_domain", description: "Attach a hostname to an application so Traefik routes it there." },
 ];
 
 function cursorInstallUrl(mcpUrl: string, token: string) {
@@ -175,7 +178,7 @@ function McpPageInner() {
       <Card>
         <CardContent className="flex flex-col gap-3">
           <h2 className="text-sm font-medium">Available tools</h2>
-          <p className="text-xs text-muted-foreground">Deliberately minimal — everything needed to create and deploy projects/applications, nothing to delete or reconfigure them.</p>
+          <p className="text-xs text-muted-foreground">Deliberately minimal — create, deploy, and delete projects/applications, nothing to reconfigure a running one beyond that.</p>
           <ul className="flex flex-col gap-2">
             {TOOLS.map((t) => (
               <li key={t.name} className="flex flex-col gap-0.5 border-b border-border pb-2 text-xs last:border-b-0 last:pb-0">

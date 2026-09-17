@@ -5,13 +5,13 @@ import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { db } from "../db";
-import { application, domain, project, setting } from "../db/schema/app";
+import { application, domain, project, setting, volume } from "../db/schema/app";
 import { appSizes, defaultAppSize } from "../lib/app-sizes";
 import { suggestDomainHost } from "../lib/auto-domain";
-import { runDeployment } from "../services/deploy";
+import { docker, removeExisting, runDeployment } from "../services/deploy";
 
-// Deliberately minimal — exactly what's needed to create and deploy projects/applications, nothing to delete or
-// reconfigure them. Runs in-process as part of the API server (calling the same functions the REST routes do),
+// Deliberately minimal — create, deploy, and delete projects/applications, nothing to reconfigure a running one
+// beyond that. Runs in-process as part of the API server (calling the same functions the REST routes do),
 // exposed over Streamable HTTP so any MCP client can connect to this instance directly — no local install needed.
 const server = new McpServer({ name: "kuberfy", version: "0.1.0" });
 const sizeIds = appSizes.map((s) => s.id) as [string, ...string[]];
@@ -88,6 +88,32 @@ server.registerTool(
   "deploy_application",
   { description: "Start (or redeploy) an application that was already created with create_application — pulls/builds its image and runs it.", inputSchema: { applicationId: z.string().min(1) } },
   async ({ applicationId }) => textResult(await runDeployment(applicationId)),
+);
+
+server.registerTool(
+  "delete_application",
+  {
+    description:
+      "Permanently delete an application and its Swarm service. Its data volumes are left in place unless deleteVolumes is true — the image it ran from is never touched, since other applications may share it.",
+    inputSchema: {
+      applicationId: z.string().min(1),
+      deleteVolumes: z.boolean().optional().describe("Also delete the application's Docker volumes (irreversible data loss). Defaults to false."),
+    },
+  },
+  async ({ applicationId, deleteVolumes }) => {
+    await removeExisting(`kuberfy-${applicationId}`);
+    const appVolumes = deleteVolumes ? await db.query.volume.findMany({ where: eq(volume.applicationId, applicationId) }) : [];
+    const [deleted] = await db.delete(application).where(eq(application.id, applicationId)).returning();
+    if (!deleted) throw new Error("Application not found");
+    for (const v of appVolumes) {
+      try {
+        await docker.getVolume(v.volumeName).remove();
+      } catch {
+        // never created — nothing to clean up
+      }
+    }
+    return textResult(deleted);
+  },
 );
 
 server.registerTool(
