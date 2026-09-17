@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Cube, GithubLogo, Play, Stop } from "@phosphor-icons/react";
+import { Cube, GithubLogo, Play, Stop, Trash } from "@phosphor-icons/react";
 import { useMutation, useQueryClient, keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createColumnHelper } from "@tanstack/react-table";
 import { toast } from "sonner";
@@ -7,6 +7,9 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DataTable } from "@/components/ui/data-table";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { TablePagination } from "@/components/ui/table-pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryProvider } from "@/components/QueryProvider";
@@ -18,7 +21,8 @@ import { api, UnauthorizedError, NotFoundError, type ApiApplicationWithStatus, t
 import { toastError } from "@/lib/toast";
 import { getQueryParam } from "@/lib/query-params";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 100;
+const DELETE_CONFIRM_WORD = "DELETE";
 
 type AppRow = ApiApplicationWithStatus;
 
@@ -63,7 +67,76 @@ function buildColumns(rowIds: string[], selected: Set<string>, onToggle: (id: st
   ];
 }
 
-function BulkActions({ projectId, selected, onClear }: { projectId: string; selected: Set<string>; onClear: () => void }) {
+function BulkDeleteDialog({ projectId, selected, names, onDeleted }: { projectId: string; selected: Set<string>; names: string[]; onDeleted: () => void }) {
+  const [open, setOpen] = React.useState(false);
+  const [confirmText, setConfirmText] = React.useState("");
+  const queryClient = useQueryClient();
+
+  const del = useMutation({
+    mutationFn: () => Promise.all([...selected].map((id) => api.deleteApplication(id))),
+    onSuccess: () => {
+      toast.success(`Deleted ${selected.size} ${selected.size === 1 ? "application" : "applications"}.`);
+      setOpen(false);
+      onDeleted();
+      queryClient.invalidateQueries({ queryKey: ["project", projectId, "apps"] });
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+    },
+    onError: (err) => toastError(err, "Failed to delete the selected applications."),
+  });
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) {
+          setConfirmText("");
+          del.reset();
+        }
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button size="sm" variant="destructive">
+          <Trash /> Delete
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>
+            Delete {selected.size} application{selected.size === 1 ? "" : "s"}
+          </DialogTitle>
+          <DialogDescription>
+            Permanently deletes {selected.size === 1 ? "this application" : "these applications"} and everything deployed for{" "}
+            {selected.size === 1 ? "it" : "them"}. This cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        <ul className="flex max-h-40 flex-col gap-0.5 overflow-y-auto border border-border bg-muted px-3 py-2 font-mono text-xs">
+          {names.map((name, i) => (
+            <li key={i} className="truncate">
+              {name}
+            </li>
+          ))}
+        </ul>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="confirm-bulk-delete">
+            Type <span className="font-mono">{DELETE_CONFIRM_WORD}</span> to confirm
+          </Label>
+          <Input id="confirm-bulk-delete" value={confirmText} onChange={(e) => setConfirmText(e.target.value)} autoComplete="off" />
+        </div>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">Cancel</Button>
+          </DialogClose>
+          <Button variant="destructive" disabled={confirmText !== DELETE_CONFIRM_WORD || del.isPending} onClick={() => del.mutate()}>
+            {del.isPending ? "Deleting…" : `Delete ${selected.size}`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function BulkActions({ projectId, apps, selected, onClear }: { projectId: string; apps: AppRow[]; selected: Set<string>; onClear: () => void }) {
   const queryClient = useQueryClient();
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["project", projectId, "apps"] });
 
@@ -98,6 +171,12 @@ function BulkActions({ projectId, selected, onClear }: { projectId: string; sele
       <Button size="sm" variant="outline" disabled={stop.isPending || redeploy.isPending} onClick={() => redeploy.mutate()}>
         <Play /> {redeploy.isPending ? "Redeploying…" : "Redeploy"}
       </Button>
+      <BulkDeleteDialog
+        projectId={projectId}
+        selected={selected}
+        names={apps.filter((a) => selected.has(a.id)).map((a) => a.name)}
+        onDeleted={onClear}
+      />
     </div>
   );
 }
@@ -193,7 +272,7 @@ function ProjectDetailInner() {
       <div className="mt-6 flex items-center justify-between">
         <h2 className="font-heading text-sm font-medium">Applications</h2>
         <div className="flex items-center gap-2">
-          <BulkActions projectId={projId} selected={selected} onClear={() => setSelected(new Set())} />
+          <BulkActions projectId={projId} apps={apps.data?.items ?? []} selected={selected} onClear={() => setSelected(new Set())} />
           <a href={`/marketplace?project=${projId}`} className={buttonVariants({ size: "sm", variant: "outline" })}>
             Marketplace
           </a>
