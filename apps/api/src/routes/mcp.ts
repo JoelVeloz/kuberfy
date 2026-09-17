@@ -5,8 +5,9 @@ import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { db } from "../db";
-import { application, project, setting } from "../db/schema/app";
+import { application, domain, project, setting } from "../db/schema/app";
 import { appSizes, defaultAppSize } from "../lib/app-sizes";
+import { suggestDomainHost } from "../lib/auto-domain";
 import { runDeployment } from "../services/deploy";
 
 // Deliberately minimal — exactly what's needed to create and deploy projects/applications, nothing to delete or
@@ -87,6 +88,41 @@ server.registerTool(
   "deploy_application",
   { description: "Start (or redeploy) an application that was already created with create_application — pulls/builds its image and runs it.", inputSchema: { applicationId: z.string().min(1) } },
   async ({ applicationId }) => textResult(await runDeployment(applicationId)),
+);
+
+server.registerTool(
+  "suggest_domain",
+  {
+    description: "Suggest a ready-to-use hostname for an application, with zero DNS setup needed — `.localhost` locally, or a `.sslip.io` host resolving to the server's public IP in production.",
+    inputSchema: { applicationId: z.string().min(1) },
+  },
+  async ({ applicationId }) => {
+    const app = await db.query.application.findFirst({ where: eq(application.id, applicationId) });
+    if (!app) throw new Error("Application not found");
+    return textResult({ host: suggestDomainHost(app.id, app.name) });
+  },
+);
+
+server.registerTool(
+  "create_domain",
+  {
+    description: "Attach a hostname to an application so Traefik routes it there. Call suggest_domain first if you don't already have a host in mind. The first domain on an application becomes its primary one.",
+    inputSchema: {
+      applicationId: z.string().min(1),
+      host: z.string().min(1).describe("Hostname to route, e.g. from suggest_domain."),
+      port: z.number().int().positive().describe("Container port this host should route to."),
+    },
+  },
+  async ({ applicationId, host, port }) => {
+    const existing = await db.query.domain.findFirst({ where: eq(domain.host, host) });
+    if (existing) throw new Error("Domain already in use");
+    const siblingCount = await db.$count(domain, eq(domain.applicationId, applicationId));
+    const [created] = await db
+      .insert(domain)
+      .values({ applicationId, host, port, isPrimary: siblingCount === 0 })
+      .returning();
+    return textResult(created);
+  },
 );
 
 export async function getOrCreateMcpToken(): Promise<string> {
