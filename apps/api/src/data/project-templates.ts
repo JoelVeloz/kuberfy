@@ -60,6 +60,23 @@ const nodeAppInstance = (index: number): ApplicationSpec => ({
   ],
 });
 
+// Same idea as nodeAppInstance, but pulled from an image — no build step, so this stresses deployment
+// orchestration (Docker API calls, DB writes) in isolation from build/pull time.
+const nodeImageAppInstance = (index: number): ApplicationSpec => ({
+  id: `node-app-${index}`,
+  name: `node-app-${index}`,
+  port: 8080,
+  image: "kornkitti/express-hello-world:latest",
+  exposeDomain: true,
+  envVars: [
+    { key: "DB_HOST", default: "${database.host}", secret: false },
+    { key: "DB_PORT", default: "5432", secret: false },
+    { key: "DB_USER", default: "postgres", secret: false },
+    { key: "DB_PASSWORD", default: "${database.POSTGRES_PASSWORD}", secret: false },
+    { key: "DB_NAME", default: "app", secret: false },
+  ],
+});
+
 export const projectTemplates: ProjectTemplate[] = [
   {
     id: "laravel-postgres",
@@ -183,6 +200,12 @@ export const projectTemplates: ProjectTemplate[] = [
     projectName: "Node.js + Postgres (stress test)",
     description: "Deploys many identical Node.js instances against one shared Postgres, to load-test deployment throughput — not for everyday use.",
     apps: [postgresDb(), ...Array.from({ length: STRESS_TEST_APP_COUNT }, (_, i) => nodeAppInstance(i + 1))],
+  },
+  {
+    id: "node-image-postgres-stress-test",
+    projectName: "Node.js (image) + Postgres (stress test)",
+    description: "Deploys many identical Node.js instances, pulled from an image (no build step), against one shared Postgres — isolates deployment/orchestration load from build time. Not for everyday use.",
+    apps: [postgresDb(), ...Array.from({ length: STRESS_TEST_APP_COUNT }, (_, i) => nodeImageAppInstance(i + 1))],
   },
   {
     id: "n8n-postgres",
