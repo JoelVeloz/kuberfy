@@ -19,9 +19,11 @@ import { observability } from "./routes/observability";
 import { system } from "./routes/system";
 import { users } from "./routes/users";
 import { reconcileDeploymentStatuses, reconcileInterruptedDeployments } from "./services/deploy";
+import { unpublishKuberfyPanelPort } from "./services/proxy";
 
 await reconcileInterruptedDeployments();
 await ensureSettingsSeeded();
+await unpublishKuberfyPanelPort().catch((err) => console.error("Could not unpublish kuberfy's legacy :3000 port:", err instanceof Error ? err.message : err));
 setInterval(() => reconcileDeploymentStatuses().catch((err) => console.error("reconcileDeploymentStatuses failed:", err)), 30_000);
 
 const app = new Hono();

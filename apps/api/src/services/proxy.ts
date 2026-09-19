@@ -30,3 +30,17 @@ export async function applyKuberfyDomain(host: string) {
     Labels: labels,
   });
 }
+
+export async function unpublishKuberfyPanelPort() {
+  const service = docker.getService("kuberfy");
+  const info = await service.inspect();
+
+  const ports = (info.Spec.EndpointSpec?.Ports ?? []) as { TargetPort?: number }[];
+  if (!ports.some((p) => p.TargetPort === 3000)) return;
+
+  await service.update({
+    version: info.Version.Index,
+    ...info.Spec,
+    EndpointSpec: { ...info.Spec.EndpointSpec, Ports: ports.filter((p) => p.TargetPort !== 3000) },
+  });
+}
