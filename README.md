@@ -38,7 +38,7 @@ curl -sSL https://kuberfy.pages.dev/install.sh | sudo sh
 | CPU | 1 vCPU | 2+ vCPU |
 | RAM | 512 MB | 1 GB+ |
 | Disk | 5 GB SSD | 10 GB+ SSD |
-| Ports | `80`, `443` | `80`, `443`, `3000` (dashboard) |
+| Ports | `80`, `443` | `80`, `443` |
 
 Runtime footprint: **~23 MB** (API) + **~14 MB** (Traefik).
 

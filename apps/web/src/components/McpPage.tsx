@@ -136,7 +136,7 @@ function McpPageInner() {
   }
 
   const host = settings.data?.kuberfyDomain;
-  const mcpUrl = host ? `https://${host}/api/mcp` : `http://${settings.data?.serverIp ?? "<your-server-ip>"}:3000/api/mcp`;
+  const mcpUrl = host ? `https://${host}/api/mcp` : `http://${settings.data?.serverIp ?? "<your-server-ip>"}/api/mcp`;
   const bearerToken = token.data?.token ?? "";
   const command = `claude mcp add --transport http kuberfy ${mcpUrl} --header "Authorization: Bearer ${bearerToken}"`;
 

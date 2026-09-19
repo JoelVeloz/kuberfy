@@ -323,9 +323,6 @@ export const setting = sqliteTable("settings", {
   // the domain kuberfy's own dashboard is reached at — the source of truth from boot onward (routes/settings.ts);
   // saving here live-updates Traefik's Host() label on the kuberfy Swarm service, no restart needed
   kuberfyDomain: text("kuberfy_domain"),
-  // whether the panel is also reachable directly on :3000, bypassing Traefik/HTTPS entirely — off by default
-  // (install.sh no longer publishes it); toggling this live-updates the kuberfy Swarm service's published ports
-  exposePanelPort: integer("expose_panel_port", { mode: "boolean" }).notNull().default(false),
   // whether the login page offers "Sign in with passkey" — off by default until the admin registers one from Settings
   passkeyEnabled: integer("passkey_enabled", { mode: "boolean" }).notNull().default(false),
   // bearer token for the /api/mcp endpoint — remote MCP clients have no browser session to authenticate with,
@@ -336,6 +333,5 @@ export const setting = sqliteTable("settings", {
 
 export const apiUpdateSetting = z.object({
   kuberfyDomain: z.string().min(1).optional(),
-  exposePanelPort: z.boolean().optional(),
   passkeyEnabled: z.boolean().optional(),
 });

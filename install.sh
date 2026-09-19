@@ -92,14 +92,9 @@ if [ -f /.dockerenv ]; then
   fail "This script must run on the host system, not inside a Docker container."
 fi
 
-# Automatically open firewall ports in iptables/ufw if present. 3000 (the panel's direct, bypasses-Traefik
-# access) is pre-authorized here but NOT published by Docker below — off by default, toggled from the dashboard's
-# Settings page (which controls the real exposure by publishing/unpublishing it on the Swarm service), so having
-# the firewall rule ready ahead of time doesn't expose anything until that toggle is turned on.
 if command_exists iptables; then
   iptables -I INPUT -p tcp --dport 80 -j ACCEPT 2>/dev/null || true
   iptables -I INPUT -p tcp --dport 443 -j ACCEPT 2>/dev/null || true
-  iptables -I INPUT -p tcp --dport 3000 -j ACCEPT 2>/dev/null || true
   # Docker Swarm's own cluster-management ports — only needed for communication between multiple nodes, which
   # this single-node install never has. Blocked explicitly since `docker swarm init` below listens on all
   # interfaces by default, regardless of whether anything else ever gets published on these ports.
@@ -111,14 +106,13 @@ fi
 if command_exists ufw && ufw status 2>/dev/null | grep -q "Status: active"; then
   ufw allow 80/tcp >/dev/null 2>&1 || true
   ufw allow 443/tcp >/dev/null 2>&1 || true
-  ufw allow 3000/tcp >/dev/null 2>&1 || true
   ufw deny 2377/tcp >/dev/null 2>&1 || true
   ufw deny 7946/tcp >/dev/null 2>&1 || true
   ufw deny 7946/udp >/dev/null 2>&1 || true
   ufw deny 4789/udp >/dev/null 2>&1 || true
 fi
 
-for port in 80 443 3000; do
+for port in 80 443; do
   if ss -tulnp | grep ":${port} " >/dev/null 2>&1; then
     if command_exists docker && docker ps 2>/dev/null | grep -E "(kuberfy|traefik)" >/dev/null; then
       fail "Kuberfy is already installed and running (Port ${port} in use). To update, run 'kuberfy update'. To uninstall first, run 'sudo kuberfy uninstall'."
@@ -362,8 +356,6 @@ EOF
 chmod +x /usr/local/bin/kuberfy
 success "Host CLI installed to /usr/local/bin/kuberfy."
 
-# Traefik (not the panel's own :3000, which is no longer published by default — see the firewall step above and
-# the Settings page's "Exposed ports" toggle) fronts the panel on 80/443 either way.
 target_url="http://${server_host}"
 
 if [ -t 1 ] || [ -e /dev/tty ]; then

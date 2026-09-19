@@ -1,0 +1,1 @@
+ALTER TABLE `settings` DROP COLUMN `expose_panel_port`;

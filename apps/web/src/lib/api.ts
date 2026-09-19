@@ -178,7 +178,6 @@ export interface ApiUserDetail {
 export interface ApiSettings {
   id: string | null;
   kuberfyDomain: string | null;
-  exposePanelPort: boolean;
   passkeyEnabled: boolean;
   serverIp: string | null;
   // only set on a PATCH response — non-null means the DB saved but the live Traefik/port update didn't apply
@@ -189,7 +188,8 @@ export interface ApiSettings {
 export interface ApiExposedPort {
   port: number;
   protocol: string;
-  container: string;
+  service: string;
+  source: "docker" | "host";
 }
 
 export interface ApiMarketplaceTemplateEnvVar {
@@ -398,12 +398,6 @@ export const api = {
   updateKuberfy: () => request<{ ok: true }>("/api/system/update", { method: "POST" }),
   restartInfraContainer: (id: string) => request<{ ok: true }>(`/api/system/infra/${id}/restart`, { method: "POST" }),
   listExposedPorts: () => request<{ ports: ApiExposedPort[] }>("/api/settings/ports"),
-  updatePanelPortExposure: (exposePanelPort: boolean) =>
-    request<ApiSettings>("/api/settings", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ exposePanelPort }),
-    }),
   // pre-auth — the login page checks this to decide whether to show the passkey button at all
   getPasskeyEnabled: () => request<{ enabled: boolean }>("/api/settings/passkey-enabled"),
   updatePasskeyEnabled: (passkeyEnabled: boolean) =>

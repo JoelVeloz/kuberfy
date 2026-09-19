@@ -7,8 +7,9 @@ import { env } from "../lib/env";
 import { suggestKuberfyDomainHost } from "../lib/auto-domain";
 import { requireAuth } from "../lib/auth-middleware";
 import { setCachedKuberfyDomain } from "../lib/settings-cache";
-import { applyKuberfyDomain, applyKuberfyPanelPortExposure } from "../services/proxy";
+import { applyKuberfyDomain } from "../services/proxy";
 import { docker } from "../services/deploy";
+import { readListeningPorts, resolveProcessNames } from "../services/host-ports";
 import { getOrCreateMcpToken } from "./mcp";
 
 export const settings = new Hono();
@@ -33,7 +34,7 @@ settings.get("/", async (c) => {
   // install.sh detects this once at setup and passes it through as an env var — it never changes afterward,
   // so it's not part of the settings row itself, just surfaced alongside it for reference (e.g. an IP-only install).
   const serverIp = env.SERVER_PUBLIC_IP ?? null;
-  return c.json({ ...(existing ?? { id: null, kuberfyDomain: null, exposePanelPort: false }), serverIp });
+  return c.json({ ...(existing ?? { id: null, kuberfyDomain: null }), serverIp });
 });
 
 settings.get("/suggest-domain", (c) => c.json({ host: suggestKuberfyDomainHost() }));
@@ -42,29 +43,29 @@ settings.get("/suggest-domain", (c) => c.json({ host: suggestKuberfyDomainHost()
 // separate "generate" step.
 settings.get("/mcp-token", async (c) => c.json({ token: await getOrCreateMcpToken() }));
 
-// Live snapshot of every host port actually published by Docker right now (Traefik's container, plus kuberfy's
-// own :3000 when toggled on) — read straight from the Docker API instead of a hand-maintained list, so it never
-// drifts from reality. Ports opened at the OS level outside Docker's own networking (Swarm's manager ports,
-// SSH, ...) aren't visible this way — the container only sees Docker's state, not the host's raw socket table.
 settings.get("/ports", async (c) => {
-  const containers = await docker.listContainers();
-  const seen = new Set<string>();
-  const ports = containers
-    .flatMap((container) =>
-      container.Ports.filter((p) => p.PublicPort).map((p) => ({
-        port: p.PublicPort as number,
+  const [containers, listening] = await Promise.all([docker.listContainers(), readListeningPorts()]);
+  const byKey = new Map<string, { port: number; protocol: string; service: string; source: "docker" | "host" }>();
+
+  for (const container of containers) {
+    for (const p of container.Ports) {
+      if (!p.PublicPort) continue;
+      byKey.set(`${p.PublicPort}/${p.Type}`, {
+        port: p.PublicPort,
         protocol: p.Type,
-        container: (container.Names[0] ?? container.Image).replace(/^\//, ""),
-      })),
-    )
-    .filter((p) => {
-      const key = `${p.port}/${p.protocol}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
-    .sort((a, b) => a.port - b.port);
-  return c.json({ ports });
+        service: (container.Names[0] ?? container.Image).replace(/^\//, ""),
+        source: "docker",
+      });
+    }
+  }
+
+  const hostOnly = listening.filter((l) => !byKey.has(`${l.port}/${l.protocol}`));
+  const names = await resolveProcessNames(new Set(hostOnly.map((l) => l.inode)));
+  for (const l of hostOnly) {
+    byKey.set(`${l.port}/${l.protocol}`, { port: l.port, protocol: l.protocol, service: names.get(l.inode) ?? "unknown", source: "host" });
+  }
+
+  return c.json({ ports: [...byKey.values()].sort((a, b) => a.port - b.port) });
 });
 
 settings.patch("/", zValidator("json", apiUpdateSetting), async (c) => {
@@ -93,14 +94,5 @@ settings.patch("/", zValidator("json", apiUpdateSetting), async (c) => {
       console.error("Could not update kuberfy's Traefik route:", err instanceof Error ? err.message : err);
     }
   }
-  if (input.exposePanelPort !== undefined) {
-    try {
-      await applyKuberfyPanelPortExposure(input.exposePanelPort);
-    } catch (err) {
-      liveUpdateError = "Not running under Docker Swarm — the setting was saved, but the live port wasn't updated automatically.";
-      console.error("Could not update kuberfy's published ports:", err instanceof Error ? err.message : err);
-    }
-  }
-
   return c.json({ ...updated, liveUpdateError });
 });

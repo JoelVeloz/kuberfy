@@ -30,21 +30,3 @@ export async function applyKuberfyDomain(host: string) {
     Labels: labels,
   });
 }
-
-// The panel is reachable through Traefik (443/80) via whatever domain is currently set — this direct :3000
-// publish exists only as a bypass for emergencies (e.g. Traefik itself is broken) and is off by default
-// (install.sh no longer publishes it). Toggling it updates the Swarm service's published ports directly, so it
-// takes effect immediately with no restart — same mechanism as applyKuberfyDomain above.
-export async function applyKuberfyPanelPortExposure(expose: boolean) {
-  const service = docker.getService("kuberfy");
-  const info = await service.inspect();
-
-  const otherPorts = (info.Spec.EndpointSpec?.Ports ?? []).filter((p: { TargetPort?: number }) => p.TargetPort !== 3000);
-  const ports = expose ? [...otherPorts, { Protocol: "tcp", TargetPort: 3000, PublishedPort: 3000, PublishMode: "host" }] : otherPorts;
-
-  await service.update({
-    version: info.Version.Index,
-    ...info.Spec,
-    EndpointSpec: { ...info.Spec.EndpointSpec, Ports: ports },
-  });
-}

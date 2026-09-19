@@ -169,6 +169,13 @@
       "when": 1789589540525,
       "tag": "0023_flimsy_lethal_legion",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1789788329845,
+      "tag": "0024_groovy_songbird",
+      "breakpoints": true
     }
   ]
 }

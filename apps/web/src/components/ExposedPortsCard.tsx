@@ -1,38 +1,21 @@
-import * as React from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { createColumnHelper } from "@tanstack/react-table";
-import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
 import { QueryProvider } from "@/components/QueryProvider";
-import { api } from "@/lib/api";
-import { toastError } from "@/lib/toast";
+import { api, type ApiExposedPort } from "@/lib/api";
 
-const HOST_LEVEL_PORTS = [
-  { key: "22/tcp", label: "22/tcp", service: "SSH", note: "Not managed by kuberfy" },
-  { key: "2377/tcp", label: "2377/tcp", service: "Docker Swarm", note: "Blocked by firewall" },
-  { key: "7946/tcp", label: "7946/tcp", service: "Docker Swarm", note: "Blocked by firewall" },
-  { key: "7946/udp", label: "7946/udp", service: "Docker Swarm", note: "Blocked by firewall" },
-  { key: "4789/udp", label: "4789/udp", service: "Docker Swarm", note: "Blocked by firewall" },
-];
-
-interface PortRow {
-  key: string;
-  port: React.ReactNode;
-  service: React.ReactNode;
-  access: React.ReactNode;
-}
-
-const columnHelper = createColumnHelper<PortRow>();
+const columnHelper = createColumnHelper<ApiExposedPort>();
 const columns = [
-  columnHelper.accessor("port", { header: "Port", cell: (info) => info.getValue(), meta: { className: "font-mono" } }),
-  columnHelper.accessor("service", { header: "Service", cell: (info) => info.getValue() }),
-  columnHelper.accessor("access", { header: "Access", cell: (info) => info.getValue(), meta: { headerClassName: "text-right", className: "text-right" } }),
+  columnHelper.accessor((row) => `${row.port}/${row.protocol}`, { id: "port", header: "Port", meta: { className: "font-mono" } }),
+  columnHelper.accessor("service", { header: "Service" }),
+  columnHelper.accessor("source", {
+    header: "Source",
+    cell: (info) => <Badge variant="outline">{info.getValue() === "docker" ? "Docker" : "Host"}</Badge>,
+    meta: { headerClassName: "text-right", className: "text-right" },
+  }),
 ];
 
 export function ExposedPortsCard() {
@@ -44,23 +27,9 @@ export function ExposedPortsCard() {
 }
 
 function ExposedPortsCardInner() {
-  const [confirmOpen, setConfirmOpen] = React.useState(false);
-  const queryClient = useQueryClient();
-  const settings = useQuery({ queryKey: ["settings"], queryFn: api.getSettings });
   const ports = useQuery({ queryKey: ["exposed-ports"], queryFn: api.listExposedPorts, refetchInterval: 15_000 });
 
-  const togglePanelPort = useMutation({
-    mutationFn: (expose: boolean) => api.updatePanelPortExposure(expose),
-    onSuccess: (data, expose) => {
-      if (data.liveUpdateError) toast.warning(data.liveUpdateError);
-      else toast.success(expose ? "Panel is now reachable directly on :3000." : "Direct :3000 access disabled.");
-      queryClient.invalidateQueries({ queryKey: ["settings"] });
-      queryClient.invalidateQueries({ queryKey: ["exposed-ports"] });
-    },
-    onError: (err) => toastError(err, "Failed to update port exposure."),
-  });
-
-  if (settings.isPending || ports.isPending) {
+  if (ports.isPending) {
     return (
       <Card>
         <CardContent className="flex flex-col gap-3">
@@ -71,93 +40,16 @@ function ExposedPortsCardInner() {
     );
   }
 
-  const livePorts = ports.data?.ports ?? [];
-  const panelExposed = livePorts.some((p) => p.port === 3000);
-  const otherPorts = livePorts.filter((p) => p.port !== 3000);
-
-  const domain = settings.data?.kuberfyDomain;
-  const isLocalDomain = !domain || domain === "localhost" || domain.endsWith(".localhost");
-  const domainUrl = domain ? `${isLocalDomain ? "http" : "https"}://${domain}` : null;
-
-  const rows: PortRow[] = [
-    ...otherPorts.map((p) => ({
-      key: `${p.port}/${p.protocol}`,
-      port: (
-        <>
-          {p.port}/{p.protocol}
-        </>
-      ),
-      service: p.container,
-      access: <Badge variant="outline">Always on</Badge>,
-    })),
-    {
-      key: "3000/tcp",
-      port: "3000/tcp",
-      service: "kuberfy panel (direct, bypasses HTTPS)",
-      access: <Switch checked={panelExposed} disabled={togglePanelPort.isPending} onCheckedChange={handleToggle} />,
-    },
-    ...HOST_LEVEL_PORTS.map((p) => ({
-      key: p.key,
-      port: <span className="text-muted-foreground">{p.label}</span>,
-      service: (
-        <>
-          <div>{p.service}</div>
-          <div className="text-xs text-muted-foreground">{p.note}</div>
-        </>
-      ),
-      access: (
-        <Badge variant="outline" className="text-muted-foreground">
-          {p.service === "SSH" ? "Not monitored" : "Blocked"}
-        </Badge>
-      ),
-    })),
-  ];
-
-  function handleToggle(next: boolean) {
-    if (next) {
-      togglePanelPort.mutate(true);
-      return;
-    }
-    if (!domain) {
-      toast.error("Set a domain first. Disabling this without one would lock you out.");
-      return;
-    }
-    setConfirmOpen(true);
-  }
-
   return (
     <Card>
       <CardContent className="flex flex-col gap-4">
         <div>
           <h2 className="text-sm font-medium">Exposed ports</h2>
-          <p className="text-xs text-muted-foreground">All open ports on this server.</p>
+          <p className="text-xs text-muted-foreground">Ports listening on this server, read live. The firewall isn't inspected.</p>
         </div>
 
-        <DataTable columns={columns} data={rows} getRowId={(r) => r.key} />
+        <DataTable columns={columns} data={ports.data?.ports ?? []} getRowId={(r) => `${r.port}/${r.protocol}`} />
       </CardContent>
-
-      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Disable direct access?</DialogTitle>
-            <DialogDescription>
-              Confirm you can already reach the panel at{" "}
-              <a href={domainUrl ?? undefined} target="_blank" rel="noreferrer" className="font-mono text-foreground underline">
-                {domainUrl}
-              </a>{" "}
-              Otherwise you'll lose access until you SSH in and re-enable :3000.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
-            </DialogClose>
-            <Button variant="destructive" disabled={togglePanelPort.isPending} onClick={() => togglePanelPort.mutate(false, { onSuccess: () => setConfirmOpen(false) })}>
-              {togglePanelPort.isPending ? "Disabling…" : "Yes, disable"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </Card>
   );
 }

@@ -61,15 +61,15 @@ vm_ip=$(multipass info "$VM_NAME" | awk '/IPv4/{print $2; exit}')
 
 [ -n "$vm_ip" ] || { echo "Could not determine VM IP" >&2; exit 1; }
 
-echo "==> Smoke-testing http://$vm_ip:3000/api/health"
+echo "==> Smoke-testing http://$vm_ip/api/health"
 for _ in $(seq 1 15); do
-  if curl -sf "http://$vm_ip:3000/api/health" >/dev/null; then
-    echo "PASS: kuberfy is up at http://$vm_ip:3000"
+  if curl -sf "http://$vm_ip/api/health" >/dev/null; then
+    echo "PASS: kuberfy is up at http://$vm_ip"
     exit 0
   fi
   sleep 2
 done
 
-echo "FAIL: kuberfy never responded at http://$vm_ip:3000/api/health" >&2
+echo "FAIL: kuberfy never responded at http://$vm_ip/api/health" >&2
 echo "Inspect with: KEEP=1 bash scripts/test-install-vm.sh" >&2
 exit 1
