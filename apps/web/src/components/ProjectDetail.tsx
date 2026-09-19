@@ -116,7 +116,7 @@ function BulkDeleteDialog({ projectId, selected, names, onDeleted }: { projectId
         {names.length > 0 && (
           <ul className="flex max-h-40 flex-col gap-0.5 overflow-y-auto border border-border bg-muted px-3 py-2 font-mono text-xs">
             {names.map((name, i) => (
-              <li key={i} className="truncate">
+              <li key={i} className="shrink-0 truncate">
                 {name}
               </li>
             ))}
