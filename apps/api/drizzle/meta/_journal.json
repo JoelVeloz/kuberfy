@@ -183,6 +183,13 @@
       "when": 1789836798493,
       "tag": "0025_shocking_boomerang",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1789837792435,
+      "tag": "0026_tiresome_morlocks",
+      "breakpoints": true
     }
   ]
 }

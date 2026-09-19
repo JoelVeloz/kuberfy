@@ -45,6 +45,8 @@ settings.get("/", async (c) => {
 
 settings.get("/suggest-domain", (c) => c.json({ host: suggestKuberfyDomainHost() }));
 
+settings.get("/client-ip", (c) => c.json({ ip: c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || c.req.header("x-real-ip") || null }));
+
 // Generates the /api/mcp bearer token on first read, so the MCP setup page always has one to show without a
 // separate "generate" step.
 settings.get("/mcp-token", async (c) => c.json({ token: await getOrCreateMcpToken() }));

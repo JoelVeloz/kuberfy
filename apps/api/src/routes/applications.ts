@@ -1,16 +1,18 @@
 import { Writable } from "node:stream";
 import { zValidator } from "@hono/zod-validator";
 import { StatusCodes } from "http-status-codes";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 import { Hono } from "hono";
 import { upgradeWebSocket } from "hono/bun";
 import { HTTPException } from "hono/http-exception";
+import { z } from "zod";
 import { db } from "../db";
 import { apiCreateApplication, apiUpdateApplication, application, deployment } from "../db/schema/app";
 import { requireAuth } from "../lib/auth-middleware";
 import { paginationOffset, paginationQuery } from "../lib/pagination";
 import {
   activeBuildLogs,
+  applyApplicationDomains,
   buildLogEvents,
   deleteApplication,
   docker,
@@ -86,6 +88,45 @@ applications.delete("/:id", async (c) => {
   const deleted = await deleteApplication(c.req.param("id"), c.req.query("deleteVolumes") === "true");
   if (!deleted) throw new HTTPException(StatusCodes.NOT_FOUND, { message: "Application not found" });
   return c.json(deleted);
+});
+
+const POSTGRES_IMAGES = ["postgres", "postgis", "pgvector", "timescaledb"];
+
+function isPostgresImage(ref: string) {
+  return POSTGRES_IMAGES.includes(ref.split("@")[0]!.split("/").pop()!.split(":")[0]!);
+}
+
+const remoteAccessInput = z.object({
+  host: z.hostname().transform((host) => host.toLowerCase()),
+  allowlist: z.array(z.union([z.ipv4(), z.ipv6(), z.cidrv4(), z.cidrv6()])).min(1),
+});
+
+applications.put("/:id/remote-access", zValidator("json", remoteAccessInput), async (c) => {
+  const id = c.req.param("id");
+  const { host, allowlist } = c.req.valid("json");
+  const app = await db.query.application.findFirst({ where: eq(application.id, id) });
+  if (!app) throw new HTTPException(StatusCodes.NOT_FOUND, { message: "Application not found" });
+  if (app.buildType !== "image" || !isPostgresImage(app.repoUrl)) {
+    throw new HTTPException(StatusCodes.BAD_REQUEST, { message: "Remote access is only available for PostgreSQL databases." });
+  }
+  const taken = await db.query.application.findFirst({ where: and(eq(application.remoteAccessHost, host), ne(application.id, id)), columns: { id: true } });
+  if (taken) throw new HTTPException(StatusCodes.CONFLICT, { message: "Another database already uses this host." });
+
+  const [updated] = await db
+    .update(application)
+    .set({ remoteAccessHost: host, remoteAccessAllowlist: allowlist.join(","), updatedAt: new Date() })
+    .where(eq(application.id, id))
+    .returning();
+  await applyApplicationDomains(id);
+  return c.json(omitRegistryPassword(updated!));
+});
+
+applications.delete("/:id/remote-access", async (c) => {
+  const id = c.req.param("id");
+  const [updated] = await db.update(application).set({ remoteAccessHost: null, remoteAccessAllowlist: null, updatedAt: new Date() }).where(eq(application.id, id)).returning();
+  if (!updated) throw new HTTPException(StatusCodes.NOT_FOUND, { message: "Application not found" });
+  await applyApplicationDomains(id);
+  return c.json(omitRegistryPassword(updated));
 });
 
 applications.post("/:id/deploy", async (c) => {
@@ -191,10 +232,7 @@ applications.get(
         }
 
         const container = docker.getContainer(containerId);
-        const [info, logStream] = await Promise.all([
-          container.inspect(),
-          container.logs({ follow, stdout: true, stderr: true, tail: 200 }) as unknown as Promise<LogStream>,
-        ]);
+        const [info, logStream] = await Promise.all([container.inspect(), container.logs({ follow, stdout: true, stderr: true, tail: 200 }) as unknown as Promise<LogStream>]);
         stream = logStream;
         if (info.Config.Tty) {
           logStream.on("data", (chunk) => ws.send(chunk.toString("utf-8")));

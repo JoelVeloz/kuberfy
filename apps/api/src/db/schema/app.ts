@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { index, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 import { defaultAppSize } from "../../lib/app-sizes";
 import { users as user } from "./auth";
@@ -74,11 +74,13 @@ export const application = sqliteTable(
     // hard cap passed to Docker as HostConfig.Memory — keeps one runaway service from starving the host
     memoryLimitMb: integer("memory_limit_mb").notNull().default(defaultAppSize.memoryLimitMb),
     cpuLimit: real("cpu_limit").notNull().default(defaultAppSize.cpuLimit),
+    remoteAccessHost: text("remote_access_host"),
+    remoteAccessAllowlist: text("remote_access_allowlist"),
     ...timestamps,
   },
   // SQLite doesn't index foreign keys on its own — every "this project's applications" lookup (the projects
   // list, the reconcile loop, statsTick) filters on this column, so without it each one is a full table scan.
-  (table) => [index("applications_project_id_idx").on(table.projectId)],
+  (table) => [index("applications_project_id_idx").on(table.projectId), uniqueIndex("applications_remote_access_host_idx").on(table.remoteAccessHost)],
 );
 
 export const applicationRelations = relations(application, ({ one, many }) => ({

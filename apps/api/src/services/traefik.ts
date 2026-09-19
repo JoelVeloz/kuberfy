@@ -3,7 +3,9 @@ import { docker } from "./deploy";
 const TRAEFIK = "kuberfy-traefik";
 const DATABASE_PORT = "5432/tcp";
 const DYNAMIC_CONFIG_PATH = "etc/kuberfy/traefik.yml";
-const DATABASE_ARGS = ["--entrypoints.postgres.address=:5432", `--providers.file.filename=/${DYNAMIC_CONFIG_PATH}`];
+export const POSTGRES_ENTRYPOINT = "postgres";
+export const POSTGRES_TLS_OPTIONS = "postgres@file";
+const DATABASE_ARGS = [`--entrypoints.${POSTGRES_ENTRYPOINT}.address=:5432`, `--providers.file.filename=/${DYNAMIC_CONFIG_PATH}`];
 const DYNAMIC_CONFIG = "tls:\n  options:\n    postgres:\n      alpnProtocols: [postgresql]\n";
 
 let queue: Promise<unknown> = Promise.resolve();

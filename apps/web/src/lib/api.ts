@@ -25,6 +25,8 @@ export interface ApiApplication {
   envVars: string | null;
   memoryLimitMb: number;
   cpuLimit: number;
+  remoteAccessHost: string | null;
+  remoteAccessAllowlist: string | null;
   // registryPassword is write-only — never sent back by the API
   registryUsername: string | null;
   createdAt: string;
@@ -406,6 +408,14 @@ export const api = {
   updateKuberfy: () => request<{ ok: true }>("/api/system/update", { method: "POST" }),
   restartInfraContainer: (id: string) => request<{ ok: true }>(`/api/system/infra/${id}/restart`, { method: "POST" }),
   listExposedPorts: () => request<{ ports: ApiExposedPort[] }>("/api/settings/ports"),
+  getClientIp: () => request<{ ip: string | null }>("/api/settings/client-ip"),
+  enableRemoteAccess: (id: string, host: string, allowlist: string[]) =>
+    request<ApiApplication>(`/api/applications/${id}/remote-access`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ host, allowlist }),
+    }),
+  disableRemoteAccess: (id: string) => request<ApiApplication>(`/api/applications/${id}/remote-access`, { method: "DELETE" }),
   // pre-auth — the login page checks this to decide whether to show the passkey button at all
   getPasskeyEnabled: () => request<{ enabled: boolean }>("/api/settings/passkey-enabled"),
   updatePasskeyEnabled: (passkeyEnabled: boolean) =>

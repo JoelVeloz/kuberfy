@@ -7,6 +7,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import simpleGit from "simple-git";
 import { db } from "../db";
 import { application, deployment, domain, volume } from "../db/schema/app";
+import { POSTGRES_ENTRYPOINT, POSTGRES_TLS_OPTIONS } from "./traefik";
 
 export const docker = new Docker();
 // Deployed apps get their own network, separate from kuberfy-network (where kuberfy's own dashboard/API and its
@@ -73,9 +74,7 @@ export async function reconcileDeploymentStatuses() {
   // One query with a per-app latest-deployment join, not one query per app — this runs every 30s regardless
   // of whether anyone's looking, so it used to mean 1 + (app count) DB round trips on a timer, forever.
   const apps = await db.query.application.findMany({ with: { deployments: { orderBy: desc(deployment.createdAt), limit: 1 } } });
-  const rows = apps
-    .map((a) => a.deployments[0])
-    .filter((d): d is NonNullable<typeof d> => d !== undefined && ["failed", "building", "running"].includes(d.status));
+  const rows = apps.map((a) => a.deployments[0]).filter((d): d is NonNullable<typeof d> => d !== undefined && ["failed", "building", "running"].includes(d.status));
   for (const dep of rows) {
     if (dep.status === "building" && Date.now() - dep.updatedAt.getTime() < STALE_BUILDING_MS) continue;
 
@@ -121,13 +120,16 @@ function finishBuildLog(deploymentId: string) {
   buildLogEvents.emit("done", deploymentId);
 }
 
-export function buildDomainLabels(applicationId: string, domains: (typeof domain.$inferSelect)[]): Record<string, string> {
-  const labels: Record<string, string> = { "kuberfy.application": applicationId };
-  if (domains.length === 0) return labels;
+type RoutedApplication = Pick<typeof application.$inferSelect, "id" | "remoteAccessHost" | "remoteAccessAllowlist">;
+
+export function buildDomainLabels(app: RoutedApplication, domains: (typeof domain.$inferSelect)[]): Record<string, string> {
+  const labels: Record<string, string> = { "kuberfy.application": app.id };
+  if (domains.length === 0 && !app.remoteAccessHost) return labels;
 
   labels["traefik.enable"] = "true";
+  if (app.remoteAccessHost) Object.assign(labels, remoteAccessLabels(app.id, app.remoteAccessHost, app.remoteAccessAllowlist));
   for (const d of domains) {
-    const routerName = `${applicationId}-${d.id}`;
+    const routerName = `${app.id}-${d.id}`;
     const isLocalhost = d.host === "localhost" || d.host.endsWith(".localhost");
     const tlsRouter = d.sslEnabled && !isLocalhost;
     labels[`traefik.http.routers.${routerName}.rule`] = `Host(\`${d.host}\`)`;
@@ -145,6 +147,23 @@ export function buildDomainLabels(applicationId: string, domains: (typeof domain
   return labels;
 }
 
+function remoteAccessLabels(applicationId: string, host: string, allowlist: string | null): Record<string, string> {
+  const router = `${applicationId}-db`;
+  const labels: Record<string, string> = {
+    [`traefik.tcp.routers.${router}.rule`]: `HostSNI(\`${host}\`)`,
+    [`traefik.tcp.routers.${router}.entrypoints`]: POSTGRES_ENTRYPOINT,
+    [`traefik.tcp.routers.${router}.service`]: router,
+    [`traefik.tcp.routers.${router}.tls.certresolver`]: "le",
+    [`traefik.tcp.routers.${router}.tls.options`]: POSTGRES_TLS_OPTIONS,
+    [`traefik.tcp.services.${router}.loadbalancer.server.port`]: "5432",
+  };
+  if (allowlist) {
+    labels[`traefik.tcp.middlewares.${router}-allow.ipallowlist.sourcerange`] = allowlist;
+    labels[`traefik.tcp.routers.${router}.middlewares`] = `${router}-allow`;
+  }
+  return labels;
+}
+
 export async function applyApplicationDomains(applicationId: string) {
   const service = docker.getService(`kuberfy-${applicationId}`);
   let info: Awaited<ReturnType<typeof service.inspect>>;
@@ -153,8 +172,10 @@ export async function applyApplicationDomains(applicationId: string) {
   } catch {
     return;
   }
+  const app = await db.query.application.findFirst({ where: eq(application.id, applicationId), columns: { id: true, remoteAccessHost: true, remoteAccessAllowlist: true } });
+  if (!app) return;
   const domains = await db.query.domain.findMany({ where: eq(domain.applicationId, applicationId) });
-  const labels = buildDomainLabels(applicationId, domains);
+  const labels = buildDomainLabels(app, domains);
   await service.update({ version: info.Version.Index, ...info.Spec, Labels: labels });
 }
 
@@ -179,7 +200,7 @@ async function deploy(app: typeof application.$inferSelect, deploymentId: string
   await removeExisting(serviceName);
 
   const domains = await db.query.domain.findMany({ where: eq(domain.applicationId, app.id) });
-  const labels = buildDomainLabels(app.id, domains);
+  const labels = buildDomainLabels(app, domains);
   for (const d of domains) {
     const isLocalhost = d.host === "localhost" || d.host.endsWith(".localhost");
     log(`Routing ${d.host} → internal port ${d.port} via Traefik${d.sslEnabled && !isLocalhost ? " (HTTP + HTTPS via Let's Encrypt)" : ""}`);

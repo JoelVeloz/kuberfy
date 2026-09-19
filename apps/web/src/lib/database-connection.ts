@@ -15,6 +15,7 @@ interface Engine {
   port: number;
   envName: string;
   initOnlyCredentials: boolean;
+  publicQuery?: string;
   credentials: (env: Env, image: string) => Credentials;
   query?: (credentials: Credentials) => string;
 }
@@ -34,6 +35,7 @@ const ENGINES: Engine[] = [
     port: 5432,
     envName: "DATABASE_URL",
     initOnlyCredentials: true,
+    publicQuery: "sslmode=verify-full&sslrootcert=system",
     credentials: (env) => {
       const user = env.POSTGRES_USER || "postgres";
       return { user, password: env.POSTGRES_PASSWORD, database: env.POSTGRES_DB || user };
@@ -71,7 +73,7 @@ export interface DatabaseConnection {
   port: number;
   credentials: Credentials;
   initOnlyCredentials: boolean;
-  url: (revealPassword: boolean) => string;
+  url: (revealPassword: boolean, publicHost?: string) => string;
 }
 
 function imageName(ref: string) {
@@ -98,12 +100,13 @@ export function databaseConnection(app: Pick<ApiApplication, "id" | "buildType" 
     port: engine.port,
     credentials,
     initOnlyCredentials: engine.initOnlyCredentials,
-    url: (revealPassword) => {
+    url: (revealPassword, publicHost) => {
       const { user, password, database } = credentials;
       const secret = password ? `:${revealPassword ? encodeURIComponent(password) : MASKED_PASSWORD}` : "";
       const auth = user || password ? `${encodeURIComponent(user ?? "")}${secret}@` : "";
-      const path = database ? `/${encodeURIComponent(database)}` : query ? "/" : "";
-      return `${engine.scheme}://${auth}${host}:${engine.port}${path}${query ? `?${query}` : ""}`;
+      const params = [query, publicHost ? (engine.publicQuery ?? "") : ""].filter(Boolean).join("&");
+      const path = database ? `/${encodeURIComponent(database)}` : params ? "/" : "";
+      return `${engine.scheme}://${auth}${publicHost ?? host}:${engine.port}${path}${params ? `?${params}` : ""}`;
     },
   };
 }
