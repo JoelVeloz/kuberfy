@@ -11,18 +11,30 @@ import { toast } from "sonner";
 import { api, type ApiDomain } from "@/lib/api";
 import { toastError } from "@/lib/toast";
 
-export function AddDomainDialog({ applicationId }: { applicationId: string }) {
+const DATABASE_PORT = 5432;
+
+function parseAllowlist(value: string) {
+  return value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+export function AddDomainDialog({ applicationId, isDatabase }: { applicationId: string; isDatabase: boolean }) {
   const [open, setOpen] = React.useState(false);
   const [host, setHost] = React.useState("");
   const [port, setPort] = React.useState("3000");
+  const [allowlist, setAllowlist] = React.useState("");
   const queryClient = useQueryClient();
 
   const add = useMutation({
-    mutationFn: () => api.createDomain(applicationId, host.trim(), Number(port)),
+    mutationFn: () =>
+      isDatabase ? api.createDomain(applicationId, host.trim(), DATABASE_PORT, parseAllowlist(allowlist)) : api.createDomain(applicationId, host.trim(), Number(port)),
     onSuccess: () => {
       toast.success("Domain added.");
       setHost("");
       setPort("3000");
+      setAllowlist("");
       setOpen(false);
       queryClient.invalidateQueries({ queryKey: ["application", applicationId] });
     },
@@ -34,10 +46,20 @@ export function AddDomainDialog({ applicationId }: { applicationId: string }) {
     onError: (err) => toastError(err, "Failed to generate a domain."),
   });
 
-  const canAdd = host.trim().length > 0 && Number.isInteger(Number(port)) && Number(port) > 0;
+  const canAdd = host.trim().length > 0 && (isDatabase ? parseAllowlist(allowlist).length > 0 : Number.isInteger(Number(port)) && Number(port) > 0);
+
+  function handleOpenChange(next: boolean) {
+    setOpen(next);
+    if (next && isDatabase && !allowlist) {
+      api
+        .getClientIp()
+        .then(({ ip }) => ip && setAllowlist((current) => current || ip))
+        .catch(() => {});
+    }
+  }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button size="sm" variant="outline">
           Add domain
@@ -46,27 +68,31 @@ export function AddDomainDialog({ applicationId }: { applicationId: string }) {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add domain</DialogTitle>
-          <DialogDescription>Traefik routes this host to the given port inside the container.</DialogDescription>
+          <DialogDescription>
+            {isDatabase
+              ? `Traefik accepts TLS connections for this host on port ${DATABASE_PORT}, only from the allowed IPs.`
+              : "Traefik routes this host to the given port inside the container."}
+          </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="domain-host">
-              Host
-            </Label>
+            <Label htmlFor="domain-host">Host</Label>
             <div className="flex gap-2">
               <Input id="domain-host" placeholder="app.example.com" value={host} onChange={(e) => setHost(e.target.value)} className="flex-1" />
               <Button type="button" variant="outline" size="sm" disabled={suggest.isPending} onClick={() => suggest.mutate()}>
                 <Sparkle /> {suggest.isPending ? "Generating…" : "Generate"}
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">Generates a free public domain with HTTPS.</p>
+            <p className="text-xs text-muted-foreground">Generates a free public domain with {isDatabase ? "a Let's Encrypt certificate" : "HTTPS"}.</p>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="domain-port">
-              Port
-            </Label>
-            <Input id="domain-port" type="number" min={1} placeholder="e.g. 3000" value={port} onChange={(e) => setPort(e.target.value)} />
-          </div>
+          {isDatabase ? (
+            <AllowlistField id="domain-allowlist" value={allowlist} onChange={setAllowlist} />
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="domain-port">Port</Label>
+              <Input id="domain-port" type="number" min={1} placeholder="e.g. 3000" value={port} onChange={(e) => setPort(e.target.value)} />
+            </div>
+          )}
         </div>
         <DialogFooter>
           <DialogClose asChild>
@@ -81,7 +107,17 @@ export function AddDomainDialog({ applicationId }: { applicationId: string }) {
   );
 }
 
-export function DomainsCard({ applicationId, domains }: { applicationId: string; domains: ApiDomain[] }) {
+function AllowlistField({ id, value, onChange }: { id: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id}>Allowed IPs</Label>
+      <Input id={id} placeholder="203.0.113.10, 198.51.100.0/24" value={value} onChange={(e) => onChange(e.target.value)} className="font-mono" />
+      <p className="text-xs text-muted-foreground">Comma-separated IPs or CIDR ranges. Everything else is refused before it reaches the database.</p>
+    </div>
+  );
+}
+
+export function DomainsCard({ applicationId, domains, isDatabase }: { applicationId: string; domains: ApiDomain[]; isDatabase: boolean }) {
   const queryClient = useQueryClient();
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["application", applicationId] });
 
@@ -109,6 +145,14 @@ export function DomainsCard({ applicationId, domains }: { applicationId: string;
     },
     onError: (err) => toastError(err, "Failed to update port."),
   });
+  const updateAllowlist = useMutation({
+    mutationFn: (vars: { id: string; allowlist: string[] }) => api.updateDomainAllowlist(vars.id, vars.allowlist),
+    onSuccess: () => {
+      toast.success("Allowed IPs updated.");
+      invalidate();
+    },
+    onError: (err) => toastError(err, "Failed to update allowed IPs."),
+  });
   const toggleSsl = useMutation({
     mutationFn: (vars: { id: string; sslEnabled: boolean }) => api.updateDomainSsl(vars.id, vars.sslEnabled),
     onSuccess: () => {
@@ -128,10 +172,12 @@ export function DomainsCard({ applicationId, domains }: { applicationId: string;
             <DomainRow
               key={domain.id}
               domain={domain}
+              isDatabase={isDatabase}
+              onSaveAllowlist={(allowlist) => updateAllowlist.mutate({ id: domain.id, allowlist })}
               onSetPrimary={() => setPrimary.mutate(domain.id)}
               onDelete={() => remove.mutate(domain.id)}
               onSavePort={(port) => updatePort.mutate({ id: domain.id, port })}
-              savingPort={updatePort.isPending && updatePort.variables?.id === domain.id}
+              savingPort={(updatePort.isPending && updatePort.variables?.id === domain.id) || (updateAllowlist.isPending && updateAllowlist.variables?.id === domain.id)}
               settingPrimary={setPrimary.isPending}
               onToggleSsl={(sslEnabled) => toggleSsl.mutate({ id: domain.id, sslEnabled })}
             />
@@ -144,6 +190,8 @@ export function DomainsCard({ applicationId, domains }: { applicationId: string;
 
 function DomainRow({
   domain,
+  isDatabase,
+  onSaveAllowlist,
   onSetPrimary,
   onDelete,
   onSavePort,
@@ -152,6 +200,8 @@ function DomainRow({
   onToggleSsl,
 }: {
   domain: ApiDomain;
+  isDatabase: boolean;
+  onSaveAllowlist: (allowlist: string[]) => void;
   onSetPrimary: () => void;
   onDelete: () => void;
   onSavePort: (port: number) => void;
@@ -164,25 +214,42 @@ function DomainRow({
   const isLocalhostHost = domain.host === "localhost" || domain.host.endsWith(".localhost");
 
   const [sslEnabled, setSslEnabled] = React.useState(domain.sslEnabled);
+  const [allowlist, setAllowlist] = React.useState(domain.allowlist ?? "");
+  const allowedIps = parseAllowlist(domain.allowlist ?? "");
 
   function handleSave() {
-    onSavePort(Number(port));
-    if (sslEnabled !== domain.sslEnabled) onToggleSsl(sslEnabled);
+    if (isDatabase) onSaveAllowlist(parseAllowlist(allowlist));
+    else {
+      onSavePort(Number(port));
+      if (sslEnabled !== domain.sslEnabled) onToggleSsl(sslEnabled);
+    }
     setEditOpen(false);
   }
+
+  const canSave = isDatabase ? parseAllowlist(allowlist).length > 0 : Number.isInteger(Number(port)) && Number(port) > 0;
 
   return (
     <li className="flex flex-col gap-1 border-b border-border pb-2 last:border-b-0 last:pb-0">
       <div className="flex items-center justify-between gap-2 text-xs">
-        <a href={`http://${domain.host}`} target="_blank" rel="noreferrer" className="flex min-w-0 items-center gap-1.5 truncate font-mono text-foreground hover:underline">
-          <span className="truncate">{domain.host}</span>
-          <ArrowSquareOut className="shrink-0 text-muted-foreground" />
-        </a>
+        {isDatabase ? (
+          <span className="min-w-0 truncate font-mono text-foreground">{domain.host}</span>
+        ) : (
+          <a href={`http://${domain.host}`} target="_blank" rel="noreferrer" className="flex min-w-0 items-center gap-1.5 truncate font-mono text-foreground hover:underline">
+            <span className="truncate">{domain.host}</span>
+            <ArrowSquareOut className="shrink-0 text-muted-foreground" />
+          </a>
+        )}
         <div className="flex shrink-0 items-center gap-2">
           <Badge variant="outline">:{domain.port}</Badge>
-          <Badge variant="outline" className="text-muted-foreground">
-            {isLocalhostHost || !domain.sslEnabled ? "No SSL" : "SSL"}
-          </Badge>
+          {isDatabase ? (
+            <Badge variant="outline" className="text-muted-foreground" title={allowedIps.join(", ")}>
+              {allowedIps.length === 1 ? allowedIps[0] : `${allowedIps.length} IPs`}
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-muted-foreground">
+              {isLocalhostHost || !domain.sslEnabled ? "No SSL" : "SSL"}
+            </Badge>
+          )}
           <Dialog
             open={editOpen}
             onOpenChange={(next) => {
@@ -190,6 +257,7 @@ function DomainRow({
               if (next) {
                 setPort(String(domain.port));
                 setSslEnabled(domain.sslEnabled);
+                setAllowlist(domain.allowlist ?? "");
               }
             }}
           >
@@ -205,23 +273,27 @@ function DomainRow({
                   Settings for <span className="font-mono text-foreground">{domain.host}</span>.
                 </DialogDescription>
               </DialogHeader>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor={`domain-port-${domain.id}`}>Port</Label>
-                <Input id={`domain-port-${domain.id}`} type="number" min={1} value={port} onChange={(e) => setPort(e.target.value)} />
-                <p className="text-xs text-muted-foreground">Internal port this domain routes to inside the container.</p>
-              </div>
-              <Label className="justify-between font-medium">
-                SSL (HTTPS via Let's Encrypt)
-                <Switch checked={isLocalhostHost ? false : sslEnabled} disabled={isLocalhostHost} onCheckedChange={setSslEnabled} />
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                {isLocalhostHost ? "`.localhost` domains can't get SSL." : "Provisioned automatically."}
-              </p>
+              {isDatabase ? (
+                <AllowlistField id={`domain-allowlist-${domain.id}`} value={allowlist} onChange={setAllowlist} />
+              ) : (
+                <>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor={`domain-port-${domain.id}`}>Port</Label>
+                    <Input id={`domain-port-${domain.id}`} type="number" min={1} value={port} onChange={(e) => setPort(e.target.value)} />
+                    <p className="text-xs text-muted-foreground">Internal port this domain routes to inside the container.</p>
+                  </div>
+                  <Label className="justify-between font-medium">
+                    SSL (HTTPS via Let's Encrypt)
+                    <Switch checked={isLocalhostHost ? false : sslEnabled} disabled={isLocalhostHost} onCheckedChange={setSslEnabled} />
+                  </Label>
+                  <p className="text-xs text-muted-foreground">{isLocalhostHost ? "`.localhost` domains can't get SSL." : "Provisioned automatically."}</p>
+                </>
+              )}
               <DialogFooter>
                 <DialogClose asChild>
                   <Button variant="outline">Cancel</Button>
                 </DialogClose>
-                <Button disabled={savingPort || !Number.isInteger(Number(port)) || Number(port) <= 0} onClick={handleSave}>
+                <Button disabled={savingPort || !canSave} onClick={handleSave}>
                   {savingPort ? "Saving…" : "Save"}
                 </Button>
               </DialogFooter>

@@ -25,8 +25,6 @@ export interface ApiApplication {
   envVars: string | null;
   memoryLimitMb: number;
   cpuLimit: number;
-  remoteAccessHost: string | null;
-  remoteAccessAllowlist: string | null;
   // registryPassword is write-only — never sent back by the API
   registryUsername: string | null;
   createdAt: string;
@@ -51,6 +49,7 @@ export interface ApiDomain {
   port: number;
   isPrimary: boolean;
   sslEnabled: boolean;
+  allowlist: string | null;
   createdAt: string;
 }
 
@@ -348,11 +347,17 @@ export const api = {
     }),
   deleteApplication: (id: string, opts?: { deleteVolumes?: boolean }) =>
     request<ApiApplication>(`/api/applications/${id}${opts?.deleteVolumes ? "?deleteVolumes=true" : ""}`, { method: "DELETE" }),
-  createDomain: (applicationId: string, host: string, port: number) =>
+  createDomain: (applicationId: string, host: string, port: number, allowlist?: string[]) =>
     request<ApiDomain>("/api/domains", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ applicationId, host, port }),
+      body: JSON.stringify({ applicationId, host, port, allowlist }),
+    }),
+  updateDomainAllowlist: (id: string, allowlist: string[]) =>
+    request<ApiDomain>(`/api/domains/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ allowlist }),
     }),
   suggestDomainHost: (applicationId: string) => request<{ host: string }>(`/api/domains/suggest?applicationId=${applicationId}`),
   updateDomainPort: (id: string, port: number) =>
@@ -409,13 +414,6 @@ export const api = {
   restartInfraContainer: (id: string) => request<{ ok: true }>(`/api/system/infra/${id}/restart`, { method: "POST" }),
   listExposedPorts: () => request<{ ports: ApiExposedPort[] }>("/api/settings/ports"),
   getClientIp: () => request<{ ip: string | null }>("/api/settings/client-ip"),
-  enableRemoteAccess: (id: string, host: string, allowlist: string[]) =>
-    request<ApiApplication>(`/api/applications/${id}/remote-access`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ host, allowlist }),
-    }),
-  disableRemoteAccess: (id: string) => request<ApiApplication>(`/api/applications/${id}/remote-access`, { method: "DELETE" }),
   // pre-auth — the login page checks this to decide whether to show the passkey button at all
   getPasskeyEnabled: () => request<{ enabled: boolean }>("/api/settings/passkey-enabled"),
   updatePasskeyEnabled: (passkeyEnabled: boolean) =>

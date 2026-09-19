@@ -21,7 +21,7 @@ export function OverviewContent({ app, onSelectTab }: { app: ApiApplicationDetai
         </div>
       )}
 
-      <DatabaseConnectionCard app={app} />
+      <DatabaseConnectionCard app={app} onSelectTab={onSelectTab} />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">

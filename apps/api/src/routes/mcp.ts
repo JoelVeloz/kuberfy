@@ -7,7 +7,8 @@ import { z } from "zod";
 import { db } from "../db";
 import { application, domain, project, setting } from "../db/schema/app";
 import { appSizes, defaultAppSize } from "../lib/app-sizes";
-import { suggestDomainHost } from "../lib/auto-domain";
+import { suggestDomainHost, suggestKuberfyDomainHost } from "../lib/auto-domain";
+import { domainTarget, isPostgresApp } from "../lib/database-image";
 import { applyApplicationDomains, deleteApplication, runDeployment } from "../services/deploy";
 
 // Deliberately minimal — create, deploy, and delete projects/applications, nothing to reconfigure a running one
@@ -20,10 +21,8 @@ function textResult(value: unknown) {
   return { content: [{ type: "text" as const, text: typeof value === "string" ? value : JSON.stringify(value, null, 2) }] };
 }
 
-server.registerTool(
-  "list_projects",
-  { description: "List every project on this kuberfy instance, with each one's id (needed to create applications inside it)." },
-  async () => textResult(await db.query.project.findMany({ orderBy: (f, { desc }) => desc(f.createdAt) })),
+server.registerTool("list_projects", { description: "List every project on this kuberfy instance, with each one's id (needed to create applications inside it)." }, async () =>
+  textResult(await db.query.project.findMany({ orderBy: (f, { desc }) => desc(f.createdAt) })),
 );
 
 server.registerTool(
@@ -40,8 +39,10 @@ server.registerTool(
   },
 );
 
-server.registerTool("list_app_sizes", { description: "List the CPU/memory tiers available for an application — pick one of these ids instead of guessing raw numbers." }, async () =>
-  textResult(appSizes),
+server.registerTool(
+  "list_app_sizes",
+  { description: "List the CPU/memory tiers available for an application — pick one of these ids instead of guessing raw numbers." },
+  async () => textResult(appSizes),
 );
 
 server.registerTool(
@@ -74,7 +75,9 @@ server.registerTool(
         .string()
         .min(1)
         .optional()
-        .describe('Path to the Dockerfile, relative to the repo root, e.g. "docker/prod.Dockerfile". Only used when buildType is "dockerfile". Defaults to "Dockerfile" at the repo root.'),
+        .describe(
+          'Path to the Dockerfile, relative to the repo root, e.g. "docker/prod.Dockerfile". Only used when buildType is "dockerfile". Defaults to "Dockerfile" at the repo root.',
+        ),
       envVars: z.record(z.string(), z.string()).optional().describe("Environment variables to set on the container, as key/value pairs."),
       size: z.enum(sizeIds).optional().describe("Size tier from list_app_sizes. Defaults to the smallest tier if omitted."),
     },
@@ -101,7 +104,10 @@ server.registerTool(
 
 server.registerTool(
   "deploy_application",
-  { description: "Start (or redeploy) an application that was already created with create_application — pulls/builds its image and runs it.", inputSchema: { applicationId: z.string().min(1) } },
+  {
+    description: "Start (or redeploy) an application that was already created with create_application — pulls/builds its image and runs it.",
+    inputSchema: { applicationId: z.string().min(1) },
+  },
   async ({ applicationId }) => textResult(await runDeployment(applicationId)),
 );
 
@@ -125,33 +131,43 @@ server.registerTool(
 server.registerTool(
   "suggest_domain",
   {
-    description: "Suggest a ready-to-use hostname for an application, with zero DNS setup needed — `.localhost` locally, or a `.sslip.io` host resolving to the server's public IP in production.",
+    description:
+      "Suggest a ready-to-use hostname for an application, with zero DNS setup needed — `.localhost` locally, or a `.sslip.io` host resolving to the server's public IP in production.",
     inputSchema: { applicationId: z.string().min(1) },
   },
   async ({ applicationId }) => {
     const app = await db.query.application.findFirst({ where: eq(application.id, applicationId) });
     if (!app) throw new Error("Application not found");
-    return textResult({ host: suggestDomainHost(app.id, app.name) });
+    return textResult({ host: isPostgresApp(app) ? suggestKuberfyDomainHost() : suggestDomainHost(app.id, app.name) });
   },
 );
 
 server.registerTool(
   "create_domain",
   {
-    description: "Attach a hostname to an application so Traefik routes it there. Call suggest_domain first if you don't already have a host in mind. The first domain on an application becomes its primary one.",
+    description:
+      "Attach a hostname to an application so Traefik routes it there. Call suggest_domain first if you don't already have a host in mind. The first domain on an application becomes its primary one.",
     inputSchema: {
       applicationId: z.string().min(1),
       host: z.string().min(1).describe("Hostname to route, e.g. from suggest_domain."),
-      port: z.number().int().positive().describe("Container port this host should route to."),
+      port: z.number().int().positive().describe("Container port this host should route to. Ignored for PostgreSQL apps, which always use 5432."),
+      allowlist: z
+        .array(z.union([z.ipv4(), z.ipv6(), z.cidrv4(), z.cidrv6()]))
+        .min(1)
+        .optional()
+        .describe("PostgreSQL apps only, and required there: IPs or CIDR ranges allowed to connect from outside the server."),
     },
   },
-  async ({ applicationId, host, port }) => {
+  async ({ applicationId, host, port, allowlist }) => {
+    const app = await db.query.application.findFirst({ where: eq(application.id, applicationId) });
+    if (!app) throw new Error("Application not found");
     const existing = await db.query.domain.findFirst({ where: eq(domain.host, host) });
     if (existing) throw new Error("Domain already in use");
+    const target = domainTarget(app, port, allowlist);
     const siblingCount = await db.$count(domain, eq(domain.applicationId, applicationId));
     const [created] = await db
       .insert(domain)
-      .values({ applicationId, host, port, isPrimary: siblingCount === 0 })
+      .values({ applicationId, host, ...target, isPrimary: siblingCount === 0 })
       .returning();
     await applyApplicationDomains(applicationId);
     return textResult(created);

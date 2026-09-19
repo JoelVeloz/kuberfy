@@ -8,6 +8,7 @@ import simpleGit from "simple-git";
 import { db } from "../db";
 import { application, deployment, domain, volume } from "../db/schema/app";
 import { POSTGRES_ENTRYPOINT, POSTGRES_TLS_OPTIONS } from "./traefik";
+import { isPostgresApp, POSTGRES_PORT } from "../lib/database-image";
 
 export const docker = new Docker();
 // Deployed apps get their own network, separate from kuberfy-network (where kuberfy's own dashboard/API and its
@@ -120,16 +121,20 @@ function finishBuildLog(deploymentId: string) {
   buildLogEvents.emit("done", deploymentId);
 }
 
-type RoutedApplication = Pick<typeof application.$inferSelect, "id" | "remoteAccessHost" | "remoteAccessAllowlist">;
+type RoutedApplication = Pick<typeof application.$inferSelect, "id" | "buildType" | "repoUrl">;
 
 export function buildDomainLabels(app: RoutedApplication, domains: (typeof domain.$inferSelect)[]): Record<string, string> {
   const labels: Record<string, string> = { "kuberfy.application": app.id };
-  if (domains.length === 0 && !app.remoteAccessHost) return labels;
+  if (domains.length === 0) return labels;
 
   labels["traefik.enable"] = "true";
-  if (app.remoteAccessHost) Object.assign(labels, remoteAccessLabels(app.id, app.remoteAccessHost, app.remoteAccessAllowlist));
+  const isDatabase = isPostgresApp(app);
   for (const d of domains) {
     const routerName = `${app.id}-${d.id}`;
+    if (isDatabase) {
+      Object.assign(labels, databaseDomainLabels(routerName, d.host, d.allowlist));
+      continue;
+    }
     const isLocalhost = d.host === "localhost" || d.host.endsWith(".localhost");
     const tlsRouter = d.sslEnabled && !isLocalhost;
     labels[`traefik.http.routers.${routerName}.rule`] = `Host(\`${d.host}\`)`;
@@ -147,15 +152,14 @@ export function buildDomainLabels(app: RoutedApplication, domains: (typeof domai
   return labels;
 }
 
-function remoteAccessLabels(applicationId: string, host: string, allowlist: string | null): Record<string, string> {
-  const router = `${applicationId}-db`;
+function databaseDomainLabels(router: string, host: string, allowlist: string | null): Record<string, string> {
   const labels: Record<string, string> = {
     [`traefik.tcp.routers.${router}.rule`]: `HostSNI(\`${host}\`)`,
     [`traefik.tcp.routers.${router}.entrypoints`]: POSTGRES_ENTRYPOINT,
     [`traefik.tcp.routers.${router}.service`]: router,
     [`traefik.tcp.routers.${router}.tls.certresolver`]: "le",
     [`traefik.tcp.routers.${router}.tls.options`]: POSTGRES_TLS_OPTIONS,
-    [`traefik.tcp.services.${router}.loadbalancer.server.port`]: "5432",
+    [`traefik.tcp.services.${router}.loadbalancer.server.port`]: String(POSTGRES_PORT),
   };
   if (allowlist) {
     labels[`traefik.tcp.middlewares.${router}-allow.ipallowlist.sourcerange`] = allowlist;
@@ -172,7 +176,7 @@ export async function applyApplicationDomains(applicationId: string) {
   } catch {
     return;
   }
-  const app = await db.query.application.findFirst({ where: eq(application.id, applicationId), columns: { id: true, remoteAccessHost: true, remoteAccessAllowlist: true } });
+  const app = await db.query.application.findFirst({ where: eq(application.id, applicationId), columns: { id: true, buildType: true, repoUrl: true } });
   if (!app) return;
   const domains = await db.query.domain.findMany({ where: eq(domain.applicationId, applicationId) });
   const labels = buildDomainLabels(app, domains);

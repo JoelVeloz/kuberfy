@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 import { defaultAppSize } from "../../lib/app-sizes";
 import { users as user } from "./auth";
@@ -74,13 +74,11 @@ export const application = sqliteTable(
     // hard cap passed to Docker as HostConfig.Memory — keeps one runaway service from starving the host
     memoryLimitMb: integer("memory_limit_mb").notNull().default(defaultAppSize.memoryLimitMb),
     cpuLimit: real("cpu_limit").notNull().default(defaultAppSize.cpuLimit),
-    remoteAccessHost: text("remote_access_host"),
-    remoteAccessAllowlist: text("remote_access_allowlist"),
     ...timestamps,
   },
   // SQLite doesn't index foreign keys on its own — every "this project's applications" lookup (the projects
   // list, the reconcile loop, statsTick) filters on this column, so without it each one is a full table scan.
-  (table) => [index("applications_project_id_idx").on(table.projectId), uniqueIndex("applications_remote_access_host_idx").on(table.remoteAccessHost)],
+  (table) => [index("applications_project_id_idx").on(table.projectId)],
 );
 
 export const applicationRelations = relations(application, ({ one, many }) => ({
@@ -182,6 +180,7 @@ export const domain = sqliteTable("domains", {
   // the domain the app's "Visit" button opens; exactly one per application (enforced in the route, not the schema)
   isPrimary: integer("is_primary", { mode: "boolean" }).notNull().default(false),
   sslEnabled: integer("ssl_enabled", { mode: "boolean" }).notNull().default(true),
+  allowlist: text("allowlist"),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .default(sql`(unixepoch())`),
@@ -197,15 +196,19 @@ export const domainRelations = relations(domain, ({ one }) => ({
 // RFC-1123-style hostname: lowercase alphanumeric labels (no leading/trailing hyphen), dot-separated; bare "localhost" allowed too
 const HOSTNAME_REGEX = /^(?:localhost|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)$/;
 
+const allowlist = z.array(z.union([z.ipv4(), z.ipv6(), z.cidrv4(), z.cidrv6()])).min(1);
+
 export const apiCreateDomain = z.object({
   applicationId: z.string().min(1),
   host: z.string().min(1).regex(HOSTNAME_REGEX, "Must be a valid hostname"),
   port: z.number().int().positive(),
+  allowlist: allowlist.optional(),
 });
 
 export const apiUpdateDomain = z.object({
   port: z.number().int().positive().optional(),
   sslEnabled: z.boolean().optional(),
+  allowlist: allowlist.optional(),
 });
 
 // ---------------------------------------------------------------------------
