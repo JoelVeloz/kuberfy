@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { DeploymentStatusBadge } from "@/components/DeploymentStatusBadge";
 import { ApplicationStatsChart } from "@/components/ApplicationStatsChart";
+import { DatabaseConnectionCard } from "@/components/DatabaseConnectionCard";
 import type { ApplicationTab } from "@/components/ApplicationShell";
 import type { ApiApplicationDetail } from "@/lib/api";
 
@@ -19,6 +20,8 @@ export function OverviewContent({ app, onSelectTab }: { app: ApiApplicationDetai
           </div>
         </div>
       )}
+
+      <DatabaseConnectionCard app={app} />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
