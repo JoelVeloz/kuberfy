@@ -1,6 +1,6 @@
 "use client";
 
-import { CaretUpDownIcon, MoonIcon, SignOutIcon, SunIcon } from "@phosphor-icons/react";
+import { CaretUpDownIcon, MoonIcon, SignOutIcon, SunIcon, UserIcon } from "@phosphor-icons/react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
@@ -72,6 +72,12 @@ export function NavUser() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <a href="/profile">
+                <UserIcon />
+                Profile
+              </a>
+            </DropdownMenuItem>
             <DropdownMenuItem onSelect={toggle}>
               {theme === "dark" ? <SunIcon /> : <MoonIcon />}
               {theme === "dark" ? "Light mode" : "Dark mode"}

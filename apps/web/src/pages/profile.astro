@@ -1,0 +1,13 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { PasskeyCard } from "@/components/PasskeyCard";
+---
+
+<Layout title="Profile">
+  <h1 class="font-heading text-lg font-medium">Profile</h1>
+  <p class="mt-1 text-xs text-muted-foreground">Personal sign-in options for your account.</p>
+
+  <div class="mt-6 flex max-w-2xl flex-col gap-6">
+    <PasskeyCard client:load />
+  </div>
+</Layout>

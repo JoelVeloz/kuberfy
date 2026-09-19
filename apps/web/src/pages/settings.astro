@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { SettingsForm } from "@/components/SettingsForm";
 import { ExposedPortsCard } from "@/components/ExposedPortsCard";
-import { PasskeyCard } from "@/components/PasskeyCard";
+import { PasskeySignInCard } from "@/components/PasskeyCard";
 import { UpdateCard } from "@/components/UpdateCard";
 ---
 
@@ -15,7 +15,7 @@ import { UpdateCard } from "@/components/UpdateCard";
   <div class="mt-6 flex max-w-2xl flex-col gap-6">
     <SettingsForm client:load />
     <UpdateCard client:load />
-    <PasskeyCard client:load />
+    <PasskeySignInCard client:load />
     <ExposedPortsCard client:load />
     <Card>
       <CardContent className="flex items-center justify-between gap-4">

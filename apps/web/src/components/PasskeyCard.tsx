@@ -19,10 +19,16 @@ export function PasskeyCard() {
   );
 }
 
-function PasskeyCardInner() {
-  const queryClient = useQueryClient();
-  const settings = useQuery({ queryKey: ["settings"], queryFn: api.getSettings });
-  const passkeys = useQuery({
+export function PasskeySignInCard() {
+  return (
+    <QueryProvider>
+      <PasskeySignInCardInner />
+    </QueryProvider>
+  );
+}
+
+function usePasskeys() {
+  return useQuery({
     queryKey: ["passkeys"],
     queryFn: async () => {
       const { data, error } = await authClient.passkey.listUserPasskeys();
@@ -30,6 +36,58 @@ function PasskeyCardInner() {
       return data ?? [];
     },
   });
+}
+
+function LoadingCard() {
+  return (
+    <Card>
+      <CardContent className="flex flex-col gap-3">
+        <Skeleton className="h-3 w-32" />
+        <Skeleton className="h-16 w-full" />
+      </CardContent>
+    </Card>
+  );
+}
+
+function PasskeySignInCardInner() {
+  const queryClient = useQueryClient();
+  const settings = useQuery({ queryKey: ["settings"], queryFn: api.getSettings });
+  const passkeys = usePasskeys();
+
+  const toggleEnabled = useMutation({
+    mutationFn: (enabled: boolean) => api.updatePasskeyEnabled(enabled),
+    onSuccess: (_data, enabled) => {
+      toast.success(enabled ? "Passkey sign-in enabled." : "Passkey sign-in disabled.");
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
+    onError: (err) => toastError(err, "Failed to update passkey sign-in."),
+  });
+
+  if (settings.isPending || passkeys.isPending) return <LoadingCard />;
+
+  const enabled = settings.data?.passkeyEnabled ?? false;
+  const hasPasskeys = (passkeys.data ?? []).length > 0;
+
+  return (
+    <Card>
+      <CardContent className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-sm font-medium">Passkey sign-in</h2>
+          <p className="text-xs text-muted-foreground">
+            {enabled || hasPasskeys ? "Offer sign-in with a passkey on the login page." : (
+              <>Register a passkey from your <a href="/profile" className="underline">profile</a> to turn this on.</>
+            )}
+          </p>
+        </div>
+        <Switch checked={enabled} disabled={toggleEnabled.isPending || (!enabled && !hasPasskeys)} onCheckedChange={(next) => toggleEnabled.mutate(next)} />
+      </CardContent>
+    </Card>
+  );
+}
+
+function PasskeyCardInner() {
+  const queryClient = useQueryClient();
+  const passkeys = usePasskeys();
 
   const addPasskey = useMutation({
     mutationFn: async () => {
@@ -55,42 +113,20 @@ function PasskeyCardInner() {
     onError: (err) => toastError(err, "Failed to remove passkey."),
   });
 
-  const toggleEnabled = useMutation({
-    mutationFn: (enabled: boolean) => api.updatePasskeyEnabled(enabled),
-    onSuccess: (_data, enabled) => {
-      toast.success(enabled ? "Passkey sign-in enabled." : "Passkey sign-in disabled.");
-      queryClient.invalidateQueries({ queryKey: ["settings"] });
-    },
-    onError: (err) => toastError(err, "Failed to update passkey sign-in."),
-  });
-
-  if (settings.isPending || passkeys.isPending) {
-    return (
-      <Card>
-        <CardContent className="flex flex-col gap-3">
-          <Skeleton className="h-3 w-32" />
-          <Skeleton className="h-16 w-full" />
-        </CardContent>
-      </Card>
-    );
-  }
+  if (passkeys.isPending) return <LoadingCard />;
 
   const list = passkeys.data ?? [];
-  const enabled = settings.data?.passkeyEnabled ?? false;
 
   return (
     <Card>
       <CardContent className="flex flex-col gap-4">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-sm font-medium">Passkey sign-in</h2>
-            <p className="text-xs text-muted-foreground">Sign in with a fingerprint, face, or security key instead of a password.</p>
-          </div>
-          <Switch checked={enabled} disabled={toggleEnabled.isPending || (!enabled && list.length === 0)} onCheckedChange={(next) => toggleEnabled.mutate(next)} />
+        <div>
+          <h2 className="text-sm font-medium">Passkeys</h2>
+          <p className="text-xs text-muted-foreground">Sign in with a fingerprint, face, or security key instead of a password.</p>
         </div>
 
         {list.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No passkeys yet. Add one to turn this on.</p>
+          <p className="text-xs text-muted-foreground">No passkeys yet.</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {list.map((passkey) => (
