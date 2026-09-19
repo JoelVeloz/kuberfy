@@ -11,6 +11,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { application, domain, project, volume } from "../db/schema/app";
 import { suggestDomainHost } from "../lib/auto-domain";
+import { isPostgresApp } from "../lib/database-image";
 import { appSizes, defaultAppSize, type AppSizeId } from "../lib/app-sizes";
 import { runDeployment } from "./deploy";
 
@@ -176,7 +177,7 @@ export async function upsertApp(
 
   resolved.set(spec.id, { id: app!.id, env });
 
-  if (spec.exposeDomain) {
+  if (spec.exposeDomain && !isPostgresApp({ buildType: spec.image ? "image" : "dockerfile", repoUrl: spec.image ?? spec.repoUrl ?? "" })) {
     const existingDomain = await db.query.domain.findFirst({ where: (f, { eq }) => eq(f.applicationId, app!.id) });
     if (!existingDomain) {
       await db.insert(domain).values({ applicationId: app!.id, host: suggestDomainHost(app!.id, spec.name), port: spec.port, isPrimary: true });

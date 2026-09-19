@@ -82,6 +82,42 @@ const nodeImageAppInstance = (index: number): ApplicationSpec => ({
 
 export const projectTemplates: ProjectTemplate[] = [
   {
+    id: "s3-storage",
+    projectName: "S3 storage",
+    description: "S3-compatible object storage plus a web UI already pointed at it, both served over HTTPS.",
+    apps: [
+      {
+        id: "storage",
+        name: "storage",
+        port: 7070,
+        image: "versity/versitygw:v1.8.0",
+        volumes: ["/data"],
+        exposeDomain: true,
+        envVars: [
+          { key: "ROOT_ACCESS_KEY", default: null, secret: true },
+          { key: "ROOT_SECRET_KEY", default: null, secret: true },
+          { key: "VGW_BACKEND", default: "posix", secret: false },
+          { key: "VGW_BACKEND_ARG", default: "/data", secret: false },
+        ],
+      },
+      {
+        id: "storage-ui",
+        name: "storage-ui",
+        port: 8080,
+        image: "cloudlena/s3manager:latest",
+        defaultSize: "nano",
+        exposeDomain: true,
+        envVars: [
+          { key: "ENDPOINT", default: "${storage.host}:7070", secret: false },
+          { key: "USE_SSL", default: "false", secret: false },
+          { key: "ACCESS_KEY_ID", default: "${storage.ROOT_ACCESS_KEY}", secret: false },
+          { key: "SECRET_ACCESS_KEY", default: "${storage.ROOT_SECRET_KEY}", secret: false },
+        ],
+      },
+    ],
+  },
+
+  {
     id: "laravel-postgres",
     projectName: "Laravel + Postgres",
     description: "A real Laravel app (bootstrapped on first boot) wired to its own Postgres database.",
@@ -179,7 +215,8 @@ export const projectTemplates: ProjectTemplate[] = [
   {
     id: "node-image-postgres",
     projectName: "Node.js (image) + Postgres",
-    description: "A Node.js app (Node-RED) pulled straight from a Docker image, next to a Postgres instance — no build step, unlike the source-based Node.js + Postgres template. Node-RED doesn't read the database env vars itself; wire your own image's variable names once you swap it in.",
+    description:
+      "A Node.js app (Node-RED) pulled straight from a Docker image, next to a Postgres instance — no build step, unlike the source-based Node.js + Postgres template. Node-RED doesn't read the database env vars itself; wire your own image's variable names once you swap it in.",
     apps: [
       postgresDb(),
       {
@@ -207,7 +244,8 @@ export const projectTemplates: ProjectTemplate[] = [
   {
     id: "node-image-postgres-stress-test",
     projectName: "Node.js (image) + Postgres (stress test)",
-    description: "Deploys many identical Node.js instances, pulled from an image (no build step), against one shared Postgres — isolates deployment/orchestration load from build time. Not for everyday use.",
+    description:
+      "Deploys many identical Node.js instances, pulled from an image (no build step), against one shared Postgres — isolates deployment/orchestration load from build time. Not for everyday use.",
     apps: [postgresDb(), ...Array.from({ length: STRESS_TEST_APP_COUNT }, (_, i) => nodeImageAppInstance(i + 1))],
   },
   {
