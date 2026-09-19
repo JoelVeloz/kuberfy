@@ -5,7 +5,6 @@ const HOST_PROC = "/host/proc";
 export interface ListeningPort {
   port: number;
   protocol: "tcp" | "udp";
-  inode: string;
 }
 
 const SOURCES = [
@@ -34,45 +33,46 @@ export async function readListeningPorts(): Promise<ListeningPort[]> {
       if (fields.length < 10 || fields[3] !== state) continue;
       const [address, hexPort] = fields[1].split(":");
       if (isLoopback(address, v6)) continue;
-      found.push({ port: parseInt(hexPort, 16), protocol, inode: fields[9] });
+      found.push({ port: parseInt(hexPort, 16), protocol });
     }
   }
   return found;
 }
 
-export async function resolveProcessNames(inodes: Set<string>): Promise<Map<string, string>> {
-  const names = new Map<string, string>();
-  if (inodes.size === 0) return names;
+// Naming a host-level listener by walking every /proc/[pid]/fd looking for its socket inode needs either root
+// or the same uid as the owning process — kuberfy runs as its own non-root user (Dockerfile), so on a real host
+// that lookup silently comes back empty for anything not owned by kuberfy itself. A small table of the ports
+// that actually show up on a bare Linux/Docker Swarm host names them without needing any of that.
+const WELL_KNOWN_SERVICES: Record<string, string> = {
+  "22/tcp": "SSH",
+  "25/tcp": "SMTP",
+  "53/tcp": "DNS",
+  "53/udp": "DNS",
+  "67/udp": "DHCP (server)",
+  "68/udp": "DHCP (client)",
+  "80/tcp": "HTTP",
+  "110/tcp": "POP3",
+  "111/tcp": "RPCbind (portmapper)",
+  "111/udp": "RPCbind (portmapper)",
+  "123/udp": "NTP",
+  "143/tcp": "IMAP",
+  "443/tcp": "HTTPS",
+  "465/tcp": "SMTPS",
+  "587/tcp": "SMTP (submission)",
+  "993/tcp": "IMAPS",
+  "995/tcp": "POP3S",
+  "2377/tcp": "Docker Swarm (cluster management)",
+  "3306/tcp": "MySQL",
+  "5432/tcp": "PostgreSQL",
+  "6379/tcp": "Redis",
+  "7946/tcp": "Docker Swarm (node gossip)",
+  "7946/udp": "Docker Swarm (node gossip)",
+  "8080/tcp": "HTTP (alt)",
+  "8443/tcp": "HTTPS (alt)",
+  "27017/tcp": "MongoDB",
+  "4789/udp": "Docker Swarm (VXLAN overlay)",
+};
 
-  let pids: string[];
-  try {
-    pids = (await fsp.readdir(HOST_PROC)).filter((entry) => /^\d+$/.test(entry));
-  } catch {
-    return names;
-  }
-
-  await Promise.all(
-    pids.map(async (pid) => {
-      let fds: string[];
-      try {
-        fds = await fsp.readdir(`${HOST_PROC}/${pid}/fd`);
-      } catch {
-        return;
-      }
-      for (const fd of fds) {
-        let target: string;
-        try {
-          target = await fsp.readlink(`${HOST_PROC}/${pid}/fd/${fd}`);
-        } catch {
-          continue;
-        }
-        const inode = /^socket:\[(\d+)\]$/.exec(target)?.[1];
-        if (!inode || !inodes.has(inode) || names.has(inode)) continue;
-        try {
-          names.set(inode, (await fsp.readFile(`${HOST_PROC}/${pid}/comm`, "utf-8")).trim());
-        } catch {}
-      }
-    }),
-  );
-  return names;
+export function wellKnownServiceName(port: number, protocol: string): string {
+  return WELL_KNOWN_SERVICES[`${port}/${protocol}`] ?? "Unknown service";
 }

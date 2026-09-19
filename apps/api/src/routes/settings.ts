@@ -9,7 +9,7 @@ import { requireAuth } from "../lib/auth-middleware";
 import { setCachedKuberfyDomain } from "../lib/settings-cache";
 import { applyKuberfyDomain } from "../services/proxy";
 import { docker } from "../services/deploy";
-import { readListeningPorts, resolveProcessNames } from "../services/host-ports";
+import { readListeningPorts, wellKnownServiceName } from "../services/host-ports";
 import { getOrCreateMcpToken } from "./mcp";
 
 export const settings = new Hono();
@@ -60,9 +60,8 @@ settings.get("/ports", async (c) => {
   }
 
   const hostOnly = listening.filter((l) => !byKey.has(`${l.port}/${l.protocol}`));
-  const names = await resolveProcessNames(new Set(hostOnly.map((l) => l.inode)));
   for (const l of hostOnly) {
-    byKey.set(`${l.port}/${l.protocol}`, { port: l.port, protocol: l.protocol, service: names.get(l.inode) ?? "unknown", source: "host" });
+    byKey.set(`${l.port}/${l.protocol}`, { port: l.port, protocol: l.protocol, service: wellKnownServiceName(l.port, l.protocol), source: "host" });
   }
 
   return c.json({ ports: [...byKey.values()].sort((a, b) => a.port - b.port) });
