@@ -176,6 +176,13 @@
       "when": 1789788329845,
       "tag": "0024_groovy_songbird",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1789836798493,
+      "tag": "0025_shocking_boomerang",
+      "breakpoints": true
     }
   ]
 }

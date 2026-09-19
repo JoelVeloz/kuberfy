@@ -14,7 +14,7 @@ import { volumes } from "./routes/volumes";
 import { marketplace } from "./routes/marketplace";
 import { mcp } from "./routes/mcp";
 import { projectTemplates } from "./routes/project-templates";
-import { settings, ensureSettingsSeeded } from "./routes/settings";
+import { settings, ensureSettingsSeeded, reconcileRemoteDatabaseAccess } from "./routes/settings";
 import { observability } from "./routes/observability";
 import { system } from "./routes/system";
 import { users } from "./routes/users";
@@ -24,6 +24,7 @@ import { unpublishKuberfyPanelPort } from "./services/proxy";
 await reconcileInterruptedDeployments();
 await ensureSettingsSeeded();
 await unpublishKuberfyPanelPort().catch((err) => console.error("Could not unpublish kuberfy's legacy :3000 port:", err instanceof Error ? err.message : err));
+await reconcileRemoteDatabaseAccess().catch((err) => console.error("Could not reconcile remote database access:", err instanceof Error ? err.message : err));
 setInterval(() => reconcileDeploymentStatuses().catch((err) => console.error("reconcileDeploymentStatuses failed:", err)), 30_000);
 
 const app = new Hono();

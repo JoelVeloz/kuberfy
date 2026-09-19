@@ -328,10 +328,12 @@ export const setting = sqliteTable("settings", {
   // bearer token for the /api/mcp endpoint — remote MCP clients have no browser session to authenticate with,
   // so this is the whole instance's credential for it instead. Null until generated from the MCP settings page.
   mcpToken: text("mcp_token"),
+  remoteDatabaseAccess: integer("remote_database_access", { mode: "boolean" }).notNull().default(false),
   ...timestamps,
 });
 
 export const apiUpdateSetting = z.object({
   kuberfyDomain: z.string().min(1).optional(),
   passkeyEnabled: z.boolean().optional(),
+  remoteDatabaseAccess: z.boolean().optional(),
 });

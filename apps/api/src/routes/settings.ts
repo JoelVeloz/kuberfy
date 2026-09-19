@@ -8,6 +8,7 @@ import { suggestKuberfyDomainHost } from "../lib/auto-domain";
 import { requireAuth } from "../lib/auth-middleware";
 import { setCachedKuberfyDomain } from "../lib/settings-cache";
 import { applyKuberfyDomain } from "../services/proxy";
+import { applyDatabaseEntrypoint } from "../services/traefik";
 import { docker } from "../services/deploy";
 import { readListeningPorts, wellKnownServiceName } from "../services/host-ports";
 import { getOrCreateMcpToken } from "./mcp";
@@ -18,6 +19,11 @@ export async function ensureSettingsSeeded() {
   const existing = await db.query.setting.findFirst();
   if (existing) return;
   await db.insert(setting).values({});
+}
+
+export async function reconcileRemoteDatabaseAccess() {
+  const existing = await db.query.setting.findFirst();
+  await applyDatabaseEntrypoint(existing?.remoteDatabaseAccess ?? false);
 }
 
 // Pre-auth: the login page needs this to decide whether to show the "Sign in with passkey" button at all.
@@ -93,5 +99,14 @@ settings.patch("/", zValidator("json", apiUpdateSetting), async (c) => {
       console.error("Could not update kuberfy's Traefik route:", err instanceof Error ? err.message : err);
     }
   }
-  return c.json({ ...updated, liveUpdateError });
+
+  const proxyRestarting = input.remoteDatabaseAccess !== undefined && input.remoteDatabaseAccess !== (existing?.remoteDatabaseAccess ?? false);
+  if (proxyRestarting) {
+    applyDatabaseEntrypoint(input.remoteDatabaseAccess!).catch(async (err) => {
+      console.error("Could not apply remote database access:", err instanceof Error ? err.message : err);
+      await db.update(setting).set({ remoteDatabaseAccess: !input.remoteDatabaseAccess, updatedAt: new Date() }).where(eq(setting.id, updated.id));
+    });
+  }
+
+  return c.json({ ...updated, liveUpdateError, proxyRestarting });
 });

@@ -1,0 +1,1 @@
+ALTER TABLE `settings` ADD `remote_database_access` integer DEFAULT false NOT NULL;

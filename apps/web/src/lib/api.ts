@@ -179,10 +179,12 @@ export interface ApiSettings {
   id: string | null;
   kuberfyDomain: string | null;
   passkeyEnabled: boolean;
+  remoteDatabaseAccess: boolean;
   serverIp: string | null;
   // only set on a PATCH response — non-null means the DB saved but the live Traefik/port update didn't apply
   // (e.g. not running under Docker Swarm)
   liveUpdateError?: string | null;
+  proxyRestarting?: boolean;
 }
 
 export interface ApiExposedPort {
@@ -392,6 +394,12 @@ export const api = {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ kuberfyDomain }),
+    }),
+  updateRemoteDatabaseAccess: (remoteDatabaseAccess: boolean) =>
+    request<ApiSettings>("/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ remoteDatabaseAccess }),
     }),
   pruneDockerResources: () => request<{ spaceReclaimed: number; imagesDeleted: number }>("/api/system/prune", { method: "POST" }),
   checkKuberfyUpdate: () => request<{ updateAvailable: boolean | null; image: string }>("/api/system/check-update", { method: "POST" }),
