@@ -259,6 +259,26 @@ const MANUAL_TEMPLATES: Template[] = [
     category: "database",
     defaultSize: "micro",
   },
+  {
+    id: "versitygw",
+    name: "VersityGW",
+    description: "Lightweight S3-compatible object storage that keeps every object as a plain file on disk.",
+    source: "official",
+    sourceUrl: "https://github.com/versity/versitygw",
+    logo: "https://avatars.githubusercontent.com/u/6293622?v=4",
+    image: "versity/versitygw:v1.8.0",
+    port: 7070,
+    envVars: [
+      { key: "ROOT_ACCESS_KEY", default: null, secret: true },
+      { key: "ROOT_SECRET_KEY", default: null, secret: true },
+      { key: "VGW_BACKEND", default: "posix", secret: false },
+      { key: "VGW_BACKEND_ARG", default: "/data", secret: false },
+    ],
+    tags: ["storage", "s3", "object-storage"],
+    volumes: ["/data"],
+    category: "application",
+    defaultSize: "micro",
+  },
 ];
 
 // Bare language runtime images (node:24-alpine, python:3.13-alpine, golang:1.24-alpine, ruby:3.4-alpine,

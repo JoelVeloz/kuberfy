@@ -6,6 +6,7 @@ import { HTTPException } from "hono/http-exception";
 import { db } from "../db";
 import { apiCreateVolume, volume } from "../db/schema/app";
 import { requireAuth } from "../lib/auth-middleware";
+import { newVolume } from "../lib/volumes";
 import { docker } from "../services/deploy";
 
 export const volumes = new Hono();
@@ -19,10 +20,9 @@ volumes.post("/", zValidator("json", apiCreateVolume), async (c) => {
   });
   if (existing) throw new HTTPException(StatusCodes.CONFLICT, { message: "This application already has a volume mounted at that path" });
 
-  const newId = crypto.randomUUID();
   const [created] = await db
     .insert(volume)
-    .values({ id: newId, ...input, volumeName: `kuberfy-vol-${newId}` })
+    .values({ ...input, ...newVolume(input.applicationId, input.mountPath) })
     .returning();
   return c.json(created, StatusCodes.CREATED);
 });

@@ -5,10 +5,11 @@ import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { db } from "../db";
-import { application, domain, project, setting } from "../db/schema/app";
+import { application, domain, project, setting, volume } from "../db/schema/app";
 import { appSizes, defaultAppSize } from "../lib/app-sizes";
 import { suggestDomainHost, suggestKuberfyDomainHost } from "../lib/auto-domain";
 import { domainTarget, isPostgresApp } from "../lib/database-image";
+import { newVolume } from "../lib/volumes";
 import { applyApplicationDomains, deleteApplication, runDeployment } from "../services/deploy";
 
 // Deliberately minimal — create, deploy, and delete projects/applications, nothing to reconfigure a running one
@@ -80,9 +81,13 @@ server.registerTool(
         ),
       envVars: z.record(z.string(), z.string()).optional().describe("Environment variables to set on the container, as key/value pairs."),
       size: z.enum(sizeIds).optional().describe("Size tier from list_app_sizes. Defaults to the smallest tier if omitted."),
+      volumes: z
+        .array(z.string().startsWith("/"))
+        .optional()
+        .describe('Absolute container paths to keep on persistent Docker volumes across redeploys, e.g. ["/data"]. Anything outside them is lost on redeploy.'),
     },
   },
-  async ({ projectId, name, buildType, repoUrl, branch, dockerfilePath, envVars, size }) => {
+  async ({ projectId, name, buildType, repoUrl, branch, dockerfilePath, envVars, size, volumes }) => {
     const resolved = appSizes.find((s) => s.id === size) ?? defaultAppSize;
     const [created] = await db
       .insert(application)
@@ -98,7 +103,13 @@ server.registerTool(
         cpuLimit: resolved.cpuLimit,
       })
       .returning();
-    return textResult(created);
+    const createdVolumes = volumes?.length
+      ? await db
+          .insert(volume)
+          .values(volumes.map((mountPath) => newVolume(created!.id, mountPath)))
+          .returning()
+      : [];
+    return textResult({ ...created, volumes: createdVolumes });
   },
 );
 
