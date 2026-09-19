@@ -214,6 +214,13 @@ async function deploy(app: typeof application.$inferSelect, deploymentId: string
   });
   log(`Service created (${service.id.slice(0, 12)})`);
 
+  if (!(await db.query.application.findFirst({ where: eq(application.id, app.id), columns: { id: true } }))) {
+    log("Application was deleted during the deploy, removing its service");
+    await removeExisting(serviceName);
+    finishBuildLog(deploymentId);
+    return;
+  }
+
   // A task can crash-loop almost immediately (e.g. a required env var is missing) — poll its real state for a
   // while before declaring victory, instead of trusting `createService` alone. A single check after a fixed
   // 1.5s wasn't enough for a cold image pull: the task is often still "preparing" (extracting layers) at that
@@ -378,8 +385,20 @@ async function buildFromGit(app: typeof application.$inferSelect, imageTag: stri
   }
 }
 
-// Exported for applications.ts/projects.ts — removing by this deterministic name also catches a service
-// created by a deploy that's still running (pulling/building) when the app gets deleted mid-deploy.
+export async function deleteApplication(applicationId: string, deleteVolumes: boolean) {
+  const appVolumes = deleteVolumes ? await db.query.volume.findMany({ where: eq(volume.applicationId, applicationId) }) : [];
+  const [deleted] = await db.delete(application).where(eq(application.id, applicationId)).returning();
+  if (!deleted) return null;
+
+  await removeExisting(`kuberfy-${applicationId}`);
+  for (const v of appVolumes) {
+    try {
+      await docker.getVolume(v.volumeName).remove();
+    } catch {}
+  }
+  return deleted;
+}
+
 export async function removeExisting(name: string) {
   try {
     await docker.getService(name).remove();

@@ -5,10 +5,10 @@ import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { db } from "../db";
-import { application, domain, project, setting, volume } from "../db/schema/app";
+import { application, domain, project, setting } from "../db/schema/app";
 import { appSizes, defaultAppSize } from "../lib/app-sizes";
 import { suggestDomainHost } from "../lib/auto-domain";
-import { applyApplicationDomains, docker, removeExisting, runDeployment } from "../services/deploy";
+import { applyApplicationDomains, deleteApplication, runDeployment } from "../services/deploy";
 
 // Deliberately minimal — create, deploy, and delete projects/applications, nothing to reconfigure a running one
 // beyond that. Runs in-process as part of the API server (calling the same functions the REST routes do),
@@ -116,17 +116,8 @@ server.registerTool(
     },
   },
   async ({ applicationId, deleteVolumes }) => {
-    await removeExisting(`kuberfy-${applicationId}`);
-    const appVolumes = deleteVolumes ? await db.query.volume.findMany({ where: eq(volume.applicationId, applicationId) }) : [];
-    const [deleted] = await db.delete(application).where(eq(application.id, applicationId)).returning();
+    const deleted = await deleteApplication(applicationId, deleteVolumes ?? false);
     if (!deleted) throw new Error("Application not found");
-    for (const v of appVolumes) {
-      try {
-        await docker.getVolume(v.volumeName).remove();
-      } catch {
-        // never created — nothing to clean up
-      }
-    }
     return textResult(deleted);
   },
 );
