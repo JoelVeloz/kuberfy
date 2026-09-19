@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryProvider } from "@/components/QueryProvider";
 import { api } from "@/lib/api";
@@ -43,7 +42,7 @@ function SettingsFormInner() {
     onError: (err) => toastError(err, "Failed to save settings."),
   });
 
-  if (query.isPending) {
+  if (query.isPending || !query.data) {
     return (
       <Card>
         <CardContent className="flex flex-col gap-3">
@@ -54,47 +53,64 @@ function SettingsFormInner() {
     );
   }
 
-  return (
-    <Card>
-      <CardContent className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="kuberfy-domain">Kuberfy domain</Label>
-          <div className="flex max-w-sm gap-2">
-            <Input id="kuberfy-domain" placeholder="deploy.example.com" value={domain} onChange={(e) => setDomain(e.target.value)} className="flex-1" />
-            <Button type="button" variant="outline" size="sm" disabled={suggest.isPending} onClick={() => suggest.mutate()}>
-              <Sparkle /> {suggest.isPending ? "Generating…" : "Generate"}
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground">Domain for this dashboard. Generate creates a free one with HTTPS.</p>
-        </div>
+  const { kuberfyDomain, serverIp } = query.data;
+  const canSave = domain.trim().length > 0 && domain.trim() !== (kuberfyDomain ?? "") && !save.isPending;
 
-        {query.data.serverIp && (
-          <div className="flex flex-col gap-1.5">
-            <Label>Server IP</Label>
-            <div className="flex max-w-sm items-center gap-2">
-              <Input disabled value={query.data.serverIp} className="flex-1 font-mono" />
+  return (
+    <>
+      <Card>
+        <CardContent>
+          <form
+            className="flex flex-col gap-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (canSave) save.mutate();
+            }}
+          >
+            <div>
+              <h2 className="text-sm font-medium">Dashboard domain</h2>
+              <p className="text-xs text-muted-foreground">Where this dashboard is served. Generate creates a free one with HTTPS.</p>
+            </div>
+            <div className="flex max-w-sm gap-2">
+              <Input id="kuberfy-domain" aria-label="Dashboard domain" placeholder="deploy.example.com" value={domain} onChange={(e) => setDomain(e.target.value)} className="flex-1" />
+              <Button type="button" variant="outline" size="sm" disabled={suggest.isPending} onClick={() => suggest.mutate()}>
+                <Sparkle /> {suggest.isPending ? "Generating…" : "Generate"}
+              </Button>
+            </div>
+            <div>
+              <Button type="submit" disabled={!canSave}>
+                {save.isPending ? "Saving…" : "Save"}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      {serverIp && (
+        <Card>
+          <CardContent className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-sm font-medium">Server IP</h2>
+              <p className="text-xs text-muted-foreground">Detected at install time. Point a custom domain's A record here.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-xs">{serverIp}</span>
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
+                size="icon-sm"
+                aria-label="Copy server IP"
                 onClick={() => {
-                  navigator.clipboard.writeText(query.data!.serverIp!);
+                  navigator.clipboard.writeText(serverIp);
                   toast.success("IP copied.");
                 }}
               >
                 <Copy />
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">Public IP detected at install time.</p>
-          </div>
-        )}
-
-        <div>
-          <Button disabled={domain.trim().length === 0 || save.isPending} onClick={() => save.mutate()}>
-            {save.isPending ? "Saving…" : "Save"}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+          </CardContent>
+        </Card>
+      )}
+    </>
   );
 }
