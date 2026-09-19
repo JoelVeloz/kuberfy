@@ -45,7 +45,7 @@ function ExposedPortsCardInner() {
       <CardContent className="flex flex-col gap-4">
         <div>
           <h2 className="text-sm font-medium">Exposed ports</h2>
-          <p className="text-xs text-muted-foreground">Ports listening on this server, read live. The firewall isn't inspected.</p>
+          <p className="text-xs text-muted-foreground">Listening on every network interface, read live. A firewall may still block some of them.</p>
         </div>
 
         <DataTable columns={columns} data={ports.data?.ports ?? []} getRowId={(r) => `${r.port}/${r.protocol}`} />

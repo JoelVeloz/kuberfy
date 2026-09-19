@@ -49,7 +49,7 @@ settings.get("/ports", async (c) => {
 
   for (const container of containers) {
     for (const p of container.Ports) {
-      if (!p.PublicPort) continue;
+      if (!p.PublicPort || (p.IP && p.IP !== "0.0.0.0" && p.IP !== "::")) continue;
       byKey.set(`${p.PublicPort}/${p.Type}`, {
         port: p.PublicPort,
         protocol: p.Type,

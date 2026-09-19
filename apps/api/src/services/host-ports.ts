@@ -8,20 +8,19 @@ export interface ListeningPort {
 }
 
 const SOURCES = [
-  { file: "tcp", protocol: "tcp", state: "0A", v6: false },
-  { file: "tcp6", protocol: "tcp", state: "0A", v6: true },
-  { file: "udp", protocol: "udp", state: "07", v6: false },
-  { file: "udp6", protocol: "udp", state: "07", v6: true },
+  { file: "tcp", protocol: "tcp", state: "0A" },
+  { file: "tcp6", protocol: "tcp", state: "0A" },
+  { file: "udp", protocol: "udp", state: "07" },
+  { file: "udp6", protocol: "udp", state: "07" },
 ] as const;
 
-function isLoopback(address: string, v6: boolean) {
-  if (!v6) return address.endsWith("7F");
-  return address === "00000000000000000000000001000000" || (address.startsWith("0000000000000000FFFF0000") && address.endsWith("7F"));
+function isWildcard(address: string) {
+  return /^0+$/.test(address);
 }
 
 export async function readListeningPorts(): Promise<ListeningPort[]> {
   const found: ListeningPort[] = [];
-  for (const { file, protocol, state, v6 } of SOURCES) {
+  for (const { file, protocol, state } of SOURCES) {
     let text: string;
     try {
       text = await fsp.readFile(`${HOST_PROC}/1/net/${file}`, "utf-8");
@@ -32,17 +31,13 @@ export async function readListeningPorts(): Promise<ListeningPort[]> {
       const fields = line.trim().split(/\s+/);
       if (fields.length < 10 || fields[3] !== state) continue;
       const [address, hexPort] = fields[1].split(":");
-      if (isLoopback(address, v6)) continue;
+      if (!isWildcard(address)) continue;
       found.push({ port: parseInt(hexPort, 16), protocol });
     }
   }
   return found;
 }
 
-// Naming a host-level listener by walking every /proc/[pid]/fd looking for its socket inode needs either root
-// or the same uid as the owning process — kuberfy runs as its own non-root user (Dockerfile), so on a real host
-// that lookup silently comes back empty for anything not owned by kuberfy itself. A small table of the ports
-// that actually show up on a bare Linux/Docker Swarm host names them without needing any of that.
 const WELL_KNOWN_SERVICES: Record<string, string> = {
   "22/tcp": "SSH",
   "25/tcp": "SMTP",
