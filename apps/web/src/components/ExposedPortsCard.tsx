@@ -71,8 +71,9 @@ function ExposedPortsCardInner() {
     );
   }
 
-  const panelExposed = settings.data?.exposePanelPort ?? false;
-  const otherPorts = (ports.data?.ports ?? []).filter((p) => p.port !== 3000);
+  const livePorts = ports.data?.ports ?? [];
+  const panelExposed = livePorts.some((p) => p.port === 3000);
+  const otherPorts = livePorts.filter((p) => p.port !== 3000);
 
   const domain = settings.data?.kuberfyDomain;
   const isLocalDomain = !domain || domain === "localhost" || domain.endsWith(".localhost");
