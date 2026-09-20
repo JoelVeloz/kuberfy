@@ -38,7 +38,8 @@ const TOOLS = [
   { name: "create_project", description: "Create a new, empty project." },
   { name: "list_app_sizes", description: "List the CPU/memory tiers available for an application." },
   { name: "delete_project", description: "Permanently delete an empty project — fails if it still has applications in it." },
-  { name: "create_application", description: "Create an application inside a project, from an image or a git repository." },
+  { name: "create_application", description: "Create an application inside a project, from an image (public or private) or a git repository." },
+  { name: "set_application_image", description: "Change the image an application pulls, and the registry credentials it pulls a private one with." },
   { name: "deploy_application", description: "Start or redeploy an application that was already created." },
   { name: "delete_application", description: "Permanently delete an application and its Swarm service. Its data volumes are left in place unless asked to remove them too." },
   { name: "suggest_domain", description: "Suggest a ready-to-use hostname for an application, with zero DNS setup needed." },
@@ -179,7 +180,7 @@ function McpPageInner() {
       <Card>
         <CardContent className="flex flex-col gap-3">
           <h2 className="text-sm font-medium">Available tools</h2>
-          <p className="text-xs text-muted-foreground">Deliberately minimal — create, deploy, and delete projects/applications, nothing to reconfigure a running one beyond that.</p>
+          <p className="text-xs text-muted-foreground">Deliberately minimal — create, deploy, and delete projects/applications, plus the one piece of reconfiguration a deploy can&apos;t live without.</p>
           <ul className="flex flex-col gap-2">
             {TOOLS.map((t) => (
               <li key={t.name} className="flex flex-col gap-0.5 border-b border-border pb-2 text-xs last:border-b-0 last:pb-0">

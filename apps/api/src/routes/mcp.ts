@@ -11,10 +11,12 @@ import { suggestDomainHost, suggestKuberfyDomainHost } from "../lib/auto-domain"
 import { domainTarget, isPostgresApp } from "../lib/database-image";
 import { newVolume } from "../lib/volumes";
 import { applyApplicationDomains, deleteApplication, runDeployment } from "../services/deploy";
+import { omitRegistryPassword } from "./applications";
 
-// Deliberately minimal — create, deploy, and delete projects/applications, nothing to reconfigure a running one
-// beyond that. Runs in-process as part of the API server (calling the same functions the REST routes do),
-// exposed over Streamable HTTP so any MCP client can connect to this instance directly — no local install needed.
+// Deliberately minimal — create, deploy, and delete projects/applications, plus the one piece of reconfiguration
+// a deploy can't live without (which image to pull, and the credentials for a private one). Runs in-process as
+// part of the API server (calling the same functions the REST routes do), exposed over Streamable HTTP so any
+// MCP client can connect to this instance directly — no local install needed.
 const server = new McpServer({ name: "kuberfy", version: "0.1.0" });
 const sizeIds = appSizes.map((s) => s.id) as [string, ...string[]];
 
@@ -85,9 +87,18 @@ server.registerTool(
         .array(z.string().startsWith("/"))
         .optional()
         .describe('Absolute container paths to keep on persistent Docker volumes across redeploys, e.g. ["/data"]. Anything outside them is lost on redeploy.'),
+      registryUsername: z
+        .string()
+        .min(1)
+        .optional()
+        .describe('Registry username, when buildType is "image" and the image is private — e.g. the GitHub username behind a ghcr.io image.'),
+      registryPassword: z.string().min(1).optional().describe("Registry password or access token going with registryUsername. Write-only: never echoed back in a result."),
     },
   },
-  async ({ projectId, name, buildType, repoUrl, branch, dockerfilePath, envVars, size, volumes }) => {
+  async ({ projectId, name, buildType, repoUrl, branch, dockerfilePath, envVars, size, volumes, registryUsername, registryPassword }) => {
+    if ((registryUsername == null) !== (registryPassword == null)) throw new Error("registryUsername and registryPassword go together — send both or neither.");
+    if (registryUsername != null && buildType !== "image")
+      throw new Error('Registry credentials only apply to buildType "image" — a Dockerfile build clones a repository instead of pulling an image.');
     const resolved = appSizes.find((s) => s.id === size) ?? defaultAppSize;
     const [created] = await db
       .insert(application)
@@ -99,6 +110,8 @@ server.registerTool(
         buildType,
         dockerfilePath,
         envVars: envVars ? JSON.stringify(envVars) : undefined,
+        registryUsername,
+        registryPassword,
         memoryLimitMb: resolved.memoryLimitMb,
         cpuLimit: resolved.cpuLimit,
       })
@@ -109,7 +122,48 @@ server.registerTool(
           .values(volumes.map((mountPath) => newVolume(created!.id, mountPath)))
           .returning()
       : [];
-    return textResult({ ...created, volumes: createdVolumes });
+    return textResult({ ...omitRegistryPassword(created!), volumes: createdVolumes });
+  },
+);
+
+server.registerTool(
+  "set_application_image",
+  {
+    description:
+      'Change the image an application pulls and/or the credentials it pulls with — the same fields the dashboard\'s Resources tab edits. Only for buildType "image" applications, and it only reaches the running service on the next deploy_application. Pass registryUsername: null to forget the stored credentials and treat the image as public again.',
+    inputSchema: {
+      applicationId: z.string().min(1),
+      repoUrl: z.string().min(1).optional().describe('New image reference, e.g. "ghcr.io/acme/api:latest". Leave it out to keep the current one.'),
+      registryUsername: z.string().min(1).nullable().optional().describe("Registry username, or null to drop the stored credentials."),
+      registryPassword: z
+        .string()
+        .min(1)
+        .nullable()
+        .optional()
+        .describe(
+          "Registry password or access token. Leave it out to keep the stored one when only the image or username changes. Write-only: never echoed back in a result.",
+        ),
+    },
+  },
+  async ({ applicationId, repoUrl, registryUsername, registryPassword }) => {
+    if (repoUrl === undefined && registryUsername === undefined && registryPassword === undefined)
+      throw new Error("Nothing to change — pass repoUrl, registryUsername, or registryPassword.");
+    const app = await db.query.application.findFirst({ where: eq(application.id, applicationId) });
+    if (!app) throw new Error("Application not found");
+    if (app.buildType !== "image")
+      throw new Error('This application builds from a Dockerfile, so it has no image to pull — an image and its registry credentials only apply to buildType "image".');
+    // An omitted field keeps what is stored; clearing the username clears the password with it, since a password
+    // with no user to authenticate as would still be handed to the registry on the next pull.
+    const username = registryUsername === undefined ? app.registryUsername : registryUsername;
+    if (username === null && registryPassword != null) throw new Error("A registryPassword authenticates as nobody without a registryUsername — send both, or neither.");
+    const password = username === null ? null : registryPassword === undefined ? app.registryPassword : registryPassword;
+    if (username !== null && password === null) throw new Error("This application has no stored registry password — send registryPassword together with registryUsername.");
+    const [updated] = await db
+      .update(application)
+      .set({ ...(repoUrl === undefined ? {} : { repoUrl }), registryUsername: username, registryPassword: password, updatedAt: new Date() })
+      .where(eq(application.id, applicationId))
+      .returning();
+    return textResult(omitRegistryPassword(updated!));
   },
 );
 

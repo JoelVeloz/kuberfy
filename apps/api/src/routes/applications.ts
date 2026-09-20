@@ -26,8 +26,9 @@ export const applications = new Hono();
 
 applications.use("*", requireAuth);
 
-// registryPassword is write-only — set on create/update, never echoed back in a response
-function omitRegistryPassword<T extends { registryPassword: string | null }>({ registryPassword: _registryPassword, ...rest }: T) {
+// registryPassword is write-only — set on create/update, never echoed back in a response (the MCP tools in
+// ./mcp.ts hand their results straight to a model, so they strip it through this same helper)
+export function omitRegistryPassword<T extends { registryPassword: string | null }>({ registryPassword: _registryPassword, ...rest }: T) {
   return rest;
 }
 
