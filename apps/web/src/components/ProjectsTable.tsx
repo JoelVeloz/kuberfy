@@ -7,14 +7,10 @@ import { TablePagination } from "@/components/ui/table-pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryProvider } from "@/components/QueryProvider";
 import { DeploymentStatusBadge } from "@/components/DeploymentStatusBadge";
-import { api, UnauthorizedError, type ApiProjectWithApplications, type ApiApplicationWithStatus } from "@/lib/api";
+import { UnauthorizedError, type ApiApplicationWithStatus, type ApiProjectWithApplications } from "@/lib/api";
+import { PROJECTS_PAGE_SIZE, projectsQuery } from "@/lib/queries";
 
-const PAGE_SIZE = 20;
 const PREVIEW_SIZE = 5;
-
-async function fetchProjects(page: number): Promise<{ items: ApiProjectWithApplications[]; total: number }> {
-  return api.listProjectsWithApplications(page, PAGE_SIZE);
-}
 
 function AppTypeIcon({ buildType }: { buildType: ApiApplicationWithStatus["buildType"] }) {
   return buildType === "image" ? (
@@ -88,7 +84,7 @@ export function ProjectsTable() {
 
 function ProjectsTableInner() {
   const [page, setPage] = React.useState(1);
-  const { data, error } = useQuery({ queryKey: ["projects", page], queryFn: () => fetchProjects(page), placeholderData: keepPreviousData });
+  const { data, error } = useQuery({ ...projectsQuery(page), placeholderData: keepPreviousData });
 
   if (error) return <p className="mt-6 text-xs text-muted-foreground">{error instanceof UnauthorizedError ? "Not signed in." : "Failed to load projects."}</p>;
 
@@ -118,7 +114,7 @@ function ProjectsTableInner() {
             </TableBody>
           </Table>
         )}
-        {data && data.items.length > 0 && <TablePagination page={page} pageSize={PAGE_SIZE} total={data.total} onPageChange={setPage} />}
+        {data && data.items.length > 0 && <TablePagination page={page} pageSize={PROJECTS_PAGE_SIZE} total={data.total} onPageChange={setPage} />}
       </CardContent>
     </Card>
   );

@@ -10,9 +10,9 @@ import { PruneDockerButton } from "@/components/PruneDockerButton";
       <h1 class="font-heading text-lg font-medium">System</h1>
       <p class="mt-1 text-xs text-muted-foreground">Host resource usage and per-app footprint.</p>
     </div>
-    <PruneDockerButton client:load />
+    <PruneDockerButton client:only="react" />
   </div>
   <div class="mt-6">
-    <SystemTabs client:load />
+    <SystemTabs client:only="react" />
   </div>
 </Layout>

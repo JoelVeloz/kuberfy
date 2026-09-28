@@ -10,8 +10,9 @@ import { TablePagination } from "@/components/ui/table-pagination";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type ChartConfig, ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { QueryProvider } from "@/components/QueryProvider";
-import { api, type ApiTrafficEvent, type ApiTrafficIp, type TrafficFilters } from "@/lib/api";
+import type { ApiTrafficEvent, ApiTrafficIp, TrafficFilters } from "@/lib/api";
 import { apiWsUrl } from "@/lib/api-url";
+import { TRAFFIC_PAGE_SIZE, trafficEventsQuery, trafficHostsQuery, trafficIpsQuery, trafficSummaryQuery, type TrafficRange } from "@/lib/queries";
 
 function statusColor(status: number) {
   if (status >= 500) return "text-destructive";
@@ -75,15 +76,13 @@ const chartConfig = {
   critical: { label: "5xx", color: "var(--color-destructive)" },
 } satisfies ChartConfig;
 
-const PAGE_SIZE = 20;
-
 const RANGES = {
   "1h": { label: "Last hour" },
   "24h": { label: "Last 24 hours" },
   "7d": { label: "Last 7 days" },
   "30d": { label: "Last 30 days" },
 } as const;
-type Range = keyof typeof RANGES;
+type Range = TrafficRange;
 
 const TICK_INTERVAL: Record<Range, number> = { "1h": 4, "24h": 2, "7d": 0, "30d": 2 };
 
@@ -169,22 +168,19 @@ function TrafficPageInner() {
   React.useEffect(() => setIpsPage(1), [range, hostFilter, ipFilter, methodFilter, statusFilter]);
 
   const summary = useQuery({
-    queryKey: ["traffic-summary", range, filters],
-    queryFn: () => api.getTrafficSummary(range, filters),
+    ...trafficSummaryQuery(range, filters),
     refetchInterval: 30_000,
   });
 
-  const hostsQuery = useQuery({ queryKey: ["traffic-hosts", range], queryFn: () => api.getTrafficHosts(range) });
+  const hostsQuery = useQuery(trafficHostsQuery(range));
 
   const eventsQuery = useQuery({
-    queryKey: ["traffic-events", range, filters, page],
-    queryFn: () => api.listTrafficEvents(range, filters, page, PAGE_SIZE),
+    ...trafficEventsQuery(range, filters, page),
     placeholderData: keepPreviousData,
   });
 
   const ipsQuery = useQuery({
-    queryKey: ["traffic-ips", range, filters, ipsPage],
-    queryFn: () => api.listTrafficIps(range, filters, ipsPage, PAGE_SIZE),
+    ...trafficIpsQuery(range, filters, ipsPage),
     placeholderData: keepPreviousData,
     refetchInterval: 30_000,
   });
@@ -333,13 +329,13 @@ function TrafficPageInner() {
                   rowClassName={() => "cursor-pointer"}
                   onRowClick={setSelected}
                 />
-                <TablePagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
+                <TablePagination page={page} pageSize={TRAFFIC_PAGE_SIZE} total={total} onPageChange={setPage} />
               </div>
             </TabsContent>
             <TabsContent value="ips">
               <div className="rounded-md border border-border">
                 <DataTable columns={ipColumns} data={ipsQuery.data?.items ?? []} getRowId={(ip) => ip.clientIp} />
-                <TablePagination page={ipsPage} pageSize={PAGE_SIZE} total={ipsQuery.data?.total ?? 0} onPageChange={setIpsPage} />
+                <TablePagination page={ipsPage} pageSize={TRAFFIC_PAGE_SIZE} total={ipsQuery.data?.total ?? 0} onPageChange={setIpsPage} />
               </div>
             </TabsContent>
           </Tabs>

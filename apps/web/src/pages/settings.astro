@@ -12,10 +12,10 @@ import { UpdateCard } from "@/components/UpdateCard";
   <p class="mt-1 text-xs text-muted-foreground">Instance-level configuration for this kuberfy server.</p>
 
   <div class="mt-6 flex max-w-2xl flex-col gap-6">
-    <SettingsForm client:load />
-    <UpdateCard client:load />
-    <PasskeySignInCard client:load />
-    <RemoteDatabaseAccessCard client:load />
-    <ExposedPortsCard client:load />
+    <SettingsForm client:only="react" />
+    <UpdateCard client:only="react" />
+    <PasskeySignInCard client:only="react" />
+    <RemoteDatabaseAccessCard client:only="react" />
+    <ExposedPortsCard client:only="react" />
   </div>
 </Layout>

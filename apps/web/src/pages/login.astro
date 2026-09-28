@@ -5,7 +5,7 @@ import { KuberfyMark } from "@/components/KuberfyMark";
 import { LoginForm } from "@/components/LoginForm";
 ---
 
-<html lang="en" transition:animate="none">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <script is:inline>
@@ -19,12 +19,15 @@ import { LoginForm } from "@/components/LoginForm";
     <meta name="viewport" content="width=device-width" />
     <meta name="generator" content={Astro.generator} />
     <title>Sign in · Kuberfy</title>
-    <ClientRouter />
+    <script is:inline>
+      document.startViewTransition = undefined;
+    </script>
+    <ClientRouter fallback="swap" />
   </head>
   <body>
     <div class="grid min-h-screen bg-background lg:grid-cols-2">
       <div class="flex items-center justify-center px-6 py-16">
-        <LoginForm client:load />
+        <LoginForm client:only="react" />
       </div>
       <div
         class="relative hidden overflow-hidden border-l border-border bg-foreground lg:flex lg:flex-col lg:justify-between lg:p-10"

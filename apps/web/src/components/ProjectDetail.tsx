@@ -17,11 +17,11 @@ import { EditProjectDialog } from "@/components/EditProjectDialog";
 import { DeleteProjectDialog } from "@/components/DeleteProjectDialog";
 import { NewApplicationDialog } from "@/components/NewApplicationDialog";
 import { DeploymentStatusBadge } from "@/components/DeploymentStatusBadge";
-import { api, UnauthorizedError, NotFoundError, type ApiApplicationWithStatus, type ApiProject } from "@/lib/api";
+import { api, UnauthorizedError, NotFoundError, type ApiApplicationWithStatus } from "@/lib/api";
+import { PROJECT_APPS_PAGE_SIZE, projectAppsQuery, projectQuery } from "@/lib/queries";
 import { toastError } from "@/lib/toast";
 import { getQueryParam } from "@/lib/query-params";
 
-const PAGE_SIZE = 100;
 const DELETE_CONFIRM_WORD = "DELETE";
 
 type AppRow = ApiApplicationWithStatus;
@@ -192,16 +192,6 @@ function BulkActions({ projectId, apps, selected, onClear }: { projectId: string
   );
 }
 
-async function fetchProject(id: string): Promise<ApiProject> {
-  const project = await api.getProject(id);
-  document.title = `${project.name} · Kuberfy`;
-  return project;
-}
-
-async function fetchApps(id: string, page: number): Promise<{ items: AppRow[]; total: number }> {
-  return api.listProjectApplications(id, page, PAGE_SIZE);
-}
-
 // Client island: the real project id only exists at request time, so it's read from the URL and fetched here
 export function ProjectDetail() {
   return (
@@ -215,8 +205,12 @@ function ProjectDetailInner() {
   const id = getQueryParam("id");
   const [page, setPage] = React.useState(1);
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
-  const project = useQuery({ queryKey: ["project", id], queryFn: () => fetchProject(id) });
-  const apps = useQuery({ queryKey: ["project", id, "apps", page], queryFn: () => fetchApps(id, page), placeholderData: keepPreviousData });
+  const project = useQuery(projectQuery(id));
+  const apps = useQuery({ ...projectAppsQuery(id, page), placeholderData: keepPreviousData });
+  const projectName = project.data?.name;
+  React.useEffect(() => {
+    if (projectName) document.title = `${projectName} · Kuberfy`;
+  }, [projectName]);
 
   function toggleSelected(appId: string) {
     setSelected((prev) => {
@@ -308,7 +302,7 @@ function ProjectDetailInner() {
               rowClassName={() => "relative cursor-pointer"}
             />
           )}
-          {apps.data && apps.data.items.length > 0 && <TablePagination page={page} pageSize={PAGE_SIZE} total={apps.data.total} onPageChange={changePage} />}
+          {apps.data && apps.data.items.length > 0 && <TablePagination page={page} pageSize={PROJECT_APPS_PAGE_SIZE} total={apps.data.total} onPageChange={changePage} />}
         </CardContent>
       </Card>
     </>

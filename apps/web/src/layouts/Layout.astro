@@ -1,7 +1,10 @@
 ---
 import "@/styles/global.css";
 import { ClientRouter } from "astro:transitions";
-import { AppShell } from "@/components/AppShell";
+import { SidebarIcon } from "@phosphor-icons/react";
+import { AppShell, SIDEBAR_TOGGLE_ATTRIBUTE } from "@/components/AppShell";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { Toaster } from "@/components/ui/sonner";
 
 interface Props {
@@ -12,7 +15,7 @@ interface Props {
 const { title, back } = Astro.props;
 ---
 
-<html lang="en" transition:animate="none">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <script is:inline>
@@ -33,12 +36,43 @@ const { title, back } = Astro.props;
     <meta name="viewport" content="width=device-width" />
     <meta name="generator" content={Astro.generator} />
     <title>{title} · Kuberfy</title>
-    <ClientRouter />
+    <script is:inline>
+      document.startViewTransition = undefined;
+    </script>
+    <ClientRouter fallback="swap" />
   </head>
   <body>
-    <AppShell client:load pathname={Astro.url.pathname} defaultOpen={true} title={title} back={back}>
-      <slot />
-    </AppShell>
-    <Toaster client:load position="bottom-right" />
+    <div data-slot="sidebar-wrapper" class="group/sidebar-wrapper flex min-h-svh w-full">
+      <AppShell client:load transition:persist="app-sidebar" pathname={Astro.url.pathname} defaultOpen={true} />
+      <main data-slot="sidebar-inset" class="relative flex w-full flex-1 flex-col bg-background">
+        <header class="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4">
+          <Button variant="ghost" size="icon-sm" className="-ml-1" {...{ [SIDEBAR_TOGGLE_ATTRIBUTE]: "" }}>
+            <SidebarIcon />
+            <span class="sr-only">Toggle Sidebar</span>
+          </Button>
+          {
+            back && (
+              <>
+                <Separator orientation="vertical" className="h-4" />
+                <div class="flex items-center gap-2 text-xs text-muted-foreground">
+                  <a href={back.href} class="transition-colors hover:text-foreground">
+                    {back.label}
+                  </a>
+                  <span class="text-border">/</span>
+                  <span class="text-foreground">{title}</span>
+                </div>
+              </>
+            )
+          }
+        </header>
+        <div class="flex-1 px-4 py-8 md:px-8">
+          <slot />
+        </div>
+      </main>
+    </div>
+    <Toaster client:load transition:persist="toaster" position="bottom-right" />
+    <script>
+      import "@/lib/prefetch";
+    </script>
   </body>
 </html>

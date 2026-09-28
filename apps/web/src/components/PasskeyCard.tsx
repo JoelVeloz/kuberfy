@@ -10,6 +10,7 @@ import { QueryProvider } from "@/components/QueryProvider";
 import { authClient } from "@/lib/auth-client";
 import { api } from "@/lib/api";
 import { toastError } from "@/lib/toast";
+import { passkeysQuery, settingsQuery } from "@/lib/queries";
 
 export function PasskeyCard() {
   return (
@@ -28,14 +29,7 @@ export function PasskeySignInCard() {
 }
 
 function usePasskeys() {
-  return useQuery({
-    queryKey: ["passkeys"],
-    queryFn: async () => {
-      const { data, error } = await authClient.passkey.listUserPasskeys();
-      if (error) throw new Error(error.message ?? "Failed to load passkeys.");
-      return data ?? [];
-    },
-  });
+  return useQuery(passkeysQuery());
 }
 
 function LoadingCard() {
@@ -51,7 +45,7 @@ function LoadingCard() {
 
 function PasskeySignInCardInner() {
   const queryClient = useQueryClient();
-  const settings = useQuery({ queryKey: ["settings"], queryFn: api.getSettings });
+  const settings = useQuery(settingsQuery());
   const passkeys = usePasskeys();
 
   const toggleEnabled = useMutation({

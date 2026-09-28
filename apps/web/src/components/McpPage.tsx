@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryProvider } from "@/components/QueryProvider";
-import { api } from "@/lib/api";
+import { mcpTokenQuery, settingsQuery } from "@/lib/queries";
 
 function ClaudeIcon() {
   return (
@@ -122,8 +122,8 @@ function ConnectDialogTile({
 }
 
 function McpPageInner() {
-  const settings = useQuery({ queryKey: ["settings"], queryFn: api.getSettings });
-  const token = useQuery({ queryKey: ["mcp-token"], queryFn: api.getMcpToken });
+  const settings = useQuery(settingsQuery());
+  const token = useQuery(mcpTokenQuery());
 
   if (settings.isPending || token.isPending) {
     return (

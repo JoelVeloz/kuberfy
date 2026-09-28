@@ -1,44 +1,44 @@
-import type * as React from "react";
+import * as React from "react";
 import { AppSidebar } from "@/components/app-sidebar";
-import { Separator } from "@/components/ui/separator";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
-export function AppShell({
-  pathname,
-  defaultOpen,
-  title,
-  back,
-  children,
-}: {
-  pathname: string;
-  defaultOpen: boolean;
-  title: string;
-  back?: { href: string; label: string };
-  children?: React.ReactNode;
-}) {
+export const SIDEBAR_TOGGLE_ATTRIBUTE = "data-sidebar-toggle";
+
+function SidebarToggleListener() {
+  const { toggleSidebar } = useSidebar();
+
+  React.useEffect(() => {
+    const onClick = (event: MouseEvent) => {
+      if (event.target instanceof Element && event.target.closest(`[${SIDEBAR_TOGGLE_ATTRIBUTE}]`)) toggleSidebar();
+    };
+    document.addEventListener("click", onClick);
+    return () => document.removeEventListener("click", onClick);
+  }, [toggleSidebar]);
+
+  return null;
+}
+
+function useCurrentPathname(initialPathname: string) {
+  const [pathname, setPathname] = React.useState(initialPathname);
+
+  React.useEffect(() => {
+    const onPageLoad = () => setPathname(window.location.pathname);
+    document.addEventListener("astro:page-load", onPageLoad);
+    return () => document.removeEventListener("astro:page-load", onPageLoad);
+  }, []);
+
+  return pathname;
+}
+
+export function AppShell({ pathname: initialPathname, defaultOpen }: { pathname: string; defaultOpen: boolean }) {
+  const pathname = useCurrentPathname(initialPathname);
+
   return (
     <TooltipProvider delayDuration={0}>
-      <SidebarProvider defaultOpen={defaultOpen}>
+      <SidebarProvider defaultOpen={defaultOpen} className="contents">
         <AppSidebar pathname={pathname} />
-        <SidebarInset>
-          <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4">
-            <SidebarTrigger className="-ml-1" />
-            {back && (
-              <>
-                <Separator orientation="vertical" className="h-4" />
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <a href={back.href} className="transition-colors hover:text-foreground">
-                    {back.label}
-                  </a>
-                  <span className="text-border">/</span>
-                  <span className="text-foreground">{title}</span>
-                </div>
-              </>
-            )}
-          </header>
-          <div className="flex-1 px-4 py-8 md:px-8">{children}</div>
-        </SidebarInset>
+        <SidebarToggleListener />
       </SidebarProvider>
     </TooltipProvider>
   );

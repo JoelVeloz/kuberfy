@@ -19,7 +19,7 @@ export function NavUser() {
 
   async function handleSignOut() {
     await authClient.signOut();
-    window.location.href = "/";
+    window.location.replace("/login");
   }
 
   if (isPending) {

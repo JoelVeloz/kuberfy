@@ -16,6 +16,7 @@ import { api, type ApiUser } from "@/lib/api";
 import { toastError } from "@/lib/toast";
 import { authClient } from "@/lib/auth-client";
 import { generatePassword } from "@/lib/utils";
+import { USERS_PAGE_SIZE, usersQuery } from "@/lib/queries";
 
 function NewUserDialog() {
   const [open, setOpen] = React.useState(false);
@@ -141,7 +142,6 @@ function NewUserDialog() {
   );
 }
 
-const PAGE_SIZE = 20;
 
 const columnHelper = createColumnHelper<ApiUser>();
 
@@ -193,8 +193,7 @@ function UsersPageInner() {
   const columns = useColumns(isAdmin);
 
   const { data, isPending, error } = useQuery({
-    queryKey: ["users", page],
-    queryFn: () => api.listUsers(page, PAGE_SIZE),
+    ...usersQuery(page),
     placeholderData: keepPreviousData,
   });
 
@@ -216,7 +215,7 @@ function UsersPageInner() {
         <Card>
           <CardContent className="px-0">
             <DataTable columns={columns} data={data.items} getRowId={(u) => u.id} rowClassName={() => (isAdmin ? "relative cursor-pointer" : undefined)} />
-            <TablePagination page={page} pageSize={PAGE_SIZE} total={data.total} onPageChange={setPage} />
+            <TablePagination page={page} pageSize={USERS_PAGE_SIZE} total={data.total} onPageChange={setPage} />
           </CardContent>
         </Card>
       )}

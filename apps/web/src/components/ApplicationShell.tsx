@@ -28,9 +28,10 @@ import { DomainsContent } from "@/components/ApplicationDomainsTab";
 import { VolumesContent } from "@/components/ApplicationVolumesTab";
 import { EnvironmentContent } from "@/components/ApplicationEnvironmentTab";
 import { ResourcesContent } from "@/components/ApplicationResourcesTab";
-import { api, UnauthorizedError, NotFoundError, type ApiApplicationDetail } from "@/lib/api";
+import { api, UnauthorizedError, NotFoundError } from "@/lib/api";
 import { isDeploymentInProgress } from "@/lib/deployment-status";
 import { getQueryParam } from "@/lib/query-params";
+import { applicationQuery } from "@/lib/queries";
 import { toastError } from "@/lib/toast";
 
 // Lazy: @xterm/xterm touches browser globals at import time, which crashes this island's SSR pass if it's
@@ -38,6 +39,15 @@ import { toastError } from "@/lib/toast";
 const TerminalContent = React.lazy(() => import("@/components/ApplicationTerminalTab").then((m) => ({ default: m.TerminalContent })));
 
 // Compact "3d 4h" / "2h 15m" / "45m" / "12s" — coarsest two units, dropping to one once it's the largest
+function Uptime({ since }: { since: string }) {
+  const [, forceTick] = React.useState(0);
+  React.useEffect(() => {
+    const interval = setInterval(() => forceTick((t) => t + 1), 1_000);
+    return () => clearInterval(interval);
+  }, []);
+  return <span className="text-xs text-muted-foreground">Up {formatUptime(since)}</span>;
+}
+
 function formatUptime(since: string): string {
   const totalSeconds = Math.max(0, Math.floor((Date.now() - new Date(since).getTime()) / 1000));
   const days = Math.floor(totalSeconds / 86400);
@@ -72,12 +82,6 @@ function readTabFromUrl(): ApplicationTab {
   return isApplicationTab(raw) ? raw : "overview";
 }
 
-async function fetchApp(id: string): Promise<ApiApplicationDetail> {
-  const app = await api.getApplication(id);
-  document.title = `${app.name} · Kuberfy`;
-  return app;
-}
-
 // A single page/island for the whole application detail view — tabs switch via client state instead of each
 // being its own route, so the header, breadcrumb, and the `application` query it all shares survive a tab
 // change instead of refetching and remounting from a blank page every time.
@@ -109,19 +113,15 @@ function ApplicationShellInner() {
   }
 
   const query = useQuery({
-    queryKey: ["application", id],
-    queryFn: () => fetchApp(id),
+    ...applicationQuery(id),
     refetchInterval: (q) => (q.state.data?.deployments[0] && isDeploymentInProgress(q.state.data.deployments[0].status) ? 2000 : false),
   });
-
-  // Ticks the uptime string forward every second while the container is running; no other state here changes on its own
-  const runningSince = query.data?.deployments[0]?.status === "running" ? query.data.deployments[0].updatedAt : null;
-  const [, forceTick] = React.useState(0);
+  const appName = query.data?.name;
   React.useEffect(() => {
-    if (!runningSince) return;
-    const interval = setInterval(() => forceTick((t) => t + 1), 1_000);
-    return () => clearInterval(interval);
-  }, [runningSince]);
+    if (appName) document.title = `${appName} · Kuberfy`;
+  }, [appName]);
+
+  const runningSince = query.data?.deployments[0]?.status === "running" ? query.data.deployments[0].updatedAt : null;
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["application", id] });
   const deploy = useMutation({
@@ -204,7 +204,7 @@ function ApplicationShellInner() {
         <h1 className="font-heading text-lg font-medium">{app.name}</h1>
         <Badge variant="outline">{app.buildType}</Badge>
         {latestStatus && <DeploymentStatusBadge status={latestStatus} />}
-        {runningSince && <span className="text-xs text-muted-foreground">Up {formatUptime(runningSince)}</span>}
+        {runningSince && <Uptime since={runningSince} />}
         <div className="ml-auto flex items-center gap-2">
           {primaryDomain && (
             <Button size="sm" variant="outline" asChild>

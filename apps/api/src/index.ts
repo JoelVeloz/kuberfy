@@ -35,6 +35,12 @@ app.use("*", logger());
 app.use("*", cors({ origin: (origin) => (env.CORS_ORIGINS?.includes(origin) ? origin : ""), credentials: true }));
 
 app.get("/api/health", (c) => c.json({ ok: true }));
+app.post("/api/auth/sign-out", async (c) => {
+  const response = await auth.handler(c.req.raw);
+  const withClearedCache = new Response(response.body, response);
+  withClearedCache.headers.set("Clear-Site-Data", '"cache"');
+  return withClearedCache;
+});
 app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 app.route("/api/projects", projects);
 app.route("/api/applications", applications);

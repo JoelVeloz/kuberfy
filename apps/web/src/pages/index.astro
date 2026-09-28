@@ -15,9 +15,9 @@ import { ProjectsTable } from "@/components/ProjectsTable";
       <a href="/project-marketplace" class={buttonVariants({ size: "sm", variant: "outline" })}>
         Project templates
       </a>
-      <NewProjectDialog client:load />
+      <NewProjectDialog client:only="react" />
     </div>
   </div>
 
-  <ProjectsTable client:load />
+  <ProjectsTable client:only="react" />
 </Layout>

@@ -5,7 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryProvider } from "@/components/QueryProvider";
-import { api, type ApiExposedPort } from "@/lib/api";
+import type { ApiExposedPort } from "@/lib/api";
+import { exposedPortsQuery } from "@/lib/queries";
 
 const columnHelper = createColumnHelper<ApiExposedPort>();
 const columns = [
@@ -27,7 +28,7 @@ export function ExposedPortsCard() {
 }
 
 function ExposedPortsCardInner() {
-  const ports = useQuery({ queryKey: ["exposed-ports"], queryFn: api.listExposedPorts, refetchInterval: 15_000 });
+  const ports = useQuery({ ...exposedPortsQuery(), refetchInterval: 15_000 });
 
   if (ports.isPending) {
     return (

@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { QueryProvider } from "@/components/QueryProvider";
 import { api } from "@/lib/api";
 import { toastError } from "@/lib/toast";
+import { settingsQuery } from "@/lib/queries";
 
 export function SettingsForm() {
   return (
@@ -21,7 +22,7 @@ export function SettingsForm() {
 function SettingsFormInner() {
   const [domain, setDomain] = React.useState("");
   const queryClient = useQueryClient();
-  const query = useQuery({ queryKey: ["settings"], queryFn: api.getSettings });
+  const query = useQuery(settingsQuery());
   React.useEffect(() => {
     if (query.data) setDomain(query.data.kuberfyDomain ?? "");
   }, [query.data]);

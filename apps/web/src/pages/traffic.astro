@@ -8,6 +8,6 @@ import { TrafficPage } from "@/components/TrafficPage";
   <p class="mt-1 text-xs text-muted-foreground">Live requests across every deployed app.</p>
 
   <div class="mt-6">
-    <TrafficPage client:load />
+    <TrafficPage client:only="react" />
   </div>
 </Layout>
