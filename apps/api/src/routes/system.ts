@@ -32,14 +32,12 @@ function hostCpuPercent(prev: { idle: number; total: number }, next: { idle: num
   return totalDelta > 0 ? Math.round((1 - idleDelta / totalDelta) * 1000) / 10 : 0;
 }
 
-// os.freemem() only counts truly unused pages — on Linux almost all "free" RAM gets used as disk cache, which is
-// reclaimable on demand and not real pressure (the same reason `free -h`'s "available" column differs from "free").
-// /proc/meminfo's MemAvailable already accounts for that, matching what `free`/htop actually report as usage.
 function hostMemory() {
   const meminfo = fs.readFileSync("/proc/meminfo", "utf-8");
-  const totalKb = Number(/MemTotal:\s*(\d+)/.exec(meminfo)?.[1] ?? 0);
-  const availableKb = Number(/MemAvailable:\s*(\d+)/.exec(meminfo)?.[1] ?? 0);
-  return { memTotal: totalKb * 1024, memUsed: (totalKb - availableKb) * 1024 };
+  const kb = (field: string) => Number(new RegExp(`^${field}:\\s*(\\d+)`, "m").exec(meminfo)?.[1] ?? 0);
+  const totalKb = kb("MemTotal");
+  const reclaimableKb = kb("MemFree") + kb("Buffers") + kb("Cached") + kb("SReclaimable") - kb("Shmem");
+  return { memTotal: totalKb * 1024, memUsed: Math.max(0, totalKb - reclaimableKb) * 1024 };
 }
 
 type ContainerList = Awaited<ReturnType<typeof docker.listContainers>>;
