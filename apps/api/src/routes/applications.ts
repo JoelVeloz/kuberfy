@@ -41,13 +41,12 @@ applications.post("/", zValidator("json", apiCreateApplication), async (c) => {
 applications.get("/:id", async (c) => {
   const found = await db.query.application.findFirst({
     where: eq(application.id, c.req.param("id")),
-    // registryPassword is write-only — never included in a read response
     columns: { registryPassword: false },
     with: {
-      // only the latest — the full history is paginated separately via /:id/deployments
       deployments: { orderBy: desc(deployment.createdAt), limit: 1 },
       domains: true,
       volumes: true,
+      project: { columns: { name: true } },
     },
   });
   if (!found) throw new HTTPException(StatusCodes.NOT_FOUND, { message: "Application not found" });

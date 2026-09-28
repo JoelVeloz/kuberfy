@@ -61,6 +61,12 @@ app.use("/*", async (c, next) => {
   return next();
 });
 
+app.use("/*", async (c, next) => {
+  await next();
+  if (!c.res.ok) return;
+  if (c.req.path.startsWith("/_astro/")) c.header("Cache-Control", "public, max-age=31536000, immutable");
+  else if (c.res.headers.get("content-type")?.startsWith("text/html")) c.header("Cache-Control", "private, max-age=30");
+});
 app.use("/*", serveStatic({ root: "./public" }));
 
 app.notFound((c) => c.json({ error: "Not found" }, StatusCodes.NOT_FOUND));

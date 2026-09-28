@@ -70,10 +70,10 @@ export interface ApiProjectWithApplications extends ApiProjectWithCount {
 }
 
 export interface ApiApplicationDetail extends ApiApplication {
-  // only the latest — the full history is fetched separately, paginated, via api.listDeployments
   deployments: ApiDeployment[];
   domains: ApiDomain[];
   volumes: ApiVolume[];
+  project: { name: string } | null;
 }
 
 // Shared shape for every paginated list endpoint.

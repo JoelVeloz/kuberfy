@@ -113,11 +113,6 @@ function ApplicationShellInner() {
     queryFn: () => fetchApp(id),
     refetchInterval: (q) => (q.state.data?.deployments[0] && isDeploymentInProgress(q.state.data.deployments[0].status) ? 2000 : false),
   });
-  const project = useQuery({
-    queryKey: ["project", query.data?.projectId],
-    queryFn: () => api.getProject(query.data!.projectId),
-    enabled: !!query.data,
-  });
 
   // Ticks the uptime string forward every second while the container is running; no other state here changes on its own
   const runningSince = query.data?.deployments[0]?.status === "running" ? query.data.deployments[0].updatedAt : null;
@@ -180,7 +175,7 @@ function ApplicationShellInner() {
   if (query.error) return <p className="text-xs text-muted-foreground">Failed to load application.</p>;
 
   const app = query.data;
-  const projectName = project.data?.name ?? "Project";
+  const projectName = app.project?.name ?? "Project";
   const latestStatus = app.deployments[0]?.status;
   const deploying = deploy.isPending || isDeploymentInProgress(latestStatus);
   const hasDeployedContainer = app.deployments.length > 0 && latestStatus !== undefined;
