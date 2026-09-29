@@ -24,6 +24,8 @@ COPY --from=api-build /app/node_modules/geoip-lite/data/geoip-country.dat /app/n
 # user below can write to it without an entrypoint script.
 RUN mkdir -p /data && chown -R kuberfy:kuberfy /app /data
 
+ARG KUBERFY_VERSION=dev
+ENV KUBERFY_VERSION=$KUBERFY_VERSION
 ENV DATABASE_PATH=/data/kuberfy.db
 ENV GEODATADIR=/app/geoip-data/
 VOLUME /data

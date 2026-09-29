@@ -16,6 +16,8 @@ const schema = z.object({
   // same image reference update.sh/scripts/update.ts pull from the host CLI — kept in sync so the Settings page's
   // Update button and `kuberfy update` always check/apply the exact same tag.
   KUBERFY_IMAGE: z.string().default("ghcr.io/joelveloz/kuberfy:latest"),
+  KUBERFY_VERSION: z.string().min(1).default("dev"),
+  KUBERFY_TELEMETRY_DISABLED: z.stringbool().default(false),
 });
 
 export const env = schema.parse(process.env);
