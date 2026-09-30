@@ -58,11 +58,9 @@ app.route("/api/observability", observability);
 app.route("/api/system", system);
 app.route("/api/users", users);
 
-// Guards the static dashboard pages server-side so an unauthenticated request never receives the
-// dashboard HTML at all — avoids the flash of protected content that a client-side-only redirect causes.
 app.use("/*", async (c, next) => {
   const path = c.req.path;
-  const isPublic = path.startsWith("/_astro") || path === "/login" || path.startsWith("/login/") || path.includes(".");
+  const isPublic = path.startsWith("/api/") || path.startsWith("/_astro") || path === "/login" || path.startsWith("/login/") || path.includes(".");
   if (isPublic) return next();
   const session = await auth.api.getSession({ headers: c.req.raw.headers });
   if (!session) return c.redirect(`/login?redirect=${encodeURIComponent(path)}`);
