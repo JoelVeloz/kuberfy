@@ -16,13 +16,11 @@ FROM alpine:3.20
 RUN apk add --no-cache ca-certificates libstdc++ libgcc git \
     && addgroup -g 1000 kuberfy && adduser -D -u 1000 -G kuberfy kuberfy
 WORKDIR /app
-COPY --from=api-build /app/kuberfy ./kuberfy
-COPY apps/api/drizzle ./drizzle
-COPY --from=web-build /web/dist ./public
-COPY --from=api-build /app/node_modules/geoip-lite/data/geoip-country.dat /app/node_modules/geoip-lite/data/geoip-country6.dat ./geoip-data/
-# A named volume mounted over this path inherits its ownership on first creation — pre-chown so the non-root
-# user below can write to it without an entrypoint script.
-RUN mkdir -p /data && chown -R kuberfy:kuberfy /app /data
+COPY --chown=kuberfy:kuberfy --from=api-build /app/kuberfy ./kuberfy
+COPY --chown=kuberfy:kuberfy apps/api/drizzle ./drizzle
+COPY --chown=kuberfy:kuberfy --from=web-build /web/dist ./public
+COPY --chown=kuberfy:kuberfy --from=api-build /app/node_modules/geoip-lite/data/geoip-country.dat /app/node_modules/geoip-lite/data/geoip-country6.dat ./geoip-data/
+RUN mkdir -p /data && chown kuberfy:kuberfy /app /data
 
 ARG KUBERFY_VERSION=dev
 ENV KUBERFY_VERSION=$KUBERFY_VERSION
