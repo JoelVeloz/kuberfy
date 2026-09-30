@@ -74,6 +74,7 @@ export const application = sqliteTable(
     // hard cap passed to Docker as HostConfig.Memory — keeps one runaway service from starving the host
     memoryLimitMb: integer("memory_limit_mb").notNull().default(defaultAppSize.memoryLimitMb),
     cpuLimit: real("cpu_limit").notNull().default(defaultAppSize.cpuLimit),
+    hostPort: integer("host_port").unique(),
     ...timestamps,
   },
   // SQLite doesn't index foreign keys on its own — every "this project's applications" lookup (the projects

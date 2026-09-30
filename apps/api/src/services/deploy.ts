@@ -128,6 +128,7 @@ export function buildDomainLabels(app: RoutedApplication, domains: (typeof domai
   if (domains.length === 0) return labels;
 
   labels["traefik.enable"] = "true";
+  labels["traefik.swarm.network"] = DEPLOY_NETWORK;
   const isDatabase = isPostgresApp(app);
   for (const d of domains) {
     const routerName = `${app.id}-${d.id}`;
@@ -176,11 +177,17 @@ export async function applyApplicationDomains(applicationId: string) {
   } catch {
     return;
   }
-  const app = await db.query.application.findFirst({ where: eq(application.id, applicationId), columns: { id: true, buildType: true, repoUrl: true } });
+  const app = await db.query.application.findFirst({ where: eq(application.id, applicationId), columns: { id: true, buildType: true, repoUrl: true, hostPort: true } });
   if (!app) return;
   const domains = await db.query.domain.findMany({ where: eq(domain.applicationId, applicationId) });
-  const labels = buildDomainLabels(app, domains);
-  await service.update({ version: info.Version.Index, ...info.Spec, Labels: labels });
+  await service.update({ version: info.Version.Index, ...info.Spec, Labels: buildDomainLabels(app, domains), EndpointSpec: hostPortEndpoint(app, domains) });
+}
+
+function hostPortEndpoint(app: Pick<typeof application.$inferSelect, "buildType" | "repoUrl" | "hostPort">, domains: (typeof domain.$inferSelect)[]) {
+  if (app.hostPort == null) return { Ports: [] };
+  const primaryDomain = domains.find((d) => d.isPrimary) ?? domains[0];
+  const targetPort = isPostgresApp(app) ? POSTGRES_PORT : (primaryDomain?.port ?? 3000);
+  return { Ports: [{ Protocol: "tcp" as const, PublishedPort: app.hostPort, TargetPort: targetPort }] };
 }
 
 async function deploy(app: typeof application.$inferSelect, deploymentId: string) {
@@ -217,9 +224,7 @@ async function deploy(app: typeof application.$inferSelect, deploymentId: string
   for (const v of appVolumes) log(`Mounting persistent volume at ${v.mountPath}`);
 
   log(`Creating service ${serviceName} from ${imageTag}`);
-  // A Swarm service, not a plain container — Traefik's swarm provider only ever sees labels on the service
-  // itself (never on the task's real container), so this is what makes deployed apps show up in Traefik
-  // without a second, container-level provider running alongside it.
+  const endpoint = hostPortEndpoint(app, domains);
   const service = await docker.createService({
     Name: serviceName,
     Labels: labels,
@@ -236,8 +241,10 @@ async function deploy(app: typeof application.$inferSelect, deploymentId: string
       Networks: [{ Target: DEPLOY_NETWORK }],
     },
     Mode: { Replicated: { Replicas: 1 } },
+    EndpointSpec: endpoint,
   });
-  log(`Service created (${service.id.slice(0, 12)})`);
+  const published = endpoint.Ports[0];
+  log(`Service created (${service.id.slice(0, 12)})${published ? ` — host port ${published.PublishedPort} → container port ${published.TargetPort}` : ""}`);
 
   if (!(await db.query.application.findFirst({ where: eq(application.id, app.id), columns: { id: true } }))) {
     log("Application was deleted during the deploy, removing its service");

@@ -25,6 +25,7 @@ export interface ApiApplication {
   envVars: string | null;
   memoryLimitMb: number;
   cpuLimit: number;
+  hostPort: number | null;
   // registryPassword is write-only — never sent back by the API
   registryUsername: string | null;
   createdAt: string;
@@ -332,6 +333,12 @@ export const api = {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ memoryLimitMb }),
+    }),
+  setApplicationHostPort: (id: string, enabled: boolean) =>
+    request<{ hostPort: number | null }>(`/api/applications/${id}/host-port`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
     }),
   updateApplicationCpuLimit: (id: string, cpuLimit: number) =>
     request<ApiApplication>(`/api/applications/${id}`, {

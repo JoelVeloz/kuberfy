@@ -249,6 +249,38 @@ describe("Projects", () => {
       expect(await res.json()).toEqual({ error: "No deployment to stop" });
     });
 
+    describe("Host port", () => {
+      const setHostPort = (id: string, enabled: boolean) =>
+        app.request(`/api/applications/${id}/host-port`, authed({ method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled }) }));
+      let assigned: number;
+
+      it("a new application has no host port", async () => {
+        const body = await (await app.request(`/api/applications/${applicationId}`, authed())).json();
+        expect(body.hostPort).toBeNull();
+      });
+
+      it("enabling assigns a port in the 10000-20000 range", async () => {
+        const res = await setHostPort(applicationId, true);
+        expect(res.status).toBe(200);
+        assigned = (await res.json()).hostPort;
+        expect(assigned).toBeGreaterThanOrEqual(10000);
+        expect(assigned).toBeLessThanOrEqual(20000);
+      });
+
+      it("enabling again keeps the same port", async () => {
+        expect((await (await setHostPort(applicationId, true)).json()).hostPort).toBe(assigned);
+      });
+
+      it("disabling releases it", async () => {
+        expect((await (await setHostPort(applicationId, false)).json()).hostPort).toBeNull();
+        expect((await (await app.request(`/api/applications/${applicationId}`, authed())).json()).hostPort).toBeNull();
+      });
+
+      it("404s for an unknown id", async () => {
+        expect((await setHostPort(crypto.randomUUID(), true)).status).toBe(404);
+      });
+    });
+
     describe("Domains", () => {
       let domainId: string;
 

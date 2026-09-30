@@ -9,8 +9,10 @@ import { db } from "../db";
 import { apiCreateApplication, apiUpdateApplication, application, deployment } from "../db/schema/app";
 import { requireAuth } from "../lib/auth-middleware";
 import { paginationOffset, paginationQuery } from "../lib/pagination";
+import { z } from "zod";
 import {
   activeBuildLogs,
+  applyApplicationDomains,
   buildLogEvents,
   deleteApplication,
   docker,
@@ -21,6 +23,7 @@ import {
   runDeployment,
   stopDeployment,
 } from "../services/deploy";
+import { findAvailablePort } from "../services/port-registry";
 
 export const applications = new Hono();
 
@@ -36,6 +39,27 @@ applications.post("/", zValidator("json", apiCreateApplication), async (c) => {
   const input = c.req.valid("json");
   const [created] = await db.insert(application).values(input).returning();
   return c.json(omitRegistryPassword(created!), StatusCodes.CREATED);
+});
+
+applications.put("/:id/host-port", zValidator("json", z.object({ enabled: z.boolean() })), async (c) => {
+  const id = c.req.param("id");
+  const found = await db.query.application.findFirst({ where: eq(application.id, id), columns: { hostPort: true } });
+  if (!found) throw new HTTPException(StatusCodes.NOT_FOUND, { message: "Application not found" });
+
+  let hostPort: number | null = null;
+  if (c.req.valid("json").enabled) {
+    hostPort = found.hostPort;
+    if (hostPort == null) {
+      const taken = await db.query.application.findMany({ columns: { hostPort: true } });
+      const result = await findAvailablePort(new Set(taken.flatMap((a) => (a.hostPort == null ? [] : [a.hostPort]))));
+      if (!result.available) throw new HTTPException(StatusCodes.CONFLICT, { message: result.reason });
+      hostPort = result.port;
+    }
+  }
+
+  await db.update(application).set({ hostPort, updatedAt: new Date() }).where(eq(application.id, id));
+  await applyApplicationDomains(id);
+  return c.json({ hostPort });
 });
 
 applications.get("/:id", async (c) => {
