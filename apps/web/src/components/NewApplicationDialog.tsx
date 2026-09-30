@@ -100,8 +100,7 @@ export function NewApplicationDialog({ projectId }: { projectId: string }) {
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="app-dockerfile-path">Dockerfile path</Label>
-                <Input id="app-dockerfile-path" placeholder="Dockerfile" value={dockerfilePath} onChange={(e) => setDockerfilePath(e.target.value)} className="font-mono" />
-                <p className="text-xs text-muted-foreground">Relative to the repo root — e.g. examples/with-docker/Dockerfile. Defaults to Dockerfile at the root.</p>
+                <Input id="app-dockerfile-path" placeholder="Dockerfile" value={dockerfilePath} onChange={(e) => setDockerfilePath(e.target.value)} className="font-mono text-xs" />
               </div>
             </>
           )}
