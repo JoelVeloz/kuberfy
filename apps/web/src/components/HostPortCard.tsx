@@ -1,10 +1,14 @@
-import { CopyIcon } from "@phosphor-icons/react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import * as React from "react";
+import { ArrowRight, CopyIcon } from "@phosphor-icons/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { api, type ApiApplicationDetail } from "@/lib/api";
+import { settingsQuery } from "@/lib/queries";
 import { toastError } from "@/lib/toast";
 
 async function copy(text: string) {
@@ -16,34 +20,88 @@ async function copy(text: string) {
   toast.success("Address copied.");
 }
 
+function parsePort(value: string, min: number) {
+  const port = Number(value);
+  return Number.isInteger(port) && port >= min && port <= 65535 ? port : null;
+}
+
 export function HostPortCard({ app }: { app: ApiApplicationDetail }) {
   const queryClient = useQueryClient();
-  const toggle = useMutation({
-    mutationFn: (enabled: boolean) => api.setApplicationHostPort(app.id, enabled),
-    onSuccess: ({ hostPort }) => {
-      toast.success(hostPort == null ? "Direct access disabled." : `Direct access on port ${hostPort}.`);
+  const settings = useQuery(settingsQuery());
+  const [hostPort, setHostPort] = React.useState(String(app.hostPort ?? ""));
+  const [containerPort, setContainerPort] = React.useState(String(app.containerPort ?? ""));
+  React.useEffect(() => {
+    setHostPort(String(app.hostPort ?? ""));
+    setContainerPort(String(app.containerPort ?? ""));
+  }, [app.hostPort, app.containerPort]);
+
+  const save = useMutation({
+    mutationFn: (body: { enabled: boolean; hostPort?: number; containerPort?: number }) => api.setApplicationHostPort(app.id, body),
+    onSuccess: (ports) => {
+      toast.success(ports.hostPort == null ? "Public port closed." : `Public port ${ports.hostPort} → container port ${ports.containerPort}.`);
       queryClient.invalidateQueries({ queryKey: ["application", app.id] });
     },
-    onError: (err) => toastError(err, "Failed to update direct access."),
+    onError: (err) => toastError(err, "Failed to update the public port."),
   });
-  const address = app.hostPort == null ? null : `${window.location.hostname}:${app.hostPort}`;
+
+  const enabled = app.hostPort != null;
+  const parsedHost = parsePort(hostPort, 1024);
+  const parsedContainer = parsePort(containerPort, 1);
+  const changed = parsedHost !== app.hostPort || parsedContainer !== app.containerPort;
+  const address = enabled && settings.data?.kuberfyDomain ? `${settings.data.kuberfyDomain}:${app.hostPort}` : null;
 
   return (
     <div>
-      <h2 className="font-heading text-sm font-medium">Direct access</h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="font-heading text-sm font-medium">Public port</h2>
+        <Switch aria-label="Public port" checked={enabled} disabled={save.isPending} onCheckedChange={(on) => save.mutate({ enabled: on })} />
+      </div>
       <Card className="mt-3">
-        <CardContent className="flex items-center justify-between gap-4">
-          {address ? (
-            <div className="flex min-w-0 items-center gap-1">
-              <p className="truncate font-mono text-sm font-medium">{address}</p>
-              <Button variant="ghost" size="icon-sm" aria-label="Copy address" onClick={() => copy(address)}>
-                <CopyIcon />
-              </Button>
-            </div>
+        <CardContent className="flex flex-col gap-4">
+          {!enabled ? (
+            <p className="text-xs text-muted-foreground">
+              Off. Turn it on to reach this app from outside the server at{" "}
+              <span className="font-mono">{settings.data?.kuberfyDomain ?? "your-domain"}:port</span>, straight to the container without TLS.
+            </p>
           ) : (
-            <p className="text-xs text-muted-foreground">Expose a public port on this server, bypassing domains and TLS.</p>
+            <>
+              {settings.data &&
+                (address ? (
+                  <div className="flex items-center gap-1">
+                    <p className="min-w-0 truncate font-mono text-sm font-medium">{address}</p>
+                    <Button variant="ghost" size="icon-sm" aria-label="Copy address" onClick={() => copy(address)}>
+                      <CopyIcon />
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Set kuberfy's domain in{" "}
+                    <a href="/settings" className="underline">
+                      Settings
+                    </a>{" "}
+                    to get this app's public address.
+                  </p>
+                ))}
+              <div className="flex flex-wrap items-end gap-3 border-t pt-4">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="host-port">External port (internet)</Label>
+                  <Input id="host-port" type="number" min={1024} max={65535} className="w-36 font-mono" value={hostPort} onChange={(e) => setHostPort(e.target.value)} />
+                </div>
+                <ArrowRight className="mb-2.5 text-muted-foreground" />
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="container-port">Internal port (container)</Label>
+                  <Input id="container-port" type="number" min={1} max={65535} className="w-36 font-mono" value={containerPort} onChange={(e) => setContainerPort(e.target.value)} />
+                </div>
+                <Button
+                  size="sm"
+                  disabled={!changed || parsedHost == null || parsedContainer == null || save.isPending}
+                  onClick={() => save.mutate({ enabled: true, hostPort: parsedHost!, containerPort: parsedContainer! })}
+                >
+                  {save.isPending ? "Saving…" : "Save"}
+                </Button>
+              </div>
+            </>
           )}
-          <Switch aria-label="Direct access" checked={address != null} disabled={toggle.isPending} onCheckedChange={(enabled) => toggle.mutate(enabled)} />
         </CardContent>
       </Card>
     </div>

@@ -75,6 +75,7 @@ export const application = sqliteTable(
     memoryLimitMb: integer("memory_limit_mb").notNull().default(defaultAppSize.memoryLimitMb),
     cpuLimit: real("cpu_limit").notNull().default(defaultAppSize.cpuLimit),
     hostPort: integer("host_port").unique(),
+    containerPort: integer("container_port"),
     ...timestamps,
   },
   // SQLite doesn't index foreign keys on its own — every "this project's applications" lookup (the projects
@@ -181,7 +182,6 @@ export const domain = sqliteTable("domains", {
   // the domain the app's "Visit" button opens; exactly one per application (enforced in the route, not the schema)
   isPrimary: integer("is_primary", { mode: "boolean" }).notNull().default(false),
   sslEnabled: integer("ssl_enabled", { mode: "boolean" }).notNull().default(true),
-  allowlist: text("allowlist"),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .default(sql`(unixepoch())`),
@@ -197,19 +197,15 @@ export const domainRelations = relations(domain, ({ one }) => ({
 // RFC-1123-style hostname: lowercase alphanumeric labels (no leading/trailing hyphen), dot-separated; bare "localhost" allowed too
 const HOSTNAME_REGEX = /^(?:localhost|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)$/;
 
-const allowlist = z.array(z.union([z.ipv4(), z.ipv6(), z.cidrv4(), z.cidrv6()])).min(1);
-
 export const apiCreateDomain = z.object({
   applicationId: z.string().min(1),
   host: z.string().min(1).regex(HOSTNAME_REGEX, "Must be a valid hostname"),
   port: z.number().int().positive(),
-  allowlist: allowlist.optional(),
 });
 
 export const apiUpdateDomain = z.object({
   port: z.number().int().positive().optional(),
   sslEnabled: z.boolean().optional(),
-  allowlist: allowlist.optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -334,12 +330,10 @@ export const setting = sqliteTable("settings", {
   // bearer token for the /api/mcp endpoint — remote MCP clients have no browser session to authenticate with,
   // so this is the whole instance's credential for it instead. Null until generated from the MCP settings page.
   mcpToken: text("mcp_token"),
-  remoteDatabaseAccess: integer("remote_database_access", { mode: "boolean" }).notNull().default(false),
   ...timestamps,
 });
 
 export const apiUpdateSetting = z.object({
   kuberfyDomain: z.string().min(1).optional(),
   passkeyEnabled: z.boolean().optional(),
-  remoteDatabaseAccess: z.boolean().optional(),
 });

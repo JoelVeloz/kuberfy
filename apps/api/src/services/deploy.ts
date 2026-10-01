@@ -7,8 +7,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import simpleGit from "simple-git";
 import { db } from "../db";
 import { application, deployment, domain, volume } from "../db/schema/app";
-import { POSTGRES_ENTRYPOINT, POSTGRES_TLS_OPTIONS } from "./traefik";
-import { isPostgresApp, POSTGRES_PORT } from "../lib/database-image";
+import { databasePort } from "../lib/database-image";
 
 export const docker = new Docker();
 // Deployed apps get their own network, separate from kuberfy-network (where kuberfy's own dashboard/API and its
@@ -129,13 +128,8 @@ export function buildDomainLabels(app: RoutedApplication, domains: (typeof domai
 
   labels["traefik.enable"] = "true";
   labels["traefik.swarm.network"] = DEPLOY_NETWORK;
-  const isDatabase = isPostgresApp(app);
   for (const d of domains) {
     const routerName = `${app.id}-${d.id}`;
-    if (isDatabase) {
-      Object.assign(labels, databaseDomainLabels(routerName, d.host, d.allowlist));
-      continue;
-    }
     const isLocalhost = d.host === "localhost" || d.host.endsWith(".localhost");
     const tlsRouter = d.sslEnabled && !isLocalhost;
     labels[`traefik.http.routers.${routerName}.rule`] = `Host(\`${d.host}\`)`;
@@ -153,22 +147,6 @@ export function buildDomainLabels(app: RoutedApplication, domains: (typeof domai
   return labels;
 }
 
-function databaseDomainLabels(router: string, host: string, allowlist: string | null): Record<string, string> {
-  const labels: Record<string, string> = {
-    [`traefik.tcp.routers.${router}.rule`]: `HostSNI(\`${host}\`)`,
-    [`traefik.tcp.routers.${router}.entrypoints`]: POSTGRES_ENTRYPOINT,
-    [`traefik.tcp.routers.${router}.service`]: router,
-    [`traefik.tcp.routers.${router}.tls.certresolver`]: "le",
-    [`traefik.tcp.routers.${router}.tls.options`]: POSTGRES_TLS_OPTIONS,
-    [`traefik.tcp.services.${router}.loadbalancer.server.port`]: String(POSTGRES_PORT),
-  };
-  if (allowlist) {
-    labels[`traefik.tcp.middlewares.${router}-allow.ipallowlist.sourcerange`] = allowlist;
-    labels[`traefik.tcp.routers.${router}.middlewares`] = `${router}-allow`;
-  }
-  return labels;
-}
-
 export async function applyApplicationDomains(applicationId: string) {
   const service = docker.getService(`kuberfy-${applicationId}`);
   let info: Awaited<ReturnType<typeof service.inspect>>;
@@ -177,17 +155,32 @@ export async function applyApplicationDomains(applicationId: string) {
   } catch {
     return;
   }
-  const app = await db.query.application.findFirst({ where: eq(application.id, applicationId), columns: { id: true, buildType: true, repoUrl: true, hostPort: true } });
+  const app = await db.query.application.findFirst({ where: eq(application.id, applicationId), columns: { id: true, buildType: true, repoUrl: true, hostPort: true, containerPort: true } });
   if (!app) return;
   const domains = await db.query.domain.findMany({ where: eq(domain.applicationId, applicationId) });
-  await service.update({ version: info.Version.Index, ...info.Spec, Labels: buildDomainLabels(app, domains), EndpointSpec: hostPortEndpoint(app, domains) });
+  await service.update({ version: info.Version.Index, ...info.Spec, Labels: buildDomainLabels(app, domains), EndpointSpec: await hostPortEndpoint(app, domains) });
 }
 
-function hostPortEndpoint(app: Pick<typeof application.$inferSelect, "buildType" | "repoUrl" | "hostPort">, domains: (typeof domain.$inferSelect)[]) {
+type PortedApplication = Pick<typeof application.$inferSelect, "id" | "buildType" | "repoUrl" | "hostPort" | "containerPort">;
+
+export async function defaultContainerPort(app: Omit<PortedApplication, "hostPort" | "containerPort">, domains: (typeof domain.$inferSelect)[]): Promise<number | null> {
+  const known = databasePort(app) ?? (domains.find((d) => d.isPrimary) ?? domains[0])?.port;
+  if (known) return known;
+  const imageTag = app.buildType === "image" ? app.repoUrl : (await latestDeployment(app.id))?.imageTag;
+  if (!imageTag) return null;
+  try {
+    const exposed = Object.keys((await docker.getImage(imageTag).inspect()).Config?.ExposedPorts ?? {}).find((p) => p.endsWith("/tcp"));
+    return exposed ? Number.parseInt(exposed, 10) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function hostPortEndpoint(app: PortedApplication, domains: (typeof domain.$inferSelect)[]) {
   if (app.hostPort == null) return { Ports: [] };
-  const primaryDomain = domains.find((d) => d.isPrimary) ?? domains[0];
-  const targetPort = isPostgresApp(app) ? POSTGRES_PORT : (primaryDomain?.port ?? 3000);
-  return { Ports: [{ Protocol: "tcp" as const, PublishedPort: app.hostPort, TargetPort: targetPort }] };
+  const targetPort = app.containerPort ?? (await defaultContainerPort(app, domains));
+  if (targetPort == null) return { Ports: [] };
+  return { Ports: [{ Protocol: "tcp" as const, PublishedPort: app.hostPort, TargetPort: targetPort, PublishMode: "host" as const }] };
 }
 
 async function deploy(app: typeof application.$inferSelect, deploymentId: string) {
@@ -224,7 +217,7 @@ async function deploy(app: typeof application.$inferSelect, deploymentId: string
   for (const v of appVolumes) log(`Mounting persistent volume at ${v.mountPath}`);
 
   log(`Creating service ${serviceName} from ${imageTag}`);
-  const endpoint = hostPortEndpoint(app, domains);
+  const endpoint = await hostPortEndpoint(app, domains);
   const service = await docker.createService({
     Name: serviceName,
     Labels: labels,

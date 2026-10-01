@@ -250,34 +250,78 @@ describe("Projects", () => {
     });
 
     describe("Host port", () => {
-      const setHostPort = (id: string, enabled: boolean) =>
-        app.request(`/api/applications/${id}/host-port`, authed({ method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled }) }));
+      const setHostPort = (id: string, body: Record<string, unknown>) =>
+        app.request(`/api/applications/${id}/host-port`, authed({ method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }));
       let assigned: number;
+      let databaseId: string;
 
-      it("a new application has no host port", async () => {
+      it("a new application has no public port", async () => {
         const body = await (await app.request(`/api/applications/${applicationId}`, authed())).json();
         expect(body.hostPort).toBeNull();
+        expect(body.containerPort).toBeNull();
       });
 
-      it("enabling assigns a port in the 10000-20000 range", async () => {
-        const res = await setHostPort(applicationId, true);
+      it("refuses to guess the container port when it can't be detected", async () => {
+        const res = await setHostPort(applicationId, { enabled: true });
+        expect(res.status).toBe(400);
+      });
+
+      it("enabling with a container port picks a public port in 10000-20000", async () => {
+        const res = await setHostPort(applicationId, { enabled: true, containerPort: 8080 });
         expect(res.status).toBe(200);
-        assigned = (await res.json()).hostPort;
+        const body = await res.json();
+        assigned = body.hostPort;
         expect(assigned).toBeGreaterThanOrEqual(10000);
         expect(assigned).toBeLessThanOrEqual(20000);
+        expect(body.containerPort).toBe(8080);
       });
 
-      it("enabling again keeps the same port", async () => {
-        expect((await (await setHostPort(applicationId, true)).json()).hostPort).toBe(assigned);
+      it("enabling again keeps both ports", async () => {
+        expect(await (await setHostPort(applicationId, { enabled: true })).json()).toEqual({ hostPort: assigned, containerPort: 8080 });
       });
 
-      it("disabling releases it", async () => {
-        expect((await (await setHostPort(applicationId, false)).json()).hostPort).toBeNull();
-        expect((await (await app.request(`/api/applications/${applicationId}`, authed())).json()).hostPort).toBeNull();
+      it("the public port is editable", async () => {
+        expect(await (await setHostPort(applicationId, { enabled: true, hostPort: 15555 })).json()).toEqual({ hostPort: 15555, containerPort: 8080 });
+      });
+
+      it("a database maps to its engine's port automatically", async () => {
+        const created = await app.request(
+          "/api/applications",
+          authed(json({ projectId, name: "db", repoUrl: "postgres:16-alpine", buildType: "image" })),
+        );
+        databaseId = (await created.json()).id;
+        const body = await (await setHostPort(databaseId, { enabled: true })).json();
+        expect(body.containerPort).toBe(5432);
+        expect(body.hostPort).not.toBe(15555);
+      });
+
+      it("databases can't get HTTP domains", async () => {
+        const res = await app.request("/api/domains", authed(json({ applicationId: databaseId, host: "db.example.com", port: 5432 })));
+        expect(res.status).toBe(400);
+      });
+
+      it("409s when another application already uses the public port", async () => {
+        const res = await setHostPort(databaseId, { enabled: true, hostPort: 15555 });
+        expect(res.status).toBe(409);
+      });
+
+      it("rejects ports reserved for Docker Swarm", async () => {
+        const res = await setHostPort(databaseId, { enabled: true, hostPort: 2377 });
+        expect(res.status).toBe(409);
+        expect((await res.json()).error).toContain("reserved");
+      });
+
+      it("rejects privileged public ports", async () => {
+        expect((await setHostPort(databaseId, { enabled: true, hostPort: 80 })).status).toBe(400);
+      });
+
+      it("disabling clears both ports", async () => {
+        expect(await (await setHostPort(applicationId, { enabled: false })).json()).toEqual({ hostPort: null, containerPort: null });
+        await app.request(`/api/applications/${databaseId}`, authed({ method: "DELETE" }));
       });
 
       it("404s for an unknown id", async () => {
-        expect((await setHostPort(crypto.randomUUID(), true)).status).toBe(404);
+        expect((await setHostPort(crypto.randomUUID(), { enabled: true })).status).toBe(404);
       });
     });
 

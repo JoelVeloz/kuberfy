@@ -14,7 +14,8 @@ import { volumes } from "./routes/volumes";
 import { marketplace } from "./routes/marketplace";
 import { mcp } from "./routes/mcp";
 import { projectTemplates } from "./routes/project-templates";
-import { settings, ensureSettingsSeeded, reconcileRemoteDatabaseAccess } from "./routes/settings";
+import { settings, ensureSettingsSeeded } from "./routes/settings";
+import { removeDatabaseEntrypoint } from "./services/traefik";
 import { observability } from "./routes/observability";
 import { system } from "./routes/system";
 import { users } from "./routes/users";
@@ -25,7 +26,7 @@ import { startTelemetry } from "./services/telemetry";
 await reconcileInterruptedDeployments();
 await ensureSettingsSeeded();
 await unpublishKuberfyPanelPort().catch((err) => console.error("Could not unpublish kuberfy's legacy :3000 port:", err instanceof Error ? err.message : err));
-await reconcileRemoteDatabaseAccess().catch((err) => console.error("Could not reconcile remote database access:", err instanceof Error ? err.message : err));
+await removeDatabaseEntrypoint().catch((err) => console.error("Could not remove the old Postgres entrypoint from Traefik:", err instanceof Error ? err.message : err));
 startTelemetry();
 setInterval(() => reconcileDeploymentStatuses().catch((err) => console.error("reconcileDeploymentStatuses failed:", err)), 30_000);
 

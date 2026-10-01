@@ -7,10 +7,12 @@ import { z } from "zod";
 import { db } from "../db";
 import { application, domain, project, setting, volume } from "../db/schema/app";
 import { appSizes, defaultAppSize } from "../lib/app-sizes";
-import { suggestDomainHost, suggestKuberfyDomainHost } from "../lib/auto-domain";
-import { domainTarget, isPostgresApp } from "../lib/database-image";
+import { suggestDomainHost } from "../lib/auto-domain";
+import { databasePort } from "../lib/database-image";
 import { newVolume } from "../lib/volumes";
 import { applyApplicationDomains, deleteApplication, runDeployment } from "../services/deploy";
+import { MAX_HOST_PORT, MIN_HOST_PORT } from "../services/port-registry";
+import { setPublicPort } from "../services/public-port";
 import { omitRegistryPassword } from "./applications";
 
 // Deliberately minimal — create, deploy, and delete projects/applications, plus the one piece of reconfiguration
@@ -203,7 +205,7 @@ server.registerTool(
   async ({ applicationId }) => {
     const app = await db.query.application.findFirst({ where: eq(application.id, applicationId) });
     if (!app) throw new Error("Application not found");
-    return textResult({ host: isPostgresApp(app) ? suggestKuberfyDomainHost() : suggestDomainHost(app.id, app.name) });
+    return textResult({ host: suggestDomainHost(app.id, app.name) });
   },
 );
 
@@ -211,31 +213,51 @@ server.registerTool(
   "create_domain",
   {
     description:
-      "Attach a hostname to an application so Traefik routes it there. Call suggest_domain first if you don't already have a host in mind. The first domain on an application becomes its primary one.",
+      "Attach a hostname to an application so Traefik routes HTTP/HTTPS traffic there. Call suggest_domain first if you don't already have a host in mind. The first domain on an application becomes its primary one. Databases can't have domains — they're reached through their public port.",
     inputSchema: {
       applicationId: z.string().min(1),
       host: z.string().min(1).describe("Hostname to route, e.g. from suggest_domain."),
-      port: z.number().int().positive().describe("Container port this host should route to. Ignored for PostgreSQL apps, which always use 5432."),
-      allowlist: z
-        .array(z.union([z.ipv4(), z.ipv6(), z.cidrv4(), z.cidrv6()]))
-        .min(1)
-        .optional()
-        .describe("PostgreSQL apps only, and required there: IPs or CIDR ranges allowed to connect from outside the server."),
+      port: z.number().int().positive().describe("Container port this host should route to."),
     },
   },
-  async ({ applicationId, host, port, allowlist }) => {
+  async ({ applicationId, host, port }) => {
     const app = await db.query.application.findFirst({ where: eq(application.id, applicationId) });
     if (!app) throw new Error("Application not found");
+    if (databasePort(app) != null) throw new Error("Databases don't serve HTTP — turn on their public port instead.");
     const existing = await db.query.domain.findFirst({ where: eq(domain.host, host) });
     if (existing) throw new Error("Domain already in use");
-    const target = domainTarget(app, port, allowlist);
     const siblingCount = await db.$count(domain, eq(domain.applicationId, applicationId));
     const [created] = await db
       .insert(domain)
-      .values({ applicationId, host, ...target, isPrimary: siblingCount === 0 })
+      .values({ applicationId, host, port, isPrimary: siblingCount === 0 })
       .returning();
     await applyApplicationDomains(applicationId);
     return textResult(created);
+  },
+);
+
+server.registerTool(
+  "set_public_port",
+  {
+    description:
+      "Open, change or close an application's public port, reached at <kuberfy domain>:<external port>: a TCP port on this server forwarded to the port the app listens on inside its container (internal). Works for any app, and is how databases are reached from outside the server — other apps on the server always reach it privately at kuberfy-<applicationId>:<internal port>. No TLS and no IP allowlist, so only open it when it's actually needed.",
+    inputSchema: {
+      applicationId: z.string().min(1),
+      enabled: z.boolean().describe("true opens (or updates) the public port, false closes it."),
+      hostPort: z.number().int().min(MIN_HOST_PORT).max(MAX_HOST_PORT).optional().describe("External port. Omit to keep the current one, or to pick a free one in 10000-20000."),
+      containerPort: z
+        .number()
+        .int()
+        .min(1)
+        .max(65535)
+        .optional()
+        .describe("Internal port the app listens on. Omit to detect it (database engine default, the app's domain port, or the image's EXPOSE)."),
+    },
+  },
+  async ({ applicationId, ...input }) => {
+    const ports = await setPublicPort(applicationId, input);
+    const kuberfyDomain = (await db.query.setting.findFirst())?.kuberfyDomain;
+    return textResult({ ...ports, address: ports.hostPort != null && kuberfyDomain ? `${kuberfyDomain}:${ports.hostPort}` : null });
   },
 );
 

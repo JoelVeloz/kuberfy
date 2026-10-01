@@ -2,7 +2,6 @@
 import Layout from "@/layouts/Layout.astro";
 import { SettingsForm } from "@/components/SettingsForm";
 import { ExposedPortsCard } from "@/components/ExposedPortsCard";
-import { RemoteDatabaseAccessCard } from "@/components/RemoteDatabaseAccessCard";
 import { PasskeySignInCard } from "@/components/PasskeyCard";
 import { UpdateCard } from "@/components/UpdateCard";
 ---
@@ -15,7 +14,6 @@ import { UpdateCard } from "@/components/UpdateCard";
     <SettingsForm client:only="react" />
     <UpdateCard client:only="react" />
     <PasskeySignInCard client:only="react" />
-    <RemoteDatabaseAccessCard client:only="react" />
     <ExposedPortsCard client:only="react" />
   </div>
 </Layout>

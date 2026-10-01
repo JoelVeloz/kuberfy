@@ -30,7 +30,6 @@ const islandModules = import.meta.glob([
   "../components/ProjectMarketplaceBrowser.tsx",
   "../components/ProjectsTable.tsx",
   "../components/PruneDockerButton.tsx",
-  "../components/RemoteDatabaseAccessCard.tsx",
   "../components/SettingsForm.tsx",
   "../components/SystemTabs.tsx",
   "../components/TrafficPage.tsx",

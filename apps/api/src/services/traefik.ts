@@ -3,29 +3,20 @@ import { docker } from "./deploy";
 const TRAEFIK = "kuberfy-traefik";
 const DATABASE_PORT = "5432/tcp";
 const DYNAMIC_CONFIG_PATH = "etc/kuberfy/traefik.yml";
-export const POSTGRES_ENTRYPOINT = "postgres";
-export const POSTGRES_TLS_OPTIONS = "postgres@file";
-const DATABASE_ARGS = [`--entrypoints.${POSTGRES_ENTRYPOINT}.address=:5432`, `--providers.file.filename=/${DYNAMIC_CONFIG_PATH}`];
-const DYNAMIC_CONFIG = "tls:\n  options:\n    postgres:\n      alpnProtocols: [postgresql]\n";
+const DATABASE_ARGS = ["--entrypoints.postgres.address=:5432", `--providers.file.filename=/${DYNAMIC_CONFIG_PATH}`];
 
-let queue: Promise<unknown> = Promise.resolve();
-
-export function applyDatabaseEntrypoint(enabled: boolean): Promise<boolean> {
-  const run = queue.then(() => recreateTraefik(enabled));
-  queue = run.catch(() => {});
-  return run;
-}
-
-async function recreateTraefik(enabled: boolean) {
+// TODO: drop once every install has booted a release without the shared Postgres entrypoint.
+export async function removeDatabaseEntrypoint() {
   const current = docker.getContainer(TRAEFIK);
-  const info = await current.inspect();
+  const info = await current.inspect().catch((err: { statusCode?: number }) => {
+    if (err.statusCode === 404) return null;
+    throw err;
+  });
+  if (!info) return false;
 
-  const baseArgs = (info.Config.Cmd ?? []).filter((arg) => !DATABASE_ARGS.includes(arg));
-  const args = enabled ? [...baseArgs, ...DATABASE_ARGS] : baseArgs;
-  const { [DATABASE_PORT]: _, ...basePorts } = info.HostConfig.PortBindings ?? {};
-  const portBindings = enabled ? { ...basePorts, [DATABASE_PORT]: [{ HostPort: "5432" }] } : basePorts;
-  const isApplied = DATABASE_ARGS.every((arg) => info.Config.Cmd?.includes(arg)) === enabled && Boolean(info.HostConfig.PortBindings?.[DATABASE_PORT]) === enabled;
-  if (isApplied) return false;
+  const args = (info.Config.Cmd ?? []).filter((arg) => !DATABASE_ARGS.includes(arg));
+  const { [DATABASE_PORT]: databaseBinding, ...portBindings } = info.HostConfig.PortBindings ?? {};
+  if (!databaseBinding && args.length === (info.Config.Cmd ?? []).length) return false;
 
   const [primaryNetwork, ...otherNetworks] = Object.keys(info.NetworkSettings.Networks);
   const next = await docker.createContainer({
@@ -42,7 +33,6 @@ async function recreateTraefik(enabled: boolean) {
 
   try {
     for (const network of otherNetworks) await docker.getNetwork(network).connect({ Container: next.id });
-    if (enabled) await next.putArchive(Buffer.from(await new Bun.Archive({ [DYNAMIC_CONFIG_PATH]: DYNAMIC_CONFIG }).bytes()), { path: "/" });
     await current.stop();
     await next.start();
     await waitUntilStable(next.id);

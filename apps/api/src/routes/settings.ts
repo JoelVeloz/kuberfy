@@ -8,7 +8,6 @@ import { suggestKuberfyDomainHost } from "../lib/auto-domain";
 import { requireAuth } from "../lib/auth-middleware";
 import { setCachedKuberfyDomain } from "../lib/settings-cache";
 import { applyKuberfyDomain } from "../services/proxy";
-import { applyDatabaseEntrypoint } from "../services/traefik";
 import { docker } from "../services/deploy";
 import { readListeningPorts, wellKnownServiceName } from "../services/host-ports";
 import { getOrCreateMcpToken } from "./mcp";
@@ -19,11 +18,6 @@ export async function ensureSettingsSeeded() {
   const existing = await db.query.setting.findFirst();
   if (existing) return;
   await db.insert(setting).values({});
-}
-
-export async function reconcileRemoteDatabaseAccess() {
-  const existing = await db.query.setting.findFirst();
-  await applyDatabaseEntrypoint(existing?.remoteDatabaseAccess ?? false);
 }
 
 // Pre-auth: the login page needs this to decide whether to show the "Sign in with passkey" button at all.
@@ -44,10 +38,6 @@ settings.get("/", async (c) => {
 });
 
 settings.get("/suggest-domain", (c) => c.json({ host: suggestKuberfyDomainHost() }));
-
-settings.get("/client-ip", (c) =>
-  c.json({ ip: c.req.header("cf-connecting-ip") || c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || c.req.header("x-real-ip") || null }),
-);
 
 // Generates the /api/mcp bearer token on first read, so the MCP setup page always has one to show without a
 // separate "generate" step.
@@ -104,13 +94,5 @@ settings.patch("/", zValidator("json", apiUpdateSetting), async (c) => {
     }
   }
 
-  const proxyRestarting = input.remoteDatabaseAccess !== undefined && input.remoteDatabaseAccess !== (existing?.remoteDatabaseAccess ?? false);
-  if (proxyRestarting) {
-    applyDatabaseEntrypoint(input.remoteDatabaseAccess!).catch(async (err) => {
-      console.error("Could not apply remote database access:", err instanceof Error ? err.message : err);
-      await db.update(setting).set({ remoteDatabaseAccess: !input.remoteDatabaseAccess, updatedAt: new Date() }).where(eq(setting.id, updated.id));
-    });
-  }
-
-  return c.json({ ...updated, liveUpdateError, proxyRestarting });
+  return c.json({ ...updated, liveUpdateError });
 });

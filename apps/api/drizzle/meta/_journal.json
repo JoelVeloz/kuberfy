@@ -218,6 +218,27 @@
       "when": 1790790773310,
       "tag": "0030_calm_genesis",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1790829023900,
+      "tag": "0031_dashing_prima",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1790875181645,
+      "tag": "0032_drop_database_domains",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1790875189175,
+      "tag": "0033_powerful_epoch",
+      "breakpoints": true
     }
   ]
 }

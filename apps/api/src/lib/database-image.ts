@@ -1,17 +1,19 @@
-const POSTGRES_IMAGES = ["postgres", "postgis", "pgvector", "timescaledb"];
+const DATABASE_PORTS: Record<string, number> = {
+  postgres: 5432,
+  postgis: 5432,
+  pgvector: 5432,
+  timescaledb: 5432,
+  mysql: 3306,
+  mariadb: 3306,
+  mongo: 27017,
+  redis: 6379,
+};
 
-export const POSTGRES_PORT = 5432;
-
-export function isPostgresApp(app: { buildType: string; repoUrl: string }) {
-  if (app.buildType !== "image") return false;
-  return POSTGRES_IMAGES.includes(app.repoUrl.split("@")[0]!.split("/").pop()!.split(":")[0]!);
+function imageBaseName(repoUrl: string) {
+  return repoUrl.split("@")[0]!.split("/").pop()!.split(":")[0]!;
 }
 
-export function domainTarget(app: { buildType: string; repoUrl: string }, port: number, allowlist: string[] | undefined) {
-  if (!isPostgresApp(app)) {
-    if (allowlist?.length) throw new Error("Allowed IPs only apply to database domains.");
-    return { port, allowlist: null };
-  }
-  if (!allowlist?.length) throw new Error("A database domain needs at least one allowed IP.");
-  return { port: POSTGRES_PORT, allowlist: allowlist.join(",") };
+export function databasePort(app: { buildType: string; repoUrl: string }): number | null {
+  if (app.buildType !== "image") return null;
+  return DATABASE_PORTS[imageBaseName(app.repoUrl)] ?? null;
 }

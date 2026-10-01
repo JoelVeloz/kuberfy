@@ -26,6 +26,7 @@ export interface ApiApplication {
   memoryLimitMb: number;
   cpuLimit: number;
   hostPort: number | null;
+  containerPort: number | null;
   // registryPassword is write-only — never sent back by the API
   registryUsername: string | null;
   createdAt: string;
@@ -50,7 +51,6 @@ export interface ApiDomain {
   port: number;
   isPrimary: boolean;
   sslEnabled: boolean;
-  allowlist: string | null;
   createdAt: string;
 }
 
@@ -181,12 +181,10 @@ export interface ApiSettings {
   id: string | null;
   kuberfyDomain: string | null;
   passkeyEnabled: boolean;
-  remoteDatabaseAccess: boolean;
   serverIp: string | null;
   // only set on a PATCH response — non-null means the DB saved but the live Traefik/port update didn't apply
   // (e.g. not running under Docker Swarm)
   liveUpdateError?: string | null;
-  proxyRestarting?: boolean;
 }
 
 export interface ApiExposedPort {
@@ -334,11 +332,11 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ memoryLimitMb }),
     }),
-  setApplicationHostPort: (id: string, enabled: boolean) =>
-    request<{ hostPort: number | null }>(`/api/applications/${id}/host-port`, {
+  setApplicationHostPort: (id: string, body: { enabled: boolean; hostPort?: number; containerPort?: number }) =>
+    request<{ hostPort: number | null; containerPort: number | null }>(`/api/applications/${id}/host-port`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enabled }),
+      body: JSON.stringify(body),
     }),
   updateApplicationCpuLimit: (id: string, cpuLimit: number) =>
     request<ApiApplication>(`/api/applications/${id}`, {
@@ -354,17 +352,11 @@ export const api = {
     }),
   deleteApplication: (id: string, opts?: { deleteVolumes?: boolean }) =>
     request<ApiApplication>(`/api/applications/${id}${opts?.deleteVolumes ? "?deleteVolumes=true" : ""}`, { method: "DELETE" }),
-  createDomain: (applicationId: string, host: string, port: number, allowlist?: string[]) =>
+  createDomain: (applicationId: string, host: string, port: number) =>
     request<ApiDomain>("/api/domains", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ applicationId, host, port, allowlist }),
-    }),
-  updateDomainAllowlist: (id: string, allowlist: string[]) =>
-    request<ApiDomain>(`/api/domains/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ allowlist }),
+      body: JSON.stringify({ applicationId, host, port }),
     }),
   suggestDomainHost: (applicationId: string) => request<{ host: string }>(`/api/domains/suggest?applicationId=${applicationId}`),
   updateDomainPort: (id: string, port: number) =>
@@ -409,18 +401,11 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ kuberfyDomain }),
     }),
-  updateRemoteDatabaseAccess: (remoteDatabaseAccess: boolean) =>
-    request<ApiSettings>("/api/settings", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ remoteDatabaseAccess }),
-    }),
   pruneDockerResources: () => request<{ spaceReclaimed: number; imagesDeleted: number }>("/api/system/prune", { method: "POST" }),
   checkKuberfyUpdate: () => request<{ updateAvailable: boolean | null; image: string }>("/api/system/check-update", { method: "POST" }),
   updateKuberfy: () => request<{ ok: true }>("/api/system/update", { method: "POST" }),
   restartInfraContainer: (id: string) => request<{ ok: true }>(`/api/system/infra/${id}/restart`, { method: "POST" }),
   listExposedPorts: () => request<{ ports: ApiExposedPort[] }>("/api/settings/ports"),
-  getClientIp: () => request<{ ip: string | null }>("/api/settings/client-ip"),
   // pre-auth — the login page checks this to decide whether to show the passkey button at all
   getPasskeyEnabled: () => request<{ enabled: boolean }>("/api/settings/passkey-enabled"),
   updatePasskeyEnabled: (passkeyEnabled: boolean) =>
